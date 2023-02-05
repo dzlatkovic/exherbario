@@ -1,8 +1,6 @@
 # Herbarium Research and Botanical Archive Resource (HERBAR)
 
-A herbarium is a collection of dried, documented plant specimens. After collecting specimens in the field, the material is dried and then arranged in herbarium sheets. Each sheet is labeled with relevant information about the specimen, such as its scientific name and collection location. The sheets are then stored in boxes, and the entire collection provides information on the diversity, evolution, and distribution of the plant species in a specific region.
-
-Herbariums are important resources for fields such as botany, ecology, and conservation. Having an online catalog offers significant advantages over non-digital herbariums, including faster and easier access to the data, automated statistical analysis, increased public accessibility to the collection, and the ability for researchers to access the Herbarium from the field through their mobile devices.
+A [herbarium](https://en.wikipedia.org/wiki/Herbarium) is a collection of dried, documented plant specimens that provides information on the diversity, evolution, and distribution of plant species in a specific region. Herbariums are important resources for fields such as botany, ecology, and conservation. HERBAR is an online platform that offers significant advantages over non-digital herbariums, including faster and easier access to the data, automated statistical analysis, increased [public accessibility](https://en.wikipedia.org/wiki/Virtual_herbarium) to the collection, and the ability for researchers to access the Herbarium from the field through their mobile devices
 
 ## Usage
 
