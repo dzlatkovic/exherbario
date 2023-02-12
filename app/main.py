@@ -5,6 +5,7 @@ from app.db import Base
 from app.db.database import engine
 
 from app.field_loc.routes import field_loc_router
+from app.photos.routes import photos_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -12,6 +13,7 @@ Base.metadata.create_all(bind=engine)
 def init_app():
     app = FastAPI()
     app.include_router(field_loc_router)
+    app.include_router(photos_router)
     return app
 
 

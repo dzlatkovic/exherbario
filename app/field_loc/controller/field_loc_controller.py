@@ -36,7 +36,7 @@ class FieldLocController:
     @staticmethod
     def delete_field_loc_by_id(field_loc_id: str):
         try:
-            FieldLocService.delete_course_by_id(field_loc_id)
+            FieldLocService.delete_field_loc_by_id(field_loc_id)
             return Response(content=f"Field location with provided ID: "
                                     f"{field_loc_id} deleted.", status_code=200)
         except FieldLocNotFoundException as e:
