@@ -10,22 +10,32 @@ This application is built using [FastAPI](https://fastapi.tiangolo.com/), a mode
 
 Before you start, make sure you have the following installed:
 
-- Python 3.10 or later
+- Python 3.6 or later
 - Pip (for installing Python packages)
 - MySQL (for the database)
 
 ### Setup
 
 1. Clone the repository and navigate to the project directory
+
 2. Create a virtual environment with `python -m venv venv` and activate it with `source venv/bin/activate` on Linux/macOS or `.\venv\Scripts\activate` on Windows.
+
 3. Install the required packages with `pip install -r requirements.txt`
+
 4. Set the environment variables in a `.env`file . The required environment variables are:
    - `DB_USER`: the MySQL database username
    - `DB_PASSWORD`: the MySQL database password
    - `DB_HOST`: the hostname or IP address of the MySQL server
    - `DB_NAME`: the name of the MySQL database
+
 5. Run the database migrations with `alembic upgrade head`.
-6. Run the application with `uvicorn app.main:app --reload`.
+
+6. Run the application with 
+
+   ```
+   python -m uvicorn app.main:app --reload --reload-delay 5 --host localhost --port 8000
+   ```
+
 7. The API will be available at http://localhost:8000/
 
 ### User Guide
