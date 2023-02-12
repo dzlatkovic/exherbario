@@ -1,0 +1,1 @@
+from .publication_controller import PublicationController
