@@ -23,12 +23,16 @@ Before you start, make sure you have the following installed:
 3. Install the required packages with `pip install -r requirements.txt`
 
 4. Set the environment variables in a `.env`file . The required environment variables are:
-   - `DB_USER`: the MySQL database username
-   - `DB_PASSWORD`: the MySQL database password
-   - `DB_HOST`: the hostname or IP address of the MySQL server
-   - `DB_NAME`: the name of the MySQL database
-
-5. Run the database migrations with `alembic upgrade head`.
+   - `DB_HOST`: the database host URL.
+   - `DB_HOSTNAME`: the hostname of the database server.
+   - `DB_PORT`: the port number of the database server.
+   - `DB_USER`: the username to access the database. 
+   - `DB_PASSWORD`: the password to access the database. 
+   - `DB_NAME`: the name of the database. 
+   - `USER_SECRET`: the secret key used for JSON Web Token (JWT) encoding. 
+   - `ALGORITHM`: the algorithm used for JWT encoding. 
+   
+5. Start MySQL server and execute all commands in `init_db/init_db.sql`
 
 6. Run the application with 
 
