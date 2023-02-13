@@ -8,6 +8,7 @@ from app.field_loc.routes import field_loc_router
 from app.photos.routes import photos_router
 from app.publication.routes import publication_router
 from app.storage.routes import storage_router
+from app.users.routes import user_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -18,6 +19,7 @@ def init_app():
     app.include_router(photos_router)
     app.include_router(publication_router)
     app.include_router(storage_router)
+    app.include_router(user_router)
     return app
 
 
