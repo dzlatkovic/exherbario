@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
-from app.specimen.controller import SpecimenController
+from app.specimen.controller import SpecimenController, SpecimenPublicationController
 from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn
+from app.specimen.schemas import SpecimenPublicationSchema, SpecimenPublicationSchemaIn
 
 specimen_router = APIRouter(prefix="/api/specimen", tags=["Specimen"])
 
@@ -30,3 +31,20 @@ def get_storage_by_id(specimen_id: str):
 @specimen_router.delete("/delete-specimen")
 def delete_specimen_by_id(specimen_id: str):
     return SpecimenController.delete_specimen_by_id(specimen_id)
+
+
+specimen_publication_router = APIRouter(prefix="/api/specimen_publication", tags=["Specimen publication"])
+
+
+@specimen_publication_router.post("/create-new-specimen_publication",
+                                  response_model=SpecimenPublicationSchema)
+def create_new_specimen_publication(specimen_publication: SpecimenPublicationSchemaIn):
+    return SpecimenPublicationController.create_new_specimen_publication(
+        specimen_id=specimen_publication.specimen_id,
+        publication_id=specimen_publication.publication_id
+    )
+
+
+@specimen_publication_router.delete("/delete-specimen_publication")
+def delete_specimen_publication_by_id(specimen_publication_id: str):
+    return SpecimenPublicationController.delete_specimen_publication_by_id(specimen_publication_id)
