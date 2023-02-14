@@ -1,1 +1,2 @@
 from .publication_controller import PublicationController
+from .publication_authors_controller import PublicationAuthorsController

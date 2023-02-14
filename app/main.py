@@ -6,7 +6,7 @@ from app.db.database import engine
 
 from app.field_loc.routes import field_loc_router
 from app.photos.routes import photos_router
-from app.publication.routes import publication_router
+from app.publication.routes import publication_router, publication_authors_router
 from app.specimen.routes import specimen_router
 from app.storage.routes import storage_router
 from app.users.routes import user_router
@@ -18,6 +18,7 @@ def init_app():
     app = FastAPI()
     app.include_router(field_loc_router)
     app.include_router(photos_router)
+    app.include_router(publication_authors_router)
     app.include_router(publication_router)
     app.include_router(specimen_router)
     app.include_router(storage_router)

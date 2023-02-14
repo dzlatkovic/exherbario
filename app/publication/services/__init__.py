@@ -1,1 +1,2 @@
 from .publication_services import PublicationService
+from .publication_authors_services import PublicationAuthorsService
