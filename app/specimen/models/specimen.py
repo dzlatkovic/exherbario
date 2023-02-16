@@ -17,7 +17,7 @@ class Specimen(Base):
     subnomen = Column(String(200))
     field_loc_id = Column(String(50), ForeignKey("field_loc.field_loc_id"))
     storage_id = Column(String(50), ForeignKey("storage.storage_id"))
-    photos_id = Column(String(50), ForeignKey("photos.photos_id"))
+    photos_id = Column(String(50), ForeignKey("photos.photos_id"), unique=True)
     collected_by = Column(String(50), ForeignKey("users.user_id"))
     verified_by = Column(String(50), ForeignKey("users.user_id"))
 

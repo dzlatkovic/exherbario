@@ -16,6 +16,8 @@ class SpecimenController:
                                                        family, genus, species, subnomen,
                                                        field_loc_id, storage_id, photos_id,
                                                        collected_by, verified_by)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except SpecimenExceptionRegNo as e:
             raise HTTPException(status_code=e.code, detail=e.message)
         except Exception as e:

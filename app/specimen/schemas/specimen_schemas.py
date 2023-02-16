@@ -1,5 +1,6 @@
-from pydantic import BaseModel, UUID4
-from datetime import date
+from datetime import date, datetime
+from pydantic import BaseModel, UUID4, validator
+
 
 
 class SpecimenSchema(BaseModel):
@@ -34,6 +35,38 @@ class SpecimenSchemaIn(BaseModel):
     photos_id: str
     collected_by: str
     verified_by: str
+
+    @classmethod
+    @validator('collection_date')
+    def validate_collection_date(cls, value):
+        """
+        It takes a string as input, and if it's in the format of yyyy-mm-dd,
+        it returns the string. Otherwise, it raises a ValueError
+        :param cls: The class that the validator is being applied to
+        :param value: The value that is being validated
+        :return: The value of the date.
+        """
+        try:
+            datetime.strptime(value, '%Y-%m-%d')
+            return value
+        except ValueError as error:
+            raise ValueError('Invalid date format, should be yyyy-mm-dd') from error
+
+    @classmethod
+    @validator('reg_date')
+    def validate_reg_date(cls, value):
+        """
+        It takes a string as input, and if it's in the format of yyyy-mm-dd,
+        it returns the string. Otherwise, it raises a ValueError
+        :param cls: The class that the validator is being applied to
+        :param value: The value that is being validated
+        :return: The value is being returned.
+        """
+        try:
+            datetime.strptime(value, '%Y-%m-%d')
+            return value
+        except ValueError as error:
+            raise ValueError('Invalid date format, should be yyyy-mm-dd') from error
 
     class Config:
         orm_mode = True

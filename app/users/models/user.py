@@ -1,9 +1,16 @@
-from app.db.database import Base
+"""
+This module contains the User model, which represents
+a user in the database.
+"""
+
+
 from sqlalchemy import Column, String, Boolean
 from uuid import uuid4
+from app.db.database import Base
 
 
 class User(Base):
+    """The User model represents a user in the database."""
     __tablename__ = "users"
     user_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
     name = Column(String(50))
@@ -15,6 +22,14 @@ class User(Base):
 
     def __init__(self, name: str, surname: str, email: str, password: str,
                  is_active: bool = True, is_superuser: bool = False):
+        """Initialize a new User instance
+        :param name: The name of the user
+        :param surname: The surname of the user
+        :param email: The email address of the user
+        :param password: The password of the user
+        :param is_active: Indicates if the user is active. Defaults to True
+        :param is_superuser: Indicates if the user is a superuser. Defaults to False
+        """
         self.name = name
         self.surname = surname
         self.email = email

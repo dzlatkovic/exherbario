@@ -1,45 +1,95 @@
-from app.field_loc.services import FieldLocService
-from app.field_loc.exceptions import FieldLocExceptionCode, FieldLocNotFoundException
+"""
+Controller for handling field location operations.
+
+This module defines a controller for handling field location operations, such as creating,
+retrieving, and deleting field locations. It uses a service to interact with the database,
+and handles any exceptions that may occur during these operations.
+"""
 
 from fastapi import HTTPException, Response
 
+from app.field_loc.services import FieldLocService
+from app.field_loc.exceptions import FieldLocExceptionCode, FieldLocNotFoundException
+
 
 class FieldLocController:
+    """
+    Controller class for managing field locations.
 
+    This class provides methods for handling requests related to field locations. It uses
+    a service to handle the logic of field location operations.
+    """
     @staticmethod
     def create_new_field_loc(country: str, region: str, locality: str, altitude: int,
                              habitat: str, gps_lat: float, gps_long: float):
+        """
+        Creates a new field location with the provided data.
+
+        This function creates a new field location with the data provided as parameters,
+        and returns the created field location as a response
+        :param country: The country of the field location
+        :param region: The region of the field location
+        :param locality: The locality of the field location
+        :param altitude: The altitude of the field location
+        :param habitat: The habitat of the field location
+        :param gps_lat: The GPS latitude of the field location
+        :param gps_long: The GPS longitude of the field location
+        :return: The created field location.
+        """
         try:
             course = FieldLocService.create_new_field_loc(country, region, locality, altitude,
                                                           habitat, gps_lat, gps_long)
             return course
-        except FieldLocExceptionCode as e:
-            raise HTTPException(status_code=e.code, detail=e.message)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except FieldLocExceptionCode as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
     def get_all_field_locations():
+        """
+        Retrieves all field locations from the database.
+
+        This function retrieves all field locations from the database, and returns them as a
+        response.
+        :return: A list of all field locations
+        """
         field_locations = FieldLocService.read_all_field_locations()
         return field_locations
 
     @staticmethod
     def get_field_loc_by_id(field_loc_id: str):
+        """
+        Retrieves a field location with the specified ID from the database.
+
+        This function retrieves a field location with the specified ID from the database,
+        and returns it as a response
+        :param field_loc_id: The ID of the field location to be retrieved
+        :return: A field_loc object
+        """
         try:
             field_loc = FieldLocService.read_field_loc_by_id(field_loc_id)
             return field_loc
-        except FieldLocNotFoundException as e:
-            raise HTTPException(status_code=e.code, detail=e.message)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except FieldLocNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
     def delete_field_loc_by_id(field_loc_id: str):
+        """
+        Deletes a field location with the specified ID from the database.
+
+        This function deletes a field location with the specified ID from the database,
+        and returns a response indicating success or failure
+        :param field_loc_id: The ID of the field location to delete.
+        :return: The field location with the provided ID is being deleted.
+        """
         try:
             FieldLocService.delete_field_loc_by_id(field_loc_id)
             return Response(content=f"Field location with provided ID: "
                                     f"{field_loc_id} deleted.", status_code=200)
-        except FieldLocNotFoundException as e:
-            raise HTTPException(status_code=e.code, detail=e.message)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except FieldLocNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error

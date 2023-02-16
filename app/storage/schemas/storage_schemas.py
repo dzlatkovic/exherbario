@@ -1,20 +1,48 @@
+"""This module contains the Pydantic schemas for the storage module."""
+
 from pydantic import BaseModel, UUID4
 
 
 class StorageSchema(BaseModel):
+    """
+    Pydantic schema for the Storage model
+    :param storage_id: The ID of the storage
+    :type storage_id: UUID4
+    :param room: The room of the storage
+    :type room: str
+    :param shelf: The shelf of the storage
+    :type shelf: str
+    :param box: The box of the storage
+    :type box: str
+    """
     storage_id: UUID4
     room: str
     shelf: str
     box: str
 
     class Config:
+        """
+        Configuration for Pydantic schema to work with ORM
+        """
         orm_mode = True
 
 
 class StorageSchemaIn(BaseModel):
+    """
+    Pydantic schema for the input to create a new storage
+    :param room: The room of the storage
+    :type room: str
+    :param shelf: The shelf of the storage
+    :type shelf: str
+    :param box: The box of the storage
+    :type box: str
+    """
     room: str
     shelf: str
     box: str
 
     class Config:
+        """
+        Configuration for Pydantic schema to work with ORM
+        """
         orm_mode = True
