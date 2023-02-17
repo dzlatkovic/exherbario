@@ -3,7 +3,8 @@ from app.photos.models import Photos
 from app.specimen.models import Specimen
 from app.specimen.exceptions import SpecimenNotFoundException
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, distinct
 
 from app.storage.models import Storage
 from app.users.models import User
@@ -84,3 +85,67 @@ class SpecimenRepository:
 
     def read_specimen_by_reg_num(self, reg_no: str):
         return self.db.query(Specimen).filter(Specimen.reg_no == reg_no).first()
+
+    def get_specimens_per_year(self):
+        query = self.db.query(func.extract('year', Specimen.collection_date).label('year'),
+                              func.count(Specimen.specimen_id).label('count')).group_by('year')
+        return query.all()
+
+    def get_specimens_per_user(self):
+        query = self.db.query(User.name, User.surname, func.count(Specimen.specimen_id))\
+            .join(Specimen, User.user_id == Specimen.collected_by)\
+            .group_by(User.user_id)
+        results = {}
+        for name, surname, count in query.all():
+            results[f"{name} {surname}"] = count
+        return results
+
+    def get_specimens_per_region(self):
+        result = self.db.query(FieldLoc.region, func.count(Specimen.specimen_id)) \
+            .join(Specimen, Specimen.field_loc_id == FieldLoc.field_loc_id) \
+            .group_by(FieldLoc.region) \
+            .all()
+        return {row[0]: row[1] for row in result}
+
+    def count_specimens(self):
+        cnt_specimens = self.db.query(func.count(Specimen.specimen_id)).scalar()
+        cnt_families = self.db.query(func.count(distinct(Specimen.family))).scalar()
+        cnt_genus = self.db.query(func.count(distinct(Specimen.genus))).scalar()
+        cnt_species = self.db.query(func.count(distinct(Specimen.species))).scalar()
+        return {"cnt_specimens": cnt_specimens,
+                "cnt_families": cnt_families,
+                "cnt_genus": cnt_genus,
+                "cnt_species": cnt_species}
+
+    def get_gps_for_genus(self, genus: str):
+        gps_locations = {}
+        specimens = self.db.query(Specimen, FieldLoc).join(FieldLoc).filter(
+            Specimen.genus == genus).all()
+        for specimen, field_loc in specimens:
+            gps_locations[f"{specimen.genus} {specimen.species}"]\
+                = (field_loc.gps_lat, field_loc.gps_long)
+        return gps_locations
+
+    def get_last_specimens(self):
+        return self.db.query(Specimen).order_by(
+            Specimen.reg_date.desc()).limit(10).all()
+
+    def get_herbarium_label(self, reg_no: str):
+        specimen = self.db.query(Specimen).filter_by(reg_no=reg_no).first()
+        label = {
+            "reg_no": specimen.reg_no,
+            "species": f"{specimen.genus} {specimen.species}",
+            "country": specimen.field_loc.country,
+            "region": specimen.field_loc.region,
+            "altitude": specimen.field_loc.altitude,
+            "gps": (specimen.field_loc.gps_lat, specimen.field_loc.gps_long),
+            "habitat": specimen.field_loc.habitat,
+            "collection_date": specimen.collection_date,
+            "collected_by": self.get_user_name(specimen.collected_by),
+            "verified_by": self.get_user_name(specimen.verified_by)
+        }
+        return label
+
+    def get_user_name(self, user_id: str):
+        user = self.db.query(User).filter_by(user_id=user_id).first()
+        return f"{user.name} {user.surname}"

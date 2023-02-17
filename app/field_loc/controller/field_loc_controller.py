@@ -40,6 +40,8 @@ class FieldLocController:
             course = FieldLocService.create_new_field_loc(country, region, locality, altitude,
                                                           habitat, gps_lat, gps_long)
             return course
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except FieldLocExceptionCode as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

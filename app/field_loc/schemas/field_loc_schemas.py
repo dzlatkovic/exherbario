@@ -10,7 +10,7 @@ These classes are used to validate input data and serialize/deserialize JSON dat
 """
 
 
-from pydantic import BaseModel, UUID4, validator
+from pydantic import BaseModel, UUID4
 
 
 class FieldLocSchema(BaseModel):
@@ -52,34 +52,6 @@ class FieldLocSchemaIn(BaseModel):
     habitat: str
     gps_lat: float
     gps_long: float
-
-    @classmethod
-    @validator('gps_lat')
-    def gps_lat_must_be_float(cls, value):
-        """
-        Validates that the gps_lat is a float
-        :param cls: The class
-        :param value: The gps_lat value to be validated
-        :return: The gps_lat value if it is valid
-        :raises ValueError: If the gps_lat is not a float
-        """
-        if not isinstance(value, float):
-            raise ValueError('gps_lat must be a float')
-        return value
-
-    @classmethod
-    @validator('gps_long')
-    def gps_long_must_be_float(cls, value):
-        """
-        Validates that the gps_long is a float
-        :param cls: The class
-        :param value: The gps_long value to be validated
-        :return: The gps_long value if it is valid
-        :raises ValueError: If the gps_long is not a float
-        """
-        if not isinstance(value, float):
-            raise ValueError('gps_long must be a float')
-        return value
 
     class Config:
         """

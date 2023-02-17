@@ -8,6 +8,7 @@ and to interact with the database.
 
 from uuid import uuid4
 from sqlalchemy import Column, String, Integer, Float
+from sqlalchemy.orm import relationship
 
 from app.db import Base
 
@@ -29,6 +30,8 @@ class FieldLoc(Base):
     habitat = Column(String(20))
     gps_lat = Column(Float)
     gps_long = Column(Float)
+
+    specimens = relationship("Specimen", back_populates="field_loc")
 
     def __init__(self, country: str, region: str, locality: str, altitude: int,
                  habitat: str, gps_lat: float, gps_long: float):

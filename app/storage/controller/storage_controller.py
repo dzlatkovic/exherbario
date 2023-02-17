@@ -6,6 +6,7 @@ necessary actions on the storage data.
 
 
 from fastapi import HTTPException, Response
+from starlette.responses import JSONResponse
 
 from app.storage.services import StorageService
 from app.storage.exceptions import StorageExceptionBox, StorageNotFoundException
@@ -64,6 +65,16 @@ class StorageController:
             StorageService.delete_storage_by_id(storage_id)
             return Response(content=f"Box with the provided ID: {storage_id} deleted.",
                             status_code=200)
+        except StorageNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_box_content(box: str):
+        try:
+            content = StorageService.get_box_content(box)
+            return JSONResponse(content=content)
         except StorageNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

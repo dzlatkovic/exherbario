@@ -5,7 +5,9 @@ storage database table.
 """
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+
+from app.specimen.models import Specimen
 from app.storage.models import Storage
 from app.storage.exceptions import StorageNotFoundException
 
@@ -72,3 +74,26 @@ class StorageRepository:
         :param box: The name of the storage box.
         """
         return self.db.query(Storage).filter(Storage.box == box).first()
+
+    def get_box_content(self, box: str):
+        try:
+            if not self.db.query(Storage).filter(Storage.box == box).first():
+                raise StorageNotFoundException("Box not found.", 400)
+            query = self.db.query(Storage, Specimen) \
+                .filter(Storage.box == box) \
+                .filter(Specimen.storage_id == Storage.storage_id) \
+                .all()
+
+            results = []
+            for storage, specimen in query:
+                data = {
+                    "box": box,
+                    "reg_no": specimen.reg_no,
+                    "family": specimen.family,
+                    "genus": specimen.genus,
+                    "species": specimen.species,
+                }
+                results.append(data)
+            return results
+        except Exception as error:
+            raise error

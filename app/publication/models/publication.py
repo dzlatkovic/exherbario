@@ -23,7 +23,7 @@ class Publication(Base):
     """
     __tablename__ = "publication"
     pub_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
-    doi = Column(String(200))
+    doi = Column(String(200), nullable=False)
     year = Column(Date)
     journal = Column(String(100))
     title = Column(String(200))

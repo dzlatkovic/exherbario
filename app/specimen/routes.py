@@ -33,7 +33,43 @@ def delete_specimen_by_id(specimen_id: str):
     return SpecimenController.delete_specimen_by_id(specimen_id)
 
 
-specimen_publication_router = APIRouter(prefix="/api/specimen_publication", tags=["Specimen publication"])
+@specimen_router.get("/get-specimen-per-year")
+def get_specimen_per_year():
+    return SpecimenController.get_specimens_per_year()
+
+
+@specimen_router.get("/get-specimen-per-user")
+def get_specimen_per_user():
+    return SpecimenController.get_specimens_per_user()
+
+
+@specimen_router.get("/get-specimen-per-region")
+def get_specimen_per_region():
+    return SpecimenController.get_specimens_per_region()
+
+
+@specimen_router.get("/count-specimen")
+def count_specimen():
+    return SpecimenController.count_specimens()
+
+
+@specimen_router.get("/get-gps")
+def get_gps_for_genus(genus: str):
+    return SpecimenController.get_gps_for_genus(genus)
+
+
+@specimen_router.get("/get-last-specimens", response_model=list[SpecimenSchema])
+def get_last_specimens():
+    return SpecimenController.get_last_specimens()
+
+
+@specimen_router.get("/get-herbarium-label")
+def get_herbarium_label(reg_no):
+    return SpecimenController.get_herbarium_label(reg_no)
+
+
+specimen_publication_router = APIRouter(prefix="/api/specimen_publication",
+                                        tags=["Specimen publication"])
 
 
 @specimen_publication_router.post("/create-new-specimen_publication",

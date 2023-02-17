@@ -86,3 +86,8 @@ def delete_publication_authors_by_id(publication_authors_id: str):
     :type publication_authors_id: str
     """
     return PublicationAuthorsController.delete_publication_authors_by_id(publication_authors_id)
+
+
+@publication_authors_router.get("/get-publication-report")
+def get_publication_report():
+    return PublicationAuthorsController.get_publication_report()

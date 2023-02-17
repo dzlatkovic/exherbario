@@ -1,3 +1,5 @@
+from starlette.responses import JSONResponse
+
 from app.specimen.services import SpecimenService
 from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException
 
@@ -39,5 +41,61 @@ class SpecimenController:
             return Response(content=f"Specimen with ID: {specimen_id} deleted.", status_code=200)
         except SpecimenNotFoundException as e:
             raise HTTPException(status_code=e.code, detail=e.message)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_specimens_per_year():
+        try:
+            content = SpecimenService.get_specimens_per_year()
+            return JSONResponse(content=content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_specimens_per_user():
+        try:
+            content = SpecimenService.get_specimens_per_user()
+            return JSONResponse(content=content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_specimens_per_region():
+        try:
+            content = SpecimenService.get_specimens_per_region()
+            return JSONResponse(content=content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def count_specimens():
+        try:
+            content = SpecimenService.count_specimens()
+            return JSONResponse(content=content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_gps_for_genus(genus):
+        try:
+            content = SpecimenService.get_gps_for_genus(genus)
+            return JSONResponse(content=content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_last_specimens():
+        try:
+            return SpecimenService.get_last_specimens()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_herbarium_label(reg_no: str):
+        try:
+            return SpecimenService.get_herbarium_label(reg_no)
+        except SpecimenExceptionRegNo as error:
+            raise HTTPException(status_code=error.code, detail=error.message)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

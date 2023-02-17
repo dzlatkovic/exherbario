@@ -42,3 +42,12 @@ class PublicationAuthorsService:
                 return repository.delete_publication_authors_by_id(publication_authors_id)
         except Exception as error:
             raise error
+
+    @staticmethod
+    def get_publication_report():
+        try:
+            with SessionLocal() as db:
+                repository = PublicationAuthorsRepository(db)
+                return repository.get_publication_report()
+        except Exception as error:
+            raise error

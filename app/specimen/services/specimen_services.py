@@ -41,3 +41,71 @@ class SpecimenService:
                 return repository.delete_specimen(specimen_id)
         except Exception as e:
             raise e
+
+    @staticmethod
+    def get_specimens_per_year():
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                specimens_per_year = repository.get_specimens_per_year()
+                return [{'year': year, 'count': count}
+                        for year, count in specimens_per_year]
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def get_specimens_per_user():
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.get_specimens_per_user()
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def get_specimens_per_region():
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.get_specimens_per_region()
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def count_specimens():
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.count_specimens()
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def get_gps_for_genus(genus: str):
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.get_gps_for_genus(genus)
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def get_last_specimens():
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.get_last_specimens()
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def get_herbarium_label(reg_no: str):
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                if not repository.read_specimen_by_reg_num(reg_no):
+                    raise SpecimenExceptionRegNo(message="No such specimen in the database",
+                                                 code=400)
+                return repository.get_herbarium_label(reg_no)
+        except Exception as e:
+            raise e

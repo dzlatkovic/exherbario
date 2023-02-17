@@ -2,13 +2,15 @@ from datetime import datetime
 from sqlalchemy import Column, String, Date, ForeignKey
 from uuid import uuid4
 
+from sqlalchemy.orm import relationship
+
 from app.db import Base
 
 
 class Specimen(Base):
     __tablename__ = "specimen"
     specimen_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
-    reg_no = Column(String(10), unique=True)
+    reg_no = Column(String(10), unique=True, nullable=False)
     collection_date = Column(Date)
     reg_date = Column(Date, default=datetime.utcnow)
     family = Column(String(50))
@@ -20,6 +22,8 @@ class Specimen(Base):
     photos_id = Column(String(50), ForeignKey("photos.photos_id"), unique=True)
     collected_by = Column(String(50), ForeignKey("users.user_id"))
     verified_by = Column(String(50), ForeignKey("users.user_id"))
+
+    field_loc = relationship("FieldLoc", back_populates="specimens")
 
     def __init__(self, reg_no: str, collection_date: str, reg_date: str,
                  family: str, genus: str, species: str, subnomen: str,

@@ -52,3 +52,10 @@ class PublicationAuthorsController:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_publication_report():
+        try:
+            return PublicationAuthorsService.get_publication_report()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

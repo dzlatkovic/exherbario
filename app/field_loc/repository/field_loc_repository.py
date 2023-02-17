@@ -7,6 +7,7 @@ operations. The class provides methods for creating, reading, and
 deleting field location data in the database.
 """
 
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -54,6 +55,8 @@ class FieldLocRepository:
             self.db.commit()
             self.db.refresh(field_loc)
             return field_loc
+        except ValueError as error:
+            raise error
         except IntegrityError as error:
             raise error
         except Exception as error:

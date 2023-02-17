@@ -6,6 +6,7 @@ It includes several endpoints for creating, retrieving, and deleting field locat
 uses a controller to handle the logic of these operations.
 """
 
+
 from fastapi import APIRouter
 
 from app.field_loc.controller import FieldLocController

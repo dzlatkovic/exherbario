@@ -48,3 +48,8 @@ def delete_storage_by_id(storage_id: str):
     :param storage_id: The ID of the storage object to delete
     """
     return StorageController.delete_storage_by_id(storage_id)
+
+
+@storage_router.get("/get-box-content")
+def get_box_content(box: str):
+    return StorageController.get_box_content(box)

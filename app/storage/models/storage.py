@@ -22,7 +22,7 @@ class Storage(Base):
     storage_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
     room = Column(String(20))
     shelf = Column(String(20))
-    box = Column(String(100), unique=True)
+    box = Column(String(100), nullable=False, unique=True)
 
     def __init__(self, room: str, shelf: str, box: str):
         """

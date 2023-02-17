@@ -73,3 +73,12 @@ class StorageService:
                 return repository.delete_storage(storage_id)
         except Exception as error:
             raise error
+
+    @staticmethod
+    def get_box_content(box: str):
+        try:
+            with SessionLocal() as db:
+                repository = StorageRepository(db)
+                return repository.get_box_content(box)
+        except Exception as error:
+            raise error
