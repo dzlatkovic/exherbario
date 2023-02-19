@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.specimen.controller import SpecimenController, SpecimenPublicationController
-from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn
+from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn, SpecimenSchemaUpdate
 from app.specimen.schemas import SpecimenPublicationSchema, SpecimenPublicationSchemaIn
 
 specimen_router = APIRouter(prefix="/api/specimen", tags=["Specimen"])
@@ -66,6 +66,11 @@ def get_last_specimens():
 @specimen_router.get("/get-herbarium-label")
 def get_herbarium_label(reg_no):
     return SpecimenController.get_herbarium_label(reg_no)
+
+
+@specimen_router.put("/update-specimen", response_model=SpecimenSchema)
+def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
+    return SpecimenController.update_specimen(specimen_id, specimen)
 
 
 specimen_publication_router = APIRouter(prefix="/api/specimen_publication",

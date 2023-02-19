@@ -1,0 +1,6 @@
+from .test_publication_repo import TestPublicationRepo
+from .test_publication_service import TestPublicationService
+from .test_publication_controller import TestPublicationController
+from .test_publication_authors_repo import TestPublicationAuthorsRepo
+from .test_publication_authors_service import TestPublicationAuthorsService
+from .test_publication_authors_controller import TestPublicationAuthorsController

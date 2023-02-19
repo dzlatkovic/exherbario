@@ -1,7 +1,8 @@
 from app.specimen.models import Specimen
 from app.db import SessionLocal
 from app.specimen.repository import SpecimenRepository
-from app.specimen.exceptions import SpecimenExceptionRegNo
+from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException
+from app.specimen.schemas import SpecimenSchemaUpdate
 
 
 class SpecimenService:
@@ -107,5 +108,20 @@ class SpecimenService:
                     raise SpecimenExceptionRegNo(message="No such specimen in the database",
                                                  code=400)
                 return repository.get_herbarium_label(reg_no)
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                repository.validate_foreign_keys(specimen.field_loc_id, specimen.storage_id,
+                                                 specimen.photos_id, specimen.collected_by,
+                                                 specimen.verified_by)
+                db_specimen = repository.update_specimen(specimen_id, specimen)
+            if db_specimen is None:
+                raise SpecimenNotFoundException(message="Specimen not found.", code=400)
+            return db_specimen
         except Exception as e:
             raise e

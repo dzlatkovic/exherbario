@@ -1,5 +1,6 @@
 from starlette.responses import JSONResponse
 
+from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException
 
@@ -97,5 +98,16 @@ class SpecimenController:
             return SpecimenService.get_herbarium_label(reg_no)
         except SpecimenExceptionRegNo as error:
             raise HTTPException(status_code=error.code, detail=error.message)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
+        try:
+            return SpecimenService.update_specimen(specimen_id, specimen)
+        except SpecimenNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

@@ -1,6 +1,7 @@
 from datetime import date, datetime
-from pydantic import BaseModel, UUID4, validator
+from typing import Optional
 
+from pydantic import BaseModel, UUID4, validator
 
 
 class SpecimenSchema(BaseModel):
@@ -70,3 +71,17 @@ class SpecimenSchemaIn(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class SpecimenSchemaUpdate(BaseModel):
+    reg_no: Optional[str]
+    collection_date: Optional[date]
+    family: Optional[str]
+    genus: Optional[str]
+    species: Optional[str]
+    subnomen: Optional[str]
+    field_loc_id: Optional[str]
+    storage_id: Optional[str]
+    photos_id: Optional[str]
+    collected_by: Optional[str]
+    verified_by: Optional[str]

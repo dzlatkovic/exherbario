@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, distinct
 
+from app.specimen.schemas import SpecimenSchemaUpdate
 from app.storage.models import Storage
 from app.users.models import User
 
@@ -149,3 +150,35 @@ class SpecimenRepository:
     def get_user_name(self, user_id: str):
         user = self.db.query(User).filter_by(user_id=user_id).first()
         return f"{user.name} {user.surname}"
+
+    def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate):
+        self.validate_foreign_keys(specimen.field_loc_id, specimen.storage_id,
+                                   specimen.photos_id, specimen.collected_by, specimen.verified_by)
+        db_specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()
+        if db_specimen:
+            if specimen.reg_no:
+                db_specimen.reg_no = specimen.reg_no
+            if specimen.collection_date:
+                db_specimen.collection_date = specimen.collection_date
+            if specimen.family:
+                db_specimen.family = specimen.family
+            if specimen.genus:
+                db_specimen.genus = specimen.genus
+            if specimen.species:
+                db_specimen.species = specimen.species
+            if specimen.subnomen:
+                db_specimen.subnomen = specimen.subnomen
+            if specimen.field_loc_id:
+                db_specimen.field_loc_id = specimen.field_loc_id
+            if specimen.storage_id:
+                db_specimen.storage_id = specimen.storage_id
+            if specimen.photos_id:
+                db_specimen.photos_id = specimen.photos_id
+            if specimen.collected_by:
+                db_specimen.collected_by = specimen.collected_by
+            if specimen.verified_by:
+                db_specimen.verified_by = specimen.verified_by
+            self.db.commit()
+            self.db.refresh(db_specimen)
+            return db_specimen
+        return None
