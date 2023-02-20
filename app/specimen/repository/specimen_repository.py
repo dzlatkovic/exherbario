@@ -1,19 +1,35 @@
+"""This module contains the SpecimenRepository class.
+
+This class is a repository for specimens, and provides methods to interact with the database
+for storing and retrieving specimen records.
+"""
+
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from sqlalchemy import func, distinct
+
 from app.field_loc.models import FieldLoc
 from app.photos.models import Photos
 from app.specimen.models import Specimen
 from app.specimen.exceptions import SpecimenNotFoundException
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, distinct
-
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.storage.models import Storage
 from app.users.models import User
 
 
 class SpecimenRepository:
+    """This class is a repository for specimens.
 
+    It provides methods to create, read, update, and delete specimen records in the database,
+    as well as methods to query and retrieve various statistics about the specimens.
+    """
     def __init__(self, db: Session):
+        """
+        Initialize a new instance of the SpecimenRepository class
+        :param db: The database session to use for database interactions
+        :type db: Session
+        """
         self.db = db
 
     def validate_foreign_keys(self, field_loc_id: str, storage_id: str, photos_id: str,
@@ -48,6 +64,7 @@ class SpecimenRepository:
                         family: str, genus: str, species: str, subnomen: str,
                         field_loc_id: str, storage_id: str, photos_id: str,
                         collected_by: str, verified_by: str):
+        """Create a new specimen record in the database."""
         if self.db.query(Specimen).filter_by(photos_id=photos_id).first():
             raise ValueError('A specimen with the same photos_id already exists in the database')
         try:
@@ -60,12 +77,18 @@ class SpecimenRepository:
             self.db.commit()
             self.db.refresh(specimen)
             return specimen
-        except IntegrityError as e:
-            raise e
-        except Exception as e:
-            raise e
+        except IntegrityError as error:
+            raise error
+        except Exception as error:
+            raise error
 
     def read_specimen_by_id(self, specimen_id: str):
+        """
+        This function takes in a specimen_id and returns the specimen object with that id
+        :param specimen_id: str
+        :type specimen_id: str
+        :return: The specimen object is being returned.
+        """
         specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()
         if specimen is None:
             raise SpecimenNotFoundException(f"Specimen with the provided ID: "
@@ -73,6 +96,12 @@ class SpecimenRepository:
         return specimen
 
     def delete_specimen(self, specimen_id: str):
+        """
+        It deletes a specimen from the database
+        :param specimen_id: The ID of the specimen to be deleted
+        :type specimen_id: str
+        :return: True
+        """
         try:
             specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()
             if specimen is None:
@@ -81,18 +110,41 @@ class SpecimenRepository:
             self.db.delete(specimen)
             self.db.commit()
             return True
-        except Exception as e:
-            raise e
+        except Exception as error:
+            raise error
 
     def read_specimen_by_reg_num(self, reg_no: str):
+        """
+        It returns the first specimen in the database with the given registration number
+        :param reg_no: str
+        :type reg_no: str
+        :return: The first row of the table that matches the query.
+        """
         return self.db.query(Specimen).filter(Specimen.reg_no == reg_no).first()
 
     def get_specimens_per_year(self):
+        """
+        It returns a list of tuples, each tuple containing the
+        year and the number of specimens collected in that year
+        :return: A list of tuples, where each tuple is a year and
+        the number of specimens collected in that year.
+        """
         query = self.db.query(func.extract('year', Specimen.collection_date).label('year'),
                               func.count(Specimen.specimen_id).label('count')).group_by('year')
         return query.all()
 
     def get_specimens_per_user(self):
+        """
+        It returns a dictionary of the form {'username': number of
+        specimens collected by that user}
+
+        The first line of the function is a query that returns a list of
+        tuples of the form (username, user surname, number of specimens
+        collected by that user)
+        :return: A dictionary with the name and surname of the user as the
+        key and the number of specimens collected by that
+        user as the value.
+        """
         query = self.db.query(User.name, User.surname, func.count(Specimen.specimen_id))\
             .join(Specimen, User.user_id == Specimen.collected_by)\
             .group_by(User.user_id)
@@ -102,6 +154,10 @@ class SpecimenRepository:
         return results
 
     def get_specimens_per_region(self):
+        """
+        Get the number of specimens per region
+        :return: A dictionary with the region as the key and the number of specimens as the value.
+        """
         result = self.db.query(FieldLoc.region, func.count(Specimen.specimen_id)) \
             .join(Specimen, Specimen.field_loc_id == FieldLoc.field_loc_id) \
             .group_by(FieldLoc.region) \
@@ -109,6 +165,10 @@ class SpecimenRepository:
         return {row[0]: row[1] for row in result}
 
     def count_specimens(self):
+        """
+        It counts the number of specimens, families, genus, and species in the database
+        :return: A dictionary with the counts of specimens, families, genus, and species.
+        """
         cnt_specimens = self.db.query(func.count(Specimen.specimen_id)).scalar()
         cnt_families = self.db.query(func.count(distinct(Specimen.family))).scalar()
         cnt_genus = self.db.query(func.count(distinct(Specimen.genus))).scalar()
@@ -119,6 +179,16 @@ class SpecimenRepository:
                 "cnt_species": cnt_species}
 
     def get_gps_for_genus(self, genus: str):
+        """
+        This function takes a genus name as an argument and returns a
+        dictionary of species names and their GPS
+        coordinates
+        :param genus: The genus of the specimen you want to get the
+        GPS coordinates for
+        :type genus: str
+        :return: A dictionary of the genus and species of the specimen
+        and the gps coordinates of the field location.
+        """
         gps_locations = {}
         specimens = self.db.query(Specimen, FieldLoc).join(FieldLoc).filter(
             Specimen.genus == genus).all()
@@ -128,10 +198,26 @@ class SpecimenRepository:
         return gps_locations
 
     def get_last_specimens(self):
+        """
+        It returns the last 10 specimens registered in the database
+        :return: The last 10 specimens in the database.
+        """
         return self.db.query(Specimen).order_by(
             Specimen.reg_date.desc()).limit(10).all()
 
     def get_herbarium_label(self, reg_no: str):
+        """
+        It takes a registration number as an argument, and returns a dictionary
+        containing the details of the specimen with
+        that registration number
+        :param reg_no: The registration number of the specimen
+        :type reg_no: str
+        :return: A dictionary with the specimen's registration number,
+        species, country, region, altitude, GPS coordinates,
+        habitat, collection date, the name of the person who
+        collected the specimen, and the name of the person who verified
+        the specimen.
+        """
         specimen = self.db.query(Specimen).filter_by(reg_no=reg_no).first()
         label = {
             "reg_no": specimen.reg_no,
@@ -148,10 +234,24 @@ class SpecimenRepository:
         return label
 
     def get_user_name(self, user_id: str):
+        """
+        It returns the name and surname of a user with a given user_id
+        :param user_id: str - the user's id
+        :type user_id: str
+        :return: The name and surname of the user with the given user_id.
+        """
         user = self.db.query(User).filter_by(user_id=user_id).first()
         return f"{user.name} {user.surname}"
 
     def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate):
+        """
+        It updates the specimen with the given specimen_id with the given specimen
+        :param specimen_id: str
+        :type specimen_id: str
+        :param specimen: SpecimenSchemaUpdate
+        :type specimen: SpecimenSchemaUpdate
+        :return: The updated specimen.
+        """
         self.validate_foreign_keys(specimen.field_loc_id, specimen.storage_id,
                                    specimen.photos_id, specimen.collected_by, specimen.verified_by)
         db_specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()

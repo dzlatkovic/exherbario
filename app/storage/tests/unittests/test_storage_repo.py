@@ -1,3 +1,6 @@
+"""This module contains unit tests for a Python project using the `pytest` testing framework."""
+
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 

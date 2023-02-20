@@ -1,3 +1,7 @@
+"""
+This module contains unit tests for a Python project using the `pytest` testing framework.
+"""
+
 import pytest
 from fastapi import HTTPException
 
@@ -13,8 +17,13 @@ from app.users.repository import UserRepository
 
 
 class TestSpecimenPublicationController(TestClass):
+    """This class tests the specimen publication controller."""
 
     def create_test_specimen_publication(self):
+        """
+        It creates a new specimen publication
+        :return: SpecimenPublication object
+        """
         with TestingSessionLocal() as db:
             publication_repository = PublicationRepository(db)
             specimen_repository = SpecimenRepository(db)
@@ -23,7 +32,8 @@ class TestSpecimenPublicationController(TestClass):
             storage_repository = StorageRepository(db)
             photos_repository = PhotosRepository(db)
             pub = publication_repository.create_publication("1234", "2020",
-                                                            "Journal of Medicine", "COVID-19 Treatment")
+                                                            "Journal of Medicine",
+                                                            "COVID-19 Treatment")
             field_loc = field_loc_repository.create_field_loc("Serbia", "Nis", "Suva mt.",
                                                               1400, "woods", 43.0, 22.0)
             storage = storage_repository.create_storage("room1", "shelf1", "box1")
@@ -41,26 +51,42 @@ class TestSpecimenPublicationController(TestClass):
                                                            photos.photos_id,
                                                            user.user_id,
                                                            user.user_id)
-            sp = SpecimenPublicationController.create_new_specimen_publication(specimen.specimen_id,
-                                                                            pub.pub_id)
-            return sp
+            spec_pub = SpecimenPublicationController.create_new_specimen_publication(
+                specimen.specimen_id, pub.pub_id)
+            return spec_pub
 
     def test_create_specimen_publication(self):
-        sp = self.create_test_specimen_publication()
-        assert isinstance(sp, SpecimenPublication)
+        """
+        This function creates a specimen publication object
+        """
+        spec_pub = self.create_test_specimen_publication()
+        assert isinstance(spec_pub, SpecimenPublication)
 
     def test_delete_specimen_publication(self):
-        sp = self.create_test_specimen_publication()
-        outcome = SpecimenPublicationController.delete_specimen_publication_by_id(sp.specimen_publication_id)
+        """
+        This function tests the deletion of a specimen publication by id
+        """
+        spec_pub = self.create_test_specimen_publication()
+        outcome = SpecimenPublicationController.delete_specimen_publication_by_id(
+            spec_pub.specimen_publication_id)
         assert outcome.status_code == 200
 
     def test_delete_specimen_publication_invalid(self):
+        """
+        It tests the delete_specimen_publication_by_id function in the
+        SpecimenPublicationController class.
+        """
         self.create_test_specimen_publication()
         with pytest.raises(HTTPException) as error:
             SpecimenPublicationController.delete_specimen_publication_by_id("invalid_id")
         assert error.value.status_code == 400
 
     def test_create_specimen_invalid_foreign_key(self):
+        """
+        This function tests the create_new_specimen_publication function in the
+        SpecimenPublicationController class
+        """
         with pytest.raises(HTTPException) as error:
-            SpecimenPublicationController.create_new_specimen_publication("invalid path", "invalid path")
+            SpecimenPublicationController.create_new_specimen_publication("invalid path",
+                                                                          "invalid path")
         assert error.value.status_code == 400

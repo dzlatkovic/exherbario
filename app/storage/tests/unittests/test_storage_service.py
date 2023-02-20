@@ -1,8 +1,10 @@
+"""This module contains unit tests for a Python project using the `pytest` testing framework."""
+
+
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 from app.storage.exceptions import StorageNotFoundException, StorageExceptionBox
-from app.tests import TestClass, TestingSessionLocal
+from app.tests import TestClass
 from app.storage.services import StorageService
 
 

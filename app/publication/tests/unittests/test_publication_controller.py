@@ -1,7 +1,12 @@
+"""
+This module contains unit tests for a Python project using the
+`pytest` testing framework.
+"""
+
+
 import pytest
 from fastapi import HTTPException
 
-from app.publication.exceptions import PublicationNotFoundException
 from app.tests import TestClass
 from app.publication.controller import PublicationController
 

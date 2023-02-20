@@ -1,8 +1,10 @@
+"""This module contains unit tests for a Python project using the `pytest` testing framework."""
+
+
 import pytest
 from fastapi import HTTPException
 
-from app.storage.exceptions import StorageNotFoundException, StorageExceptionBox
-from app.tests import TestClass, TestingSessionLocal
+from app.tests import TestClass
 from app.storage.controller import StorageController
 
 
@@ -71,7 +73,6 @@ class TestStorageController(TestClass):
         """
         Test case for attempting to delete a non-existent storage box by ID
         """
-        box = StorageController.create_new_storage("Room B", "Shelf 2", "Box 1")
+        StorageController.create_new_storage("Room B", "Shelf 2", "Box 1")
         with pytest.raises(HTTPException):
             StorageController.delete_storage_by_id("100")
-

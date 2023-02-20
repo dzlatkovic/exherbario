@@ -1,8 +1,13 @@
-DB_HOST=mysql
-DB_HOSTNAME=
-DB_PORT=
+DB_HOST=mysql+pymysql
+DB_HOSTNAME=localhost
+DB_PORT=3306
 
-DB_USER=
-DB_PASSWORD=
+DB_USER=fastapi
+DB_PASSWORD=fastapi_pass
 
-DB_NAME=
+DB_NAME=herbarium
+USER_SECRET=secret_123
+ALGORITHM=HS256
+
+DB_NAME_TEST=test_herbarium
+USE_TEST_DB=False

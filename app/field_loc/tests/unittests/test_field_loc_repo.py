@@ -1,3 +1,9 @@
+"""
+This module contains unit tests for a Python project using the
+`pytest` testing framework.
+"""
+
+
 import pytest
 
 from app.field_loc.exceptions import FieldLocNotFoundException
@@ -65,7 +71,7 @@ class TestFieldLocRepo(TestClass):
             field_loc_repository = FieldLocRepository(db)
             field_loc = field_loc_repository.create_field_loc("Serbia", "Nis", "Suva mt.",
                                                               1400, "woods", 43.0, 22.0)
-            assert field_loc_repository.delete_field_loc(field_loc.field_loc_id) == True
+            assert field_loc_repository.delete_field_loc(field_loc.field_loc_id) is True
 
     def test_read_field_loc_by_id_not_found(self):
         """

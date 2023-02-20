@@ -1,3 +1,9 @@
+"""
+This module contains unit tests for a Python project using the
+`pytest` testing framework.
+"""
+
+
 import pytest
 
 from app.field_loc.exceptions import FieldLocNotFoundException

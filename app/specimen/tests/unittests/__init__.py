@@ -1,3 +1,8 @@
+"""
+Initialization script for the package.
+"""
+
+
 from .test_specimen_publication_repo import TestSpecimenPublicationRepo
 from .test_specimen_publication_service import TestSpecimenPublicationService
 from .test_specimen_publication_controller import TestSpecimenPublicationController

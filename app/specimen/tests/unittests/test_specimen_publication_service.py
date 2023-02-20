@@ -1,3 +1,7 @@
+"""
+This module contains unit tests for a Python project using the `pytest` testing framework.
+"""
+
 import pytest
 
 from app.photos.repository import PhotosRepository
@@ -13,8 +17,13 @@ from app.users.repository import UserRepository
 
 
 class TestSpecimenPublicationService(TestClass):
+    """This class tests the specimen publication service"""
 
     def create_test_specimen_publication(self):
+        """
+        It creates a new specimen publication
+        :return: The specimen_publication_id
+        """
         with TestingSessionLocal() as db:
             publication_repository = PublicationRepository(db)
             specimen_repository = SpecimenRepository(db)
@@ -23,7 +32,8 @@ class TestSpecimenPublicationService(TestClass):
             storage_repository = StorageRepository(db)
             photos_repository = PhotosRepository(db)
             pub = publication_repository.create_publication("1234", "2020",
-                                                            "Journal of Medicine", "COVID-19 Treatment")
+                                                            "Journal of Medicine",
+                                                            "COVID-19 Treatment")
             field_loc = field_loc_repository.create_field_loc("Serbia", "Nis", "Suva mt.",
                                                               1400, "woods", 43.0, 22.0)
             storage = storage_repository.create_storage("room1", "shelf1", "box1")
@@ -41,26 +51,42 @@ class TestSpecimenPublicationService(TestClass):
                                                            photos.photos_id,
                                                            user.user_id,
                                                            user.user_id)
-            sp = SpecimenPublicationService.create_new_specimen_publication(specimen.specimen_id,
-                                                                            pub.pub_id)
-            return sp
+            spec_pub = SpecimenPublicationService.create_new_specimen_publication(
+                specimen.specimen_id,
+                pub.pub_id)
+            return spec_pub
 
     def test_create_specimen_publication(self):
-        sp = self.create_test_specimen_publication()
-        assert isinstance(sp, SpecimenPublication)
+        """
+        This function creates a specimen publication object
+        """
+        spec_pub = self.create_test_specimen_publication()
+        assert isinstance(spec_pub, SpecimenPublication)
 
     def test_delete_specimen_publication(self):
-        sp = self.create_test_specimen_publication()
-        outcome = SpecimenPublicationService.delete_specimen_publication_by_id(sp.specimen_publication_id)
+        """
+        This function tests the deletion of a specimen publication by id
+        """
+        spec_pub = self.create_test_specimen_publication()
+        outcome = SpecimenPublicationService.delete_specimen_publication_by_id(
+            spec_pub.specimen_publication_id)
         assert outcome is True
 
     def test_delete_specimen_publication_invalid(self):
+        """
+        It tests the delete_specimen_publication_by_id function in the
+        SpecimenPublicationService class.
+        """
         self.create_test_specimen_publication()
         with pytest.raises(SpecimenPublicationNotFoundException):
             SpecimenPublicationService.delete_specimen_publication_by_id("invalid_id")
 
     def test_create_specimen_invalid_foreign_key(self):
+        """
+        This function tests the create_new_specimen_publication function
+        in the SpecimenPublicationService class
+        """
         with pytest.raises(ValueError) as error:
-            SpecimenPublicationService.create_new_specimen_publication("invalid path", "invalid path")
+            SpecimenPublicationService.create_new_specimen_publication("invalid path",
+                                                                       "invalid path")
         assert "not a valid foreign key" in str(error)
-

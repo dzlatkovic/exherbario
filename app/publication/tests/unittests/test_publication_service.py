@@ -1,3 +1,9 @@
+"""
+This module contains unit tests for a Python project using the
+`pytest` testing framework.
+"""
+
+
 import pytest
 
 from app.publication.exceptions import PublicationNotFoundException
@@ -7,7 +13,6 @@ from app.publication.services import PublicationService
 
 class TestPublicationService(TestClass):
     """This class tests the PublicationService class"""
-
     def create_pubs_for_methods(self):
         """
         It creates two new publications
@@ -19,7 +24,8 @@ class TestPublicationService(TestClass):
         """
         This function creates a new publication
         """
-        publication = PublicationService.create_new_publication("1234", "2022", "Nature", "Sample Paper 1")
+        publication = PublicationService.create_new_publication("1234", "2022", "Nature",
+                                                                "Sample Paper 1")
         assert publication.doi == "1234"
         assert publication.journal == "Nature"
 

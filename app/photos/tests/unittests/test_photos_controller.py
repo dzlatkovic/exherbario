@@ -1,8 +1,13 @@
+"""
+This module contains unit tests for a Python project using the
+`pytest` testing framework.
+"""
+
+
 import pytest
 from fastapi import HTTPException
 
 from app.photos.controller import PhotosController
-from app.photos.exceptions import IdenticalPhotosException, PhotoAlreadyExistsException, PhotosNotFoundException
 from app.tests import TestClass
 
 

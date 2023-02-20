@@ -1,3 +1,6 @@
+"""This module contains Pydantic models for working with specimen data."""
+
+
 from datetime import date, datetime
 from typing import Optional
 
@@ -5,6 +8,7 @@ from pydantic import BaseModel, UUID4, validator
 
 
 class SpecimenSchema(BaseModel):
+    """Pydantic model for a complete specimen record"""
     specimen_id: UUID4
     reg_no: str
     collection_date: date
@@ -20,10 +24,14 @@ class SpecimenSchema(BaseModel):
     verified_by: str
 
     class Config:
+        """
+        The configuration settings for the Pydantic model.
+        """
         orm_mode = True
 
 
 class SpecimenSchemaIn(BaseModel):
+    """Pydantic model for a specimen record with required fields."""
     reg_no: str
     collection_date: str
     reg_date: str
@@ -70,10 +78,14 @@ class SpecimenSchemaIn(BaseModel):
             raise ValueError('Invalid date format, should be yyyy-mm-dd') from error
 
     class Config:
+        """
+        The configuration settings for the Pydantic model.
+        """
         orm_mode = True
 
 
 class SpecimenSchemaUpdate(BaseModel):
+    """Pydantic model for updating a specimen record."""
     reg_no: Optional[str]
     collection_date: Optional[date]
     family: Optional[str]

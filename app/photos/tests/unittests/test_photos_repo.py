@@ -1,4 +1,12 @@
-from app.photos.exceptions import PhotosNotFoundException, IdenticalPhotosException, PhotoAlreadyExistsException
+"""
+This module contains unit tests for a Python project using the
+`pytest` testing framework.
+"""
+
+
+from app.photos.exceptions import (PhotosNotFoundException,
+                                   IdenticalPhotosException,
+                                   PhotoAlreadyExistsException)
 from app.tests import TestClass, TestingSessionLocal
 from app.photos.repository import PhotosRepository
 
@@ -22,7 +30,8 @@ class TestPhotosRepository(TestClass):
         """
         with TestingSessionLocal() as db:
             photos_repository = PhotosRepository(db)
-            photos = photos_repository.create_photos("field1.jpg", "specimen1.jpg")
+            photos = photos_repository.create_photos("field1.jpg",
+                                                     "specimen1.jpg")
             assert photos.field_photo == "field1.jpg"
             assert photos.specimen_photo == "specimen1.jpg"
             try:
@@ -54,7 +63,8 @@ class TestPhotosRepository(TestClass):
         self.create_photos_for_methods()
         with TestingSessionLocal() as db:
             photos_repository = PhotosRepository(db)
-            photos = photos_repository.create_photos("field3.jpg", "specimen3.jpg")
+            photos = photos_repository.create_photos("field3.jpg",
+                                                     "specimen3.jpg")
             photos_id = photos.photos_id
             result = photos_repository.read_photos_by_id(photos_id)
             assert result.photos_id == photos_id
@@ -74,7 +84,7 @@ class TestPhotosRepository(TestClass):
             photos = photos_repository.create_photos("field3.jpg", "specimen3.jpg")
             photos_id = photos.photos_id
             result = photos_repository.delete_photos(photos_id)
-            assert result == True
+            assert result is True
             try:
                 photos_repository.delete_photos("999")
             except PhotosNotFoundException as error:

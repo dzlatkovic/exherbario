@@ -22,16 +22,26 @@ Before you start, make sure you have the following installed:
 
 3. Install the required packages with `pip install -r requirements.txt`
 
-4. Set the environment variables in a `.env`file . The required environment variables are:
-   - `DB_HOST`: the database host URL.
+4. ###### Environment Variables
+
+   The following environment variables are required to run the application:
+
+   - `DB_HOST`: the host URL of the database server.
    - `DB_HOSTNAME`: the hostname of the database server.
    - `DB_PORT`: the port number of the database server.
-   - `DB_USER`: the username to access the database. 
-   - `DB_PASSWORD`: the password to access the database. 
-   - `DB_NAME`: the name of the database. 
-   - `USER_SECRET`: the secret key used for JSON Web Token (JWT) encoding. 
-   - `ALGORITHM`: the algorithm used for JWT encoding. 
-   
+   - `DB_USER`: the username used to access the database.
+   - `DB_PASSWORD`: the password used to access the database.
+   - `DB_NAME`: the name of the main database.
+   - `USER_SECRET`: the secret key used for JSON Web Token (JWT) encoding.
+   - `ALGORITHM`: the algorithm used for JWT encoding.
+
+   The following environment variables have been added to support running tests on a separate test database:
+
+   - `DB_NAME_TEST`: the name of the test database.
+   - `USE_TEST_DB`: set to `True` to use the test database, `False` otherwise.
+
+   You can set these environment variables in a `.env` file in the root directory of the project. An example `.env` file is provided in the repository as `.env-template`.
+
 5. Start MySQL server and execute all commands in `init_db/init_db.sql`
 
 6. Run the application with 
@@ -42,9 +52,11 @@ Before you start, make sure you have the following installed:
 
 7. The API will be available at http://localhost:8000/
 
-### User Guide
+8. To test the app, set the `USE_TEST_DB` parameter in the `.env` file to `True`, run `pytest` in the terminal to execute any test files in the `tests/` directories, then set `USE_TEST_DB` back to `False` to use the main database again. This ensures that tests don't modify the main database.
 
-TODO
+### Documentation
+
+The `docs/` folder contains a project proposal, an EER scheme image, and a sample MySQL database that can be used to test the app. Simply import the database into your local MySQL server and update the `.env` file to use the correct database name, username, and password.
 
 ## Meta
 
