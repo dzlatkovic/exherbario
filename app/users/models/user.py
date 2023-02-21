@@ -4,8 +4,8 @@ a user in the database.
 """
 
 
-from sqlalchemy import Column, String, Boolean
 from uuid import uuid4
+from sqlalchemy import Column, String, Boolean
 from app.db.database import Base
 
 

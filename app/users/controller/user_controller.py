@@ -4,7 +4,7 @@
 from fastapi import HTTPException, Response
 from sqlalchemy.exc import IntegrityError
 from app.users.services import UserServices, signJWT
-from app.users.exceptions import UserInvalidPassword
+from app.users.exceptions import UserInvalidPassword, UserDoesNotExist
 
 
 class UserController:
@@ -38,9 +38,9 @@ class UserController:
         try:
             user = UserServices.create_super_user(name, surname, email, password)
             return user
-        except IntegrityError:
+        except IntegrityError as exc:
             raise HTTPException(status_code=400,
-                                detail=f"User with provided email: {email} already exists.")
+                                detail=f"User with provided email: {email} already exists.") from exc
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
@@ -55,6 +55,8 @@ class UserController:
             if user.is_superuser:
                 return signJWT(user.user_id, "super_user")
             return signJWT(user.user_id, "classic_user")
+        except UserDoesNotExist as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
         except UserInvalidPassword as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
@@ -95,5 +97,7 @@ class UserController:
         """
         try:
             return UserServices.update_user_is_active(user_id, is_active)
+        except UserDoesNotExist as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

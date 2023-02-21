@@ -4,7 +4,7 @@
 import hashlib
 from app.users.repository.user_repository import UserRepository
 from app.db.database import SessionLocal
-from app.users.exceptions import UserInvalidPassword
+from app.users.exceptions import UserInvalidPassword, UserDoesNotExist
 
 
 class UserServices:
@@ -111,6 +111,8 @@ class UserServices:
         with SessionLocal() as db:
             try:
                 user_repository = UserRepository(db)
+                if not user_repository.get_user_by_id(user_id):
+                    raise UserDoesNotExist(message="User does not exist.", code=400)
                 return user_repository.update_user_is_active(user_id, is_active)
             except Exception as error:
                 raise error
@@ -129,6 +131,8 @@ class UserServices:
             try:
                 user_repository = UserRepository(db)
                 user = user_repository.read_user_by_email(email)
+                if not user:
+                    raise UserDoesNotExist(message="User does not exist.", code=400)
                 if hashlib.sha256(bytes(password, "utf-8")).hexdigest() != user.password:
                     raise UserInvalidPassword(message="Invalid password for user", code=401)
                 return user

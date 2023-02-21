@@ -7,15 +7,17 @@ uses a controller to handle the logic of these operations.
 """
 
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.field_loc.controller import FieldLocController
 from app.field_loc.schemas import FieldLocSchema, FieldLocSchemaIn
+from app.users.controller import JWTBearer
 
-field_loc_router = APIRouter(prefix="/api/field_locations", tags=["FieldLoc"])
+field_loc_router = APIRouter(prefix="/api/field-locations", tags=["FieldLoc"])
 
 
-@field_loc_router.post("/create-new-field-loc", response_model=FieldLocSchema)
+@field_loc_router.post("/create-new-field-loc", response_model=FieldLocSchema,
+                       dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_field_loc(field_loc: FieldLocSchemaIn):
     """
     `create_new_field_loc` creates a new field location
@@ -55,7 +57,8 @@ def get_field_loc_by_id(field_loc_id: str):
     return FieldLocController.get_field_loc_by_id(field_loc_id)
 
 
-@field_loc_router.delete("/delete-field-loc")
+@field_loc_router.delete("/delete-field-loc",
+                         dependencies=[Depends(JWTBearer("super_user"))])
 def delete_field_loc_by_id(field_loc_id: str):
     """
     Endpoint for deleting a field location by ID.

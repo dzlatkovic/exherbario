@@ -1,9 +1,9 @@
 """This module defines an SQLAlchemy model for working with specimen data in a database."""
 
 
+from uuid import uuid4
 from datetime import datetime
 from sqlalchemy import Column, String, Date, ForeignKey
-from uuid import uuid4
 from sqlalchemy.orm import relationship
 
 from app.db import Base

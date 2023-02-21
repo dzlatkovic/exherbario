@@ -3,15 +3,17 @@ This module defines an API router for a storage system.
 """
 
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.storage.controller import StorageController
 from app.storage.schemas import StorageSchema, StorageSchemaIn
+from app.users.controller.user_auth_controller import JWTBearer
 
 storage_router = APIRouter(prefix="/api/storage", tags=["Storage"])
 
 
-@storage_router.post("/create-new-storage", response_model=StorageSchema)
+@storage_router.post("/create-new-storage", response_model=StorageSchema,
+                     dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_storage(storage: StorageSchemaIn):
     """
     Create a new storage object
@@ -41,7 +43,7 @@ def get_storage_by_id(storage_id: str):
     return StorageController.get_storage_by_id(storage_id)
 
 
-@storage_router.delete("/delete-storage")
+@storage_router.delete("/delete-storage", dependencies=[Depends(JWTBearer("super_user"))])
 def delete_storage_by_id(storage_id: str):
     """
     Delete a storage object by its ID
@@ -52,4 +54,10 @@ def delete_storage_by_id(storage_id: str):
 
 @storage_router.get("/get-box-content")
 def get_box_content(box: str):
+    """
+    This function returns the content of a box
+    :param box: The name of the box you want to get the content of
+    :type box: str
+    :return: A list of the contents of the box.
+    """
     return StorageController.get_box_content(box)

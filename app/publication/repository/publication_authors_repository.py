@@ -2,8 +2,6 @@
 This module defines the PublicationAuthorsRepository class,
 which provides methods for managing publication author mappings in the database.
 """
-from collections import defaultdict
-
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -72,6 +70,17 @@ class PublicationAuthorsRepository:
             raise error
 
     def get_publication_report(self):
+        """
+        It returns a dictionary of dictionaries, where the keys are
+        the DOIs of the publications, and the values are
+        dictionaries with the keys "authors" and "species",
+        which contain lists of authors and species, respectively
+        :return: A dictionary with the DOI as the key and a
+        dictionary as the value. The value dictionary has two keys:
+        authors and species. The authors key has a list of
+        authors as the value. The species key has a list of species as
+        the value.
+        """
         report = {}
         specimen_publications = self.db.query(SpecimenPublication).all()
         for sp in specimen_publications:

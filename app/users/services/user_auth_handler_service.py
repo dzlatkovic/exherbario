@@ -1,14 +1,12 @@
 """This module provides functions for generating and
 decoding JSON Web Tokens (JWTs) for user authentication."""
 
-
 import time
 from typing import Dict
 
 import jwt
 
 from app.config import settings
-
 
 USER_SECRET = settings.USER_SECRET
 JWT_ALGORITHM = settings.ALGORITHM

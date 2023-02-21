@@ -4,16 +4,18 @@ This module contains the API routers related to the Specimen and SpecimenPublica
 """
 
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.specimen.controller import SpecimenController, SpecimenPublicationController
 from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn, SpecimenSchemaUpdate
 from app.specimen.schemas import SpecimenPublicationSchema, SpecimenPublicationSchemaIn
+from app.users.controller import JWTBearer
 
 specimen_router = APIRouter(prefix="/api/specimen", tags=["Specimen"])
 
 
-@specimen_router.post("/create-new-specimen", response_model=SpecimenSchema)
+@specimen_router.post("/create-new-specimen", response_model=SpecimenSchema,
+                      dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_specimen(specimen: SpecimenSchemaIn):
     """Create a new specimen in the database."""
     return SpecimenController.create_new_specimen(reg_no=specimen.reg_no,
@@ -41,7 +43,7 @@ def get_storage_by_id(specimen_id: str):
     return SpecimenController.get_specimen_by_id(specimen_id)
 
 
-@specimen_router.delete("/delete-specimen")
+@specimen_router.delete("/delete-specimen", dependencies=[Depends(JWTBearer("super_user"))])
 def delete_specimen_by_id(specimen_id: str):
     """
     Delete a specimen by its id
@@ -120,7 +122,8 @@ def get_herbarium_label(reg_no):
     return SpecimenController.get_herbarium_label(reg_no)
 
 
-@specimen_router.put("/update-specimen", response_model=SpecimenSchema)
+@specimen_router.put("/update-specimen", response_model=SpecimenSchema,
+                     dependencies=[Depends(JWTBearer("super_user"))])
 def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
     """
     `Update a specimen.`
@@ -138,7 +141,8 @@ specimen_publication_router = APIRouter(prefix="/api/specimen_publication",
 
 
 @specimen_publication_router.post("/create-new-specimen_publication",
-                                  response_model=SpecimenPublicationSchema)
+                                  response_model=SpecimenPublicationSchema,
+                                  dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_specimen_publication(specimen_publication: SpecimenPublicationSchemaIn):
     """
     `create_new_specimen_publication` creates a new specimen publication
@@ -152,7 +156,8 @@ def create_new_specimen_publication(specimen_publication: SpecimenPublicationSch
     )
 
 
-@specimen_publication_router.delete("/delete-specimen_publication")
+@specimen_publication_router.delete("/delete-specimen_publication",
+                                    dependencies=[Depends(JWTBearer("super_user"))])
 def delete_specimen_publication_by_id(specimen_publication_id: str):
     """
     Delete a specimen publication by its id

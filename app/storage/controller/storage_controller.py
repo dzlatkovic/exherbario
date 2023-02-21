@@ -72,6 +72,12 @@ class StorageController:
 
     @staticmethod
     def get_box_content(box: str):
+        """
+        It gets the content of a box
+        :param box: str
+        :type box: str
+        :return: JSONResponse(content=content)
+        """
         try:
             content = StorageService.get_box_content(box)
             return JSONResponse(content=content)

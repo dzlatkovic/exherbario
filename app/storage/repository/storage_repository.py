@@ -76,6 +76,14 @@ class StorageRepository:
         return self.db.query(Storage).filter(Storage.box == box).first()
 
     def get_box_content(self, box: str):
+        """
+        It returns a list of dictionaries containing the box number,
+        registration number, family, genus, and species of all
+        specimens in a given box
+        :param box: The box number
+        :type box: str
+        :return: A list of dictionaries.
+        """
         try:
             if not self.db.query(Storage).filter(Storage.box == box).first():
                 raise StorageNotFoundException("Box not found.", 400)

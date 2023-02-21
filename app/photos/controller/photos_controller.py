@@ -10,7 +10,9 @@ reading, and deleting photos.
 from fastapi import HTTPException, Response
 
 from app.photos.services import PhotosService
-from app.photos.exceptions import (PhotosNotFoundException, PhotoAlreadyExistsException, IdenticalPhotosException)
+from app.photos.exceptions import (PhotosNotFoundException,
+                                   PhotoAlreadyExistsException,
+                                   IdenticalPhotosException)
 
 
 class PhotosController:

@@ -3,15 +3,17 @@ This module defines the endpoints for interacting with photo data.
 """
 
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.photos.controller import PhotosController
 from app.photos.schemas import PhotosSchema, PhotosSchemaIn
+from app.users.controller import JWTBearer
 
 photos_router = APIRouter(prefix="/api/photos", tags=["Photos"])
 
 
-@photos_router.post("/create-new-photos", response_model=PhotosSchema)
+@photos_router.post("/create-new-photos", response_model=PhotosSchema,
+                    dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_photos(photos: PhotosSchemaIn):
     """
     Endpoint for creating a new photo record in the database
@@ -33,16 +35,17 @@ def get_all_photos():
 
 
 @photos_router.get("/get-photos-by-id", response_model=PhotosSchema)
-def get_field_loc_by_id(field_loc_id: str):
+def get_field_loc_by_id(photos_id: str):
     """
     Endpoint for retrieving a single photo record from the database by ID
-    :param field_loc_id: A string containing the ID of the photo record to retrieve.
+    :param photos_id: A string containing the ID of the photo record to retrieve.
     :return: A `PhotosSchema` object representing the photo record.
     """
-    return PhotosController.get_photos_by_id(field_loc_id)
+    return PhotosController.get_photos_by_id(photos_id)
 
 
-@photos_router.delete("/delete-photos")
+@photos_router.delete("/delete-photos",
+                      dependencies=[Depends(JWTBearer("super_user"))])
 def delete_photos_by_id(photos_id: str):
     """
     Endpoint for deleting a photo record from the database by ID

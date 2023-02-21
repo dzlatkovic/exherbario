@@ -76,6 +76,12 @@ class StorageService:
 
     @staticmethod
     def get_box_content(box: str):
+        """
+        It gets the content of a box
+        :param box: The name of the box you want to get the content of
+        :type box: str
+        :return: A list of dictionaries.
+        """
         try:
             with SessionLocal() as db:
                 repository = StorageRepository(db)

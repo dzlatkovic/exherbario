@@ -55,7 +55,18 @@ class PublicationAuthorsController:
 
     @staticmethod
     def get_publication_report():
+        """
+        It returns a dictionary of dictionaries, where the keys are
+        the DOIs of the publications, and the values are
+        dictionaries with the keys "authors" and "species",
+        which contain lists of authors and species, respectively
+        :return: A dictionary with the DOI as the key and a
+        dictionary as the value. The value dictionary has two keys:
+        authors and species. The authors key has a list of
+        authors as the value. The species key has a list of species as
+        the value.
+        """
         try:
             return PublicationAuthorsService.get_publication_report()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(e)) from error
