@@ -3,8 +3,8 @@
 This class is a repository for specimens, and provides methods to interact with the database
 for storing and retrieving specimen records.
 """
-
-
+from datetime import date
+from geopy.distance import geodesic
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
@@ -24,6 +24,7 @@ class SpecimenRepository:
     It provides methods to create, read, update, and delete specimen records in the database,
     as well as methods to query and retrieve various statistics about the specimens.
     """
+
     def __init__(self, db: Session):
         """
         Initialize a new instance of the SpecimenRepository class
@@ -130,7 +131,8 @@ class SpecimenRepository:
         the number of specimens collected in that year.
         """
         query = self.db.query(func.extract('year', Specimen.collection_date).label('year'),
-                              func.count(Specimen.specimen_id).label('count')).group_by('year')
+                              func.count(Specimen.specimen_id).label('count')).group_by('year').order_by(
+            func.extract('year', Specimen.collection_date).desc())
         return query.all()
 
     def get_specimens_per_user(self):
@@ -145,9 +147,9 @@ class SpecimenRepository:
         key and the number of specimens collected by that
         user as the value.
         """
-        query = self.db.query(User.name, User.surname, func.count(Specimen.specimen_id))\
-            .join(Specimen, User.user_id == Specimen.collected_by)\
-            .group_by(User.user_id)
+        query = self.db.query(User.name, User.surname, func.count(Specimen.specimen_id)) \
+            .join(Specimen, User.user_id == Specimen.collected_by) \
+            .group_by(User.user_id).order_by(func.count(Specimen.specimen_id).desc())
         results = {}
         for name, surname, count in query.all():
             results[f"{name} {surname}"] = count
@@ -193,7 +195,7 @@ class SpecimenRepository:
         specimens = self.db.query(Specimen, FieldLoc).join(FieldLoc).filter(
             Specimen.genus == genus).all()
         for specimen, field_loc in specimens:
-            gps_locations[f"{specimen.genus} {specimen.species}"]\
+            gps_locations[f"{specimen.genus} {specimen.species}"] \
                 = (field_loc.gps_lat, field_loc.gps_long)
         return gps_locations
 
@@ -282,3 +284,28 @@ class SpecimenRepository:
             self.db.refresh(db_specimen)
             return db_specimen
         return None
+
+    def get_specimens_by_date_range(self, start_date: date, end_date: date):
+        """
+        Returns a list of specimens that were collected between the specified start and end dates
+        :param start_date: The start date of the date range
+        :param end_date: The end date of the date range
+        """
+        return self.db.query(Specimen).filter(Specimen.collection_date >= start_date,
+                                              Specimen.collection_date <= end_date).all()
+
+    def get_specimens_by_genus_and_distance(self, genus: str):
+        lat = 43.3097167
+        long = 21.9231889
+        specimens = self.db.query(Specimen, FieldLoc).filter(
+            Specimen.genus == genus,
+            Specimen.field_loc_id == FieldLoc.field_loc_id).all()
+        results = []
+        for specimen, field_loc in specimens:
+            distance = geodesic((lat, long), (field_loc.gps_lat, field_loc.gps_long)).kilometers
+            results.append({
+                "reg_no": specimen.reg_no,
+                "subnomen": specimen.subnomen,
+                "distance": distance
+            })
+        return sorted(results, key=lambda x: x["distance"])

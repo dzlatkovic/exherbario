@@ -1,9 +1,15 @@
 """This module contains the SpecimenService class."""
 
 
+from datetime import datetime
+from fastapi import Response
+import qrcode as qrcode
+import io
 from app.db import SessionLocal
 from app.specimen.repository import SpecimenRepository
-from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException
+from app.specimen.exceptions import (SpecimenExceptionRegNo,
+                                     SpecimenNotFoundException,
+                                     InvalidDateRangeException)
 from app.specimen.schemas import SpecimenSchemaUpdate
 
 
@@ -183,5 +189,56 @@ class SpecimenService:
             if db_specimen is None:
                 raise SpecimenNotFoundException(message="Specimen not found.", code=400)
             return db_specimen
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_specimens_by_date_range(start_date: str, end_date: str):
+        """
+        Returns a list of specimens that were collected between the specified start and end dates
+        :param start_date: The start date of the date range in the format 'YYYY-MM-DD'.
+        :param end_date: The start date of the date range in the format 'YYYY-MM-DD'.
+        :return: List[Specimen]
+        """
+        try:
+            with SessionLocal() as db:
+                start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+                if start_date_obj > end_date_obj:
+                    raise InvalidDateRangeException(message="Start date cannot be after end date",
+                                                    code=400)
+                repository = SpecimenRepository(db)
+                return repository.get_specimens_by_date_range(start_date_obj, end_date_obj)
+        except (ValueError, TypeError):
+            raise ValueError("Invalid input format. Please provide valid format: 'YYYY-MM-DD'")
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_specimens_by_genus_and_distance(genus: str):
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.get_specimens_by_genus_and_distance(genus)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def generate_qr_code(reg_no: str):
+        data = SpecimenService.get_herbarium_label(reg_no)
+        try:
+            qr = qrcode.QRCode(
+                version=None,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            with io.BytesIO() as output:
+                img.save(output, "PNG")
+                contents = output.getvalue()
+            return Response(content=contents, media_type="image/png")
         except Exception as error:
             raise error

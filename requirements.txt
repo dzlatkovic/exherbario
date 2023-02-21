@@ -12,3 +12,5 @@ python-decouple==3.7
 bcrypt
 pytest~=7.2.1
 starlette~=0.22.0
+geopy~=2.3.0
+qrcode~=7.4.2

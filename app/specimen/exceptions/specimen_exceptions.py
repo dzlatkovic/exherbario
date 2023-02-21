@@ -18,3 +18,12 @@ class SpecimenNotFoundException(Exception):
     def __init__(self, message, code):
         self.message = message
         self.code = code
+
+
+class InvalidDateRangeException(Exception):
+    """
+    This class is used to raise an exception when a specimen is not found
+    """
+    def __init__(self, message, code):
+        self.message = message
+        self.code = code

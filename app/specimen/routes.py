@@ -67,8 +67,9 @@ def get_specimen_per_year():
 def get_specimen_per_user():
     """
     This function returns a list of all specimens in the database,
-    with the number of specimens per user
-    :return: A list of tuples containing the user's username and the number of specimens they have.
+    with the number of specimens per user, ordered by the count number
+    :return: A list of tuples containing the user's username and
+    the number of specimens they provided.
     """
     return SpecimenController.get_specimens_per_user()
 
@@ -86,7 +87,7 @@ def get_specimen_per_region():
 @specimen_router.get("/count-specimen")
 def count_specimen():
     """
-    > Counts the number of specimens in the database
+    Counts the number of specimens in the database
     :return: The number of specimens in the database.
     """
     return SpecimenController.count_specimens()
@@ -134,6 +135,33 @@ def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
     :return: The updated specimen
     """
     return SpecimenController.update_specimen(specimen_id, specimen)
+
+
+@specimen_router.get("/filter-by-date")
+def get_specimens_by_date_range(start_date: str, end_date: str):
+    """
+    Returns a list of specimens that were collected between the specified start and end dates
+    :param start_date: The start date of the date range in the format 'YYYY-MM-DD'.
+    :param end_date: The start date of the date range in the format 'YYYY-MM-DD'.
+    :return: List[Specimen]
+    """
+    return SpecimenController.get_specimens_by_date_range(start_date, end_date)
+
+
+@specimen_router.get("/get-specimens-by-genus-and-distance")
+def get_specimens_by_genus_and_distance(genus: str):
+    """
+    Returns a list of specimens for the specified genus sorted by distance from the specified location
+    :param genus: The genus of the specimens to retrieve.
+    :return: list[dict]: A list of dictionaries containing the registration
+    number, subnomen, and distance of each specimen, sorted by distance.
+    """
+    return SpecimenController.get_specimens_by_genus_and_distance(genus)
+
+
+@specimen_router.get("/generate_qr_code")
+def generate_qr_code(reg_no: str):
+    return SpecimenController.generate_qrcode(reg_no)
 
 
 specimen_publication_router = APIRouter(prefix="/api/specimen_publication",

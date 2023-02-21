@@ -8,7 +8,7 @@ from fastapi import HTTPException, Response
 
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
-from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException
+from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException, InvalidDateRangeException
 
 
 class SpecimenController:
@@ -199,5 +199,39 @@ class SpecimenController:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_specimens_by_date_range(start_date: str, end_date: str):
+        """
+        Returns a list of specimens that were collected between the specified start and end dates
+        :param start_date: The start date of the date range in the format 'YYYY-MM-DD'.
+        :param end_date: The start date of the date range in the format 'YYYY-MM-DD'.
+        :return: List[Specimen]
+        """
+        try:
+            return SpecimenService.get_specimens_by_date_range(start_date, end_date)
+        except InvalidDateRangeException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_specimens_by_genus_and_distance(genus: str):
+        try:
+            return SpecimenService.get_specimens_by_genus_and_distance(genus)
+
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def generate_qrcode(reg_no: str):
+        try:
+            return SpecimenService.generate_qr_code(reg_no)
+        except SpecimenExceptionRegNo as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
