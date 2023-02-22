@@ -131,8 +131,8 @@ class SpecimenRepository:
         the number of specimens collected in that year.
         """
         query = self.db.query(func.extract('year', Specimen.collection_date).label('year'),
-                              func.count(Specimen.specimen_id).label('count')).group_by('year').order_by(
-            func.extract('year', Specimen.collection_date).desc())
+                              func.count(Specimen.specimen_id).label('count')).\
+            group_by('year').order_by(func.extract('year', Specimen.collection_date).desc())
         return query.all()
 
     def get_specimens_per_user(self):
@@ -140,9 +140,6 @@ class SpecimenRepository:
         It returns a dictionary of the form {'username': number of
         specimens collected by that user}
 
-        The first line of the function is a query that returns a list of
-        tuples of the form (username, user surname, number of specimens
-        collected by that user)
         :return: A dictionary with the name and surname of the user as the
         key and the number of specimens collected by that
         user as the value.
@@ -195,8 +192,8 @@ class SpecimenRepository:
         specimens = self.db.query(Specimen, FieldLoc).join(FieldLoc).filter(
             Specimen.genus == genus).all()
         for specimen, field_loc in specimens:
-            gps_locations[f"{specimen.genus} {specimen.species}"] \
-                = (field_loc.gps_lat, field_loc.gps_long)
+            gps_locations[specimen.reg_no] \
+                = {"subnomen": specimen.subnomen, "gps": (field_loc.gps_lat, field_loc.gps_long)}
         return gps_locations
 
     def get_last_specimens(self):
@@ -295,6 +292,13 @@ class SpecimenRepository:
                                               Specimen.collection_date <= end_date).all()
 
     def get_specimens_by_genus_and_distance(self, genus: str):
+        """
+        Returns a list of specimens for the specified genus
+        sorted by distance from the specified location
+        :param genus: The genus of the specimens to retrieve.
+        :return: list[dict]: A list of dictionaries containing the registration
+        number, subnomen, and distance of each specimen, sorted by distance.
+        """
         lat = 43.3097167
         long = 21.9231889
         specimens = self.db.query(Specimen, FieldLoc).filter(

@@ -50,11 +50,8 @@ class JWTBearer(HTTPBearer):
         the verification was successful
         and the role associated with the token.
         """
-        is_token_valid: bool = False
         try:
             payload = decodeJWT(jwtoken)
-        except jwt.InvalidTokenError:
+        except Exception as error:
             payload = None
-        if payload:
-            is_token_valid = True
-        return {"valid": is_token_valid, "role": payload["role"]}
+        return {"valid": bool(payload), "role": payload["role"] if payload else None}

@@ -71,8 +71,9 @@ publication_authors_router = APIRouter(prefix="/api/publication_authors",
                                  response_model=PublicationAuthorsSchema,
                                  dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_publication_authors(publication_authors: PublicationAuthorsSchemaIn):
-    """Create a new publication author record
-    :param publication_authors: The publication author information to create
+    """Creates a new publication author mapping with the provided information
+
+    :param publication_authors: The publication author information
     :type publication_authors: PublicationAuthorsSchemaIn
     :return: The created publication author record
     :rtype: PublicationAuthorsSchema
@@ -86,7 +87,8 @@ def create_new_publication_authors(publication_authors: PublicationAuthorsSchema
 @publication_authors_router.delete("/delete-publication-authors",
                                    dependencies=[Depends(JWTBearer("super_user"))])
 def delete_publication_authors_by_id(publication_authors_id: str):
-    """Delete a publication author record by ID
+    """Delete a publication author mapping by ID
+
     :param publication_authors_id: The ID of the publication author record to delete
     :type publication_authors_id: str
     """
@@ -96,9 +98,9 @@ def delete_publication_authors_by_id(publication_authors_id: str):
 @publication_authors_router.get("/get-publication-report")
 def get_publication_report():
     """
-    This function returns a list of dictionaries, each dictionary
-    containing the publication title, the authors,
-    and the species used in the study
+    This function returns a dictionary containing
+    the publication doi number, the authors,
+    and plant species used in the published study
     :return: A list of dictionaries.
     """
     return PublicationAuthorsController.get_publication_report()

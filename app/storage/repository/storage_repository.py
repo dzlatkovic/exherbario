@@ -3,6 +3,7 @@ This module defines the StorageRepository class,
 which provides methods for interacting with the
 storage database table.
 """
+from time import strftime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -95,7 +96,7 @@ class StorageRepository:
             results = []
             for storage, specimen in query:
                 data = {
-                    "box": box,
+                    "reg_date": specimen.reg_date.strftime("%Y-%m-%d"),
                     "reg_no": specimen.reg_no,
                     "family": specimen.family,
                     "genus": specimen.genus,

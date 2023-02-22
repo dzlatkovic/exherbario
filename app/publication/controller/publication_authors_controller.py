@@ -69,4 +69,4 @@ class PublicationAuthorsController:
         try:
             return PublicationAuthorsService.get_publication_report()
         except Exception as error:
-            raise HTTPException(status_code=500, detail=str(e)) from error
+            raise HTTPException(status_code=500, detail=str(error)) from error

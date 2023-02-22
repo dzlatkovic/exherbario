@@ -87,12 +87,12 @@ class PublicationAuthorsRepository:
             specimen = self.db.query(Specimen).filter_by(specimen_id=sp.specimen_id).first()
             publication = self.db.query(Publication).filter_by(pub_id=sp.publication_id).first()
             if publication.doi not in report:
-                report[publication.doi] = {"authors": [], "species": []}
+                report[publication.doi] = {"authors": set(), "species": set()}
             authors = self.db.query(User).join(PublicationAuthors).filter_by(
                 publication_id=publication.pub_id).all()
             for author in authors:
-                report[publication.doi]["authors"].append(f"{author.name} {author.surname}")
-            species = f"{specimen.genus} {specimen.species}"
+                report[publication.doi]["authors"].add(f"{author.name} {author.surname}")
+            species = specimen.subnomen
             if species not in report[publication.doi]["species"]:
-                report[publication.doi]["species"].append(species)
+                report[publication.doi]["species"].add(species)
         return report

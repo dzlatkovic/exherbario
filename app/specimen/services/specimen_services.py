@@ -2,9 +2,9 @@
 
 
 from datetime import datetime
-from fastapi import Response
-import qrcode as qrcode
 import io
+from fastapi import Response
+import qrcode
 from app.db import SessionLocal
 from app.specimen.repository import SpecimenRepository
 from app.specimen.exceptions import (SpecimenExceptionRegNo,
@@ -209,13 +209,21 @@ class SpecimenService:
                                                     code=400)
                 repository = SpecimenRepository(db)
                 return repository.get_specimens_by_date_range(start_date_obj, end_date_obj)
-        except (ValueError, TypeError):
-            raise ValueError("Invalid input format. Please provide valid format: 'YYYY-MM-DD'")
+        except (ValueError, TypeError) as exc:
+            raise ValueError("Invalid input format. "
+                             "Please provide valid format: 'YYYY-MM-DD'") from exc
         except Exception as error:
             raise error
 
     @staticmethod
     def get_specimens_by_genus_and_distance(genus: str):
+        """
+        Returns a list of specimens for the specified genus
+        sorted by distance from the specified location
+        :param genus: The genus of the specimens to retrieve.
+        :return: list[dict]: A list of dictionaries containing the registration
+        number, subnomen, and distance of each specimen, sorted by distance.
+        """
         try:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
@@ -225,17 +233,27 @@ class SpecimenService:
 
     @staticmethod
     def generate_qr_code(reg_no: str):
+        """
+        `generate_qr_code` takes a registration number of the specimen
+        as a string and returns a QR code image containing the
+        herbarium label
+        :param reg_no: The registration number of the specimen
+        :type reg_no: str
+        :return: A QR code image
+        """
         data = SpecimenService.get_herbarium_label(reg_no)
+        string_to_add = "\n".join(f"{key}: {value}"
+                                  for key, value in data.items())
         try:
-            qr = qrcode.QRCode(
+            qr_code = qrcode.QRCode(
                 version=None,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
                 box_size=10,
                 border=4,
             )
-            qr.add_data(data)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
+            qr_code.add_data(string_to_add)
+            qr_code.make(fit=True)
+            img = qr_code.make_image(fill_color="black", back_color="white")
             with io.BytesIO() as output:
                 img.save(output, "PNG")
                 contents = output.getvalue()

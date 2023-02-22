@@ -8,3 +8,9 @@ init-hook=
 
 [BASIC]
 good-names = db
+
+[DESIGN]
+min-public-methods=0
+
+[FUNCTIONS]
+max-args=20

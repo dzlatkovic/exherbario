@@ -101,10 +101,10 @@ class TestPhotosRoutes(TestClass):
         code when the user tries to get a photo by an invalid id
         """
         token = TestPhotosRoutes.setup_super_user()
-        response = client.post(url="/api/photos/create-new-photos",
-                               json={"field_photo": "field.jpg",
-                                     "specimen_photo": "specimen.jpg"},
-                               headers={"Authorization": f"Bearer {token}"})
+        client.post(url="/api/photos/create-new-photos",
+                    json={"field_photo": "field.jpg",
+                          "specimen_photo": "specimen.jpg"},
+                    headers={"Authorization": f"Bearer {token}"})
         second_response = client.get(url="/api/photos/get-photos-by-id",
                                      params={"photos_id": "invalid id"})
         assert second_response.status_code == 400

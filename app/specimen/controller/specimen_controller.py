@@ -8,7 +8,9 @@ from fastapi import HTTPException, Response
 
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
-from app.specimen.exceptions import SpecimenExceptionRegNo, SpecimenNotFoundException, InvalidDateRangeException
+from app.specimen.exceptions import (SpecimenExceptionRegNo,
+                                     SpecimenNotFoundException,
+                                     InvalidDateRangeException)
 
 
 class SpecimenController:
@@ -221,6 +223,13 @@ class SpecimenController:
 
     @staticmethod
     def get_specimens_by_genus_and_distance(genus: str):
+        """
+        Returns a list of specimens for the specified genus
+        sorted by distance from the specified location
+        :param genus: The genus of the specimens to retrieve.
+        :return: list[dict]: A list of dictionaries containing the registration
+        number, subnomen, and distance of each specimen, sorted by distance.
+        """
         try:
             return SpecimenService.get_specimens_by_genus_and_distance(genus)
 
@@ -229,6 +238,14 @@ class SpecimenController:
 
     @staticmethod
     def generate_qrcode(reg_no: str):
+        """
+        `generate_qr_code` takes a registration number of a specimen
+        as a string and returns a QR code image containing the
+        herbarium label
+        :param reg_no: The registration number of the specimen
+        :type reg_no: str
+        :return: A QR code image
+        """
         try:
             return SpecimenService.generate_qr_code(reg_no)
         except SpecimenExceptionRegNo as error:

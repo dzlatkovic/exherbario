@@ -40,7 +40,8 @@ class UserController:
             return user
         except IntegrityError as exc:
             raise HTTPException(status_code=400,
-                                detail=f"User with provided email: {email} already exists.") from exc
+                                detail=f"User with provided email: "
+                                       f"{email} already exists.") from exc
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 

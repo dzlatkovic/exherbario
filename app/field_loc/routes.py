@@ -21,6 +21,7 @@ field_loc_router = APIRouter(prefix="/api/field-locations", tags=["FieldLoc"])
 def create_new_field_loc(field_loc: FieldLocSchemaIn):
     """
     `create_new_field_loc` creates a new field location
+
     :param field_loc: The field location data provided in the request body
     :type field_loc: FieldLocSchemaIn
     :return: The created field location.
@@ -38,6 +39,7 @@ def create_new_field_loc(field_loc: FieldLocSchemaIn):
 def get_all_field_locations():
     """
     This function returns a list of all field locations
+
     :return: A list of all field locations
     """
     field_locations = FieldLocController.get_all_field_locations()
@@ -51,6 +53,7 @@ def get_field_loc_by_id(field_loc_id: str):
 
     This function retrieves a field location with the specified ID from the database, and
     returns it as a response
+    
     :param field_loc_id: The ID of the field location to retrieve.
     :return: The retrieved field location object
     """

@@ -17,7 +17,14 @@ specimen_router = APIRouter(prefix="/api/specimen", tags=["Specimen"])
 @specimen_router.post("/create-new-specimen", response_model=SpecimenSchema,
                       dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_specimen(specimen: SpecimenSchemaIn):
-    """Create a new specimen in the database."""
+    """
+    Create a new specimen in the database using the information
+    provided in the SpecimenSchemaIn object.
+
+    :param specimen: A SpecimenSchemaIn object containing the details of the new specimen.
+    :type specimen: SpecimenSchemaIn
+    :return: The newly created specimen object.
+    """
     return SpecimenController.create_new_specimen(reg_no=specimen.reg_no,
                                                   collection_date=specimen.collection_date,
                                                   reg_date=specimen.reg_date,
@@ -35,12 +42,12 @@ def create_new_specimen(specimen: SpecimenSchemaIn):
 @specimen_router.get("/get-specimen-by-id", response_model=SpecimenSchema)
 def get_storage_by_id(specimen_id: str):
     """
-    > Get a specimen by its id
-    :param specimen_id: The ID of the specimen you want to get
+    Retrieve a specimen from the database by its ID.
+
+    :param specimen_id: ID of the specimen to retrieve
     :type specimen_id: str
-    :return: A specimen object
-    """
     return SpecimenController.get_specimen_by_id(specimen_id)
+    """
 
 
 @specimen_router.delete("/delete-specimen", dependencies=[Depends(JWTBearer("super_user"))])
@@ -49,7 +56,6 @@ def delete_specimen_by_id(specimen_id: str):
     Delete a specimen by its id
     :param specimen_id: str
     :type specimen_id: str
-    :return: The return value is a tuple of the form (status, message)
     """
     return SpecimenController.delete_specimen_by_id(specimen_id)
 
@@ -57,8 +63,8 @@ def delete_specimen_by_id(specimen_id: str):
 @specimen_router.get("/get-specimen-per-year")
 def get_specimen_per_year():
     """
-    This function returns a list of tuples containing the number of specimens collected per year
-    :return: A list of tuples containing the year and the number of specimens for that year.
+    This function returns a list of dicts containing the number of specimens collected per year
+    :return: A list of dicts containing the year and the number of specimens for that year.
     """
     return SpecimenController.get_specimens_per_year()
 
@@ -66,10 +72,12 @@ def get_specimen_per_year():
 @specimen_router.get("/get-specimen-per-user")
 def get_specimen_per_user():
     """
-    This function returns a list of all specimens in the database,
-    with the number of specimens per user, ordered by the count number
-    :return: A list of tuples containing the user's username and
-    the number of specimens they provided.
+    It returns a dictionary of the form {'name surname': number of
+    specimens collected by that user}
+
+    :return: A dictionary with the name and surname of the user as the
+    key and the number of specimens collected by that
+    user as the value.
     """
     return SpecimenController.get_specimens_per_user()
 
@@ -77,9 +85,11 @@ def get_specimen_per_user():
 @specimen_router.get("/get-specimen-per-region")
 def get_specimen_per_region():
     """
-    This function returns a list of dictionaries, each dictionary containing
-    the name of a region and the number of specimens in that region
-    :return: A list of tuples containing the region name and the number of specimens in that region.
+    This function returns a dictionary containing
+    the name of a region and the number of specimens
+    collected in that region
+    :return: A dictionary containing the region name and the number of specimens
+    collected in that region.
     """
     return SpecimenController.get_specimens_per_region()
 
@@ -87,8 +97,10 @@ def get_specimen_per_region():
 @specimen_router.get("/count-specimen")
 def count_specimen():
     """
-    Counts the number of specimens in the database
-    :return: The number of specimens in the database.
+    Count the number of unique specimens, families, genera, and species in the database.
+
+    :return: A dictionary containing the counts of unique specimens, families,
+    genera, and species in the database.
     """
     return SpecimenController.count_specimens()
 
@@ -96,10 +108,12 @@ def count_specimen():
 @specimen_router.get("/get-gps")
 def get_gps_for_genus(genus: str):
     """
-    This function returns a list of GPS coordinates for a given genus
-    :param genus: The genus of the plant you want to get GPS coordinates for
+    Retrieve the GPS coordinates of all specimens belonging to a given genus.
+
+    :param genus: A string representing the genus of the specimens to retrieve.
     :type genus: str
-    :return: A list of GPS coordinates for a given genus.
+    :return: A dictionary of the register number of each specimen and its GPS
+    coordinates, in the format {reg_no: {subnomen, gps}}.
     """
     return SpecimenController.get_gps_for_genus(genus)
 
@@ -107,8 +121,7 @@ def get_gps_for_genus(genus: str):
 @specimen_router.get("/get-last-specimens", response_model=list[SpecimenSchema])
 def get_last_specimens():
     """
-    This function returns the last specimens added to the database
-    :return: A list of the last 10 specimens added to the database.
+    This function returns the last 10 specimens added to the database
     """
     return SpecimenController.get_last_specimens()
 
@@ -116,9 +129,11 @@ def get_last_specimens():
 @specimen_router.get("/get-herbarium-label")
 def get_herbarium_label(reg_no):
     """
-    This function returns the herbarium label for a given registration number
-    :param reg_no: The registration number of the specimen
-    :return: A list of all the herbarium labels.
+    Retrieve the herbarium label for a given specimen registration number.
+
+    :param reg_no: registration number of the specimen to retrieve the herbarium label for.
+    :type reg_no: str
+    :return: A dictionary representing the herbarium label for the specimen
     """
     return SpecimenController.get_herbarium_label(reg_no)
 
@@ -151,16 +166,25 @@ def get_specimens_by_date_range(start_date: str, end_date: str):
 @specimen_router.get("/get-specimens-by-genus-and-distance")
 def get_specimens_by_genus_and_distance(genus: str):
     """
-    Returns a list of specimens for the specified genus sorted by distance from the specified location
+    Returns a list of specimens for the specified genus
+    sorted by distance from the Faculty of Sciences and Mathematics, Nis
     :param genus: The genus of the specimens to retrieve.
     :return: list[dict]: A list of dictionaries containing the registration
-    number, subnomen, and distance of each specimen, sorted by distance.
+    number, subnomen, and distance of each specimen, sorted by distance from PMF Nis.
     """
     return SpecimenController.get_specimens_by_genus_and_distance(genus)
 
 
 @specimen_router.get("/generate_qr_code")
 def generate_qr_code(reg_no: str):
+    """
+    `generate_qr_code` takes a registration number of the specimen
+    as a string and returns a QR code image containing the
+    herbarium label
+    :param reg_no: The registration number of the specimen
+    :type reg_no: str
+    :return: A QR code image
+    """
     return SpecimenController.generate_qrcode(reg_no)
 
 
@@ -173,10 +197,14 @@ specimen_publication_router = APIRouter(prefix="/api/specimen_publication",
                                   dependencies=[Depends(JWTBearer("super_user"))])
 def create_new_specimen_publication(specimen_publication: SpecimenPublicationSchemaIn):
     """
-    `create_new_specimen_publication` creates a new specimen publication
-    :param specimen_publication: SpecimenPublicationSchemaIn
+    create_new_specimen_publication function creates a new mapping
+    between specimens and publications, indicating which specimens
+    were mentioned in which article.
+
+    :param specimen_publication: A SpecimenPublicationSchemaIn object containing the
+    relevant information for the new mapping
     :type specimen_publication: SpecimenPublicationSchemaIn
-    :return: The newly created specimen publication.
+    :return: A new specimen publication mapping.
     """
     return SpecimenPublicationController.create_new_specimen_publication(
         specimen_id=specimen_publication.specimen_id,
@@ -189,8 +217,7 @@ def create_new_specimen_publication(specimen_publication: SpecimenPublicationSch
 def delete_specimen_publication_by_id(specimen_publication_id: str):
     """
     Delete a specimen publication by its id
+
     :param specimen_publication_id: str
-    :type specimen_publication_id: str
-    :return: A list of specimen publications
     """
     return SpecimenPublicationController.delete_specimen_publication_by_id(specimen_publication_id)
