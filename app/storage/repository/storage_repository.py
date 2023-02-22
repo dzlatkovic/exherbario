@@ -3,14 +3,15 @@ This module defines the StorageRepository class,
 which provides methods for interacting with the
 storage database table.
 """
-from time import strftime
+
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.specimen.models import Specimen
 from app.storage.models import Storage
 from app.storage.exceptions import StorageNotFoundException
+from app.storage.schemas import StorageSchemaUpdate
 
 
 class StorageRepository:
@@ -106,3 +107,23 @@ class StorageRepository:
             return results
         except Exception as error:
             raise error
+
+    def update_storage(self, storage_id: str, storage_data: StorageSchemaUpdate):
+        """
+        It updates the storage with the given storage_id with the given storage_data
+        :param storage_id: str
+        :type storage_id: str
+        :param storage_data: StorageSchemaUpdate
+        :type storage_data: StorageSchemaUpdate
+        :return: The storage object is being returned.
+        """
+        storage = self.db.query(Storage).filter(Storage.storage_id == storage_id).first()
+        if storage:
+            if storage_data.room:
+                storage.room = storage_data.room
+            if storage_data.shelf:
+                storage.shelf = storage_data.shelf
+            self.db.commit()
+            self.db.refresh(storage)
+            return storage
+        return None

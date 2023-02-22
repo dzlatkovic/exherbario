@@ -22,7 +22,7 @@ Before you start, make sure you have the following installed:
 
 3. Install the required packages with `pip install -r requirements.txt`
 
-4. ###### Environment Variables
+4. Environment Variables
 
    The following environment variables are required to run the application:
 
@@ -56,7 +56,7 @@ Before you start, make sure you have the following installed:
 
 ### Documentation
 
-The `docs/` folder contains a project proposal, an EER scheme image, and a sample MySQL database that can be used to test the app. Simply import the database into your local MySQL server and update the `.env` file to use the correct database name, username, and password.
+The `docs/` folder contains a project proposal, an EER scheme image, and a sample MySQL database that can be used to test the app. Simply import the database into your local MySQL server and update the `.env` file to use the correct database name, username, and password. Note that the sample database contains a superuser with email "john@example.com" and password "string". You can use this superuser to access the protected routes in the app.
 
 ## Meta
 

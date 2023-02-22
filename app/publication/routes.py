@@ -3,7 +3,6 @@
 This module contains the API routers related to the Publication entity.
 """
 
-
 from fastapi import APIRouter, Depends
 
 from app.publication.controller import PublicationController, PublicationAuthorsController
@@ -11,7 +10,7 @@ from app.publication.schemas import (
     PublicationSchema,
     PublicationSchemaIn,
     PublicationAuthorsSchema,
-    PublicationAuthorsSchemaIn
+    PublicationAuthorsSchemaIn, PublicationSchemaUpdate
 )
 from app.users.controller import JWTBearer
 
@@ -61,6 +60,21 @@ def delete_publication_by_id(pub_id: str):
     :type pub_id: str
     """
     return PublicationController.delete_publication_by_id(pub_id)
+
+
+@publication_router.put("/update-publication", response_model=PublicationSchema,
+                        dependencies=[Depends(JWTBearer("super_user"))])
+def update_publication(pub_id: str, publication: PublicationSchemaUpdate):
+    """
+    `Update a publication by id.`
+
+    :param pub_id: The id of the publication you want to update
+    :type pub_id: str
+    :param publication: PublicationSchemaUpdate
+    :type publication: PublicationSchemaUpdate
+    :return: A publication object
+    """
+    return PublicationController.update_publication(pub_id, publication)
 
 
 publication_authors_router = APIRouter(prefix="/api/publication_authors",

@@ -2,12 +2,14 @@
 This module defines the PublicationRepository class,
 which provides methods for managing publications in the database.
 """
+from datetime import datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.publication.models import Publication
 from app.publication.exceptions import PublicationNotFoundException
+from app.publication.schemas import PublicationSchemaUpdate
 
 
 class PublicationRepository:
@@ -84,3 +86,32 @@ class PublicationRepository:
         :return: Publication object representing the retrieved publication
         """
         return self.db.query(Publication).filter(Publication.doi == doi).first()
+
+    def update_publication(self, pub_id: str, publication: PublicationSchemaUpdate):
+        """
+        It updates the specimen with the given specimen_id with the given specimen
+        :param pub_id: str
+        :param publication: PublicationSchemaUpdate
+        :return: The updated publication.
+        """
+        try:
+            db_publication = self.db.query(Publication).filter(Publication.pub_id == pub_id).first()
+            if db_publication:
+                if publication.doi:
+                    db_publication.doi = publication.doi
+                if publication.year:
+                    try:
+                        year_date = datetime.strptime(publication.year, '%Y').date()
+                    except Exception as error:
+                        raise ValueError('year must be a four-digit year') from error
+                    db_publication.year = year_date
+                if publication.journal:
+                    db_publication.journal = publication.journal
+                if publication.title:
+                    db_publication.title = publication.title
+                self.db.commit()
+                self.db.refresh(db_publication)
+                return db_publication
+        except Exception as error:
+            raise error
+        return None

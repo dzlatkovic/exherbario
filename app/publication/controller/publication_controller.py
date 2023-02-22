@@ -5,6 +5,7 @@ which provides API endpoints for managing publications.
 
 from fastapi import HTTPException, Response
 
+from app.publication.schemas import PublicationSchemaUpdate
 from app.publication.services import PublicationService
 from app.publication.exceptions import PublicationExceptionDoi, PublicationNotFoundException
 
@@ -65,6 +66,26 @@ class PublicationController:
             PublicationService.delete_publication_by_id(pub_id)
             return Response(content=f"Publication with the provided ID: "
                                     f"{pub_id} deleted.", status_code=200)
+        except PublicationNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def update_publication(pub_id: str, publication: PublicationSchemaUpdate):
+        """
+        It updates a publication.
+
+        :param pub_id: str - The id of the publication to update
+        :type pub_id: str
+        :param publication: PublicationSchemaUpdate
+        :type publication: PublicationSchemaUpdate
+        :return: The updated publication
+        """
+        try:
+            return PublicationService.update_publication(pub_id, publication)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except PublicationNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

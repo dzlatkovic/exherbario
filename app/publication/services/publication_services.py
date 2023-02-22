@@ -8,7 +8,8 @@ reading, and deleting Publication objects.
 from app.publication.models import Publication
 from app.db import SessionLocal
 from app.publication.repository import PublicationRepository
-from app.publication.exceptions import PublicationExceptionDoi
+from app.publication.exceptions import PublicationExceptionDoi, PublicationNotFoundException
+from app.publication.schemas import PublicationSchemaUpdate
 
 
 class PublicationService:
@@ -77,5 +78,27 @@ class PublicationService:
             with SessionLocal() as db:
                 repository = PublicationRepository(db)
                 return repository.delete_publication(pub_id)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def update_publication(pub_id: str, publication: PublicationSchemaUpdate):
+        """
+        It takes a publication id and a publication object as
+        input, and returns the updated publication object
+        :param pub_id: str - the id of the publication to be updated
+        :type pub_id: str
+        :param publication: PublicationSchemaUpdate
+        :type publication: PublicationSchemaUpdate
+        :return: The updated publication.
+        """
+        try:
+            with SessionLocal() as db:
+                repository = PublicationRepository(db)
+                db_publication = repository.update_publication(pub_id, publication)
+            if db_publication is None:
+                raise PublicationNotFoundException(message="Publication not found.",
+                                                   code=400)
+            return db_publication
         except Exception as error:
             raise error

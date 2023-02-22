@@ -8,7 +8,7 @@ that is used as input for creating a new
 field location object.
 These classes are used to validate input data and serialize/deserialize JSON data.
 """
-
+from typing import Optional
 
 from pydantic import BaseModel, UUID4
 
@@ -52,6 +52,25 @@ class FieldLocSchemaIn(BaseModel):
     habitat: str
     gps_lat: float
     gps_long: float
+
+    class Config:
+        """
+        Configuration for Pydantic schema to work with ORM
+        """
+        orm_mode = True
+
+
+class FieldLocSchemaUpdate(BaseModel):
+    """
+    Schema class for a field location update input.
+    """
+    country: Optional[str]
+    region: Optional[str]
+    locality: Optional[str]
+    altitude: Optional[int]
+    habitat: Optional[str]
+    gps_lat: Optional[float]
+    gps_long: Optional[float]
 
     class Config:
         """

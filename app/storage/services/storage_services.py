@@ -7,6 +7,8 @@ from app.storage.models import Storage
 from app.db import SessionLocal
 from app.storage.repository import StorageRepository
 from app.storage.exceptions import StorageExceptionBox
+from app.storage.schemas import StorageSchemaUpdate
+from app.storage.exceptions import StorageNotFoundException
 
 
 class StorageService:
@@ -86,5 +88,26 @@ class StorageService:
             with SessionLocal() as db:
                 repository = StorageRepository(db)
                 return repository.get_box_content(box)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def update_storage(storage_id: str, storage_data: StorageSchemaUpdate):
+        """
+        It updates a storage in the database
+
+        :param storage_id: The id of the storage to be updated
+        :type storage_id: str
+        :param storage_data: StorageSchemaUpdate
+        :type storage_data: StorageSchemaUpdate
+        :return: The updated storage object.
+        """
+        try:
+            with SessionLocal() as db:
+                repository = StorageRepository(db)
+                db_storage = repository.update_storage(storage_id, storage_data)
+                if db_storage is None:
+                    raise StorageNotFoundException(message="Storage was not found.", code=400)
+                return db_storage
         except Exception as error:
             raise error

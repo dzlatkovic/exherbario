@@ -2,11 +2,10 @@
 This module defines an API router for a storage system.
 """
 
-
 from fastapi import APIRouter, Depends
 
 from app.storage.controller import StorageController
-from app.storage.schemas import StorageSchema, StorageSchemaIn
+from app.storage.schemas import StorageSchema, StorageSchemaIn, StorageSchemaUpdate
 from app.users.controller.user_auth_controller import JWTBearer
 
 storage_router = APIRouter(prefix="/api/storage", tags=["Storage"])
@@ -61,3 +60,21 @@ def get_box_content(box: str):
     :return: A list of the contents of the box.
     """
     return StorageController.get_box_content(box)
+
+
+@storage_router.put("/update-storage", response_model=StorageSchema,
+                    dependencies=[Depends(JWTBearer("super_user"))])
+def update_storage(storage_id: str, storage_data: StorageSchemaUpdate):
+    """
+    Update an existing storage with the given data.
+
+    This endpoint updates an existing storage with the given ID using the provided data.
+    The storage's `room` and `shelf` attributes can be updated with this endpoint
+
+    :param storage_id: The ID of the storage to update.
+    :type storage_id: str
+    :param storage_data: The data to update the storage with.
+    :type storage_data: StorageSchemaUpdate.
+    :return: The updated storage object.
+    """
+    return StorageController.update_storage(storage_id, storage_data)

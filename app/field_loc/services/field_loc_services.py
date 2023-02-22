@@ -8,10 +8,11 @@ is created and managed by the methods in this class, and is used to ensure
 that database connections are properly managed and closed.
 """
 
-
 from app.field_loc.models import FieldLoc
 from app.db import SessionLocal
 from app.field_loc.repository import FieldLocRepository
+from app.field_loc.schemas import FieldLocSchemaUpdate
+from app.field_loc.exceptions import FieldLocNotFoundException
 
 
 class FieldLocService:
@@ -25,6 +26,7 @@ class FieldLocService:
     in this class, and is used to ensure that database connections are
     properly managed and closed.
     """
+
     @staticmethod
     def create_new_field_loc(country: str, region: str, locality: str, altitude: int,
                              habitat: str, gps_lat: float, gps_long: float) -> FieldLoc:
@@ -85,5 +87,26 @@ class FieldLocService:
             with SessionLocal() as db:
                 repository = FieldLocRepository(db)
                 return repository.delete_field_loc(field_loc_id)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def update_field_loc(field_loc_id: str, field_loc_data: FieldLocSchemaUpdate):
+        """
+        It takes a field_loc_id and field_loc_data as input, and returns a field_loc object
+        :param field_loc_id: The id of the field location to be updated
+        :type field_loc_id: str
+        :param field_loc_data: This is the data that will be used to update the field location
+        :type field_loc_data: FieldLocSchemaUpdate
+        :return: The updated field location.
+        """
+        try:
+            with SessionLocal() as db:
+                repository = FieldLocRepository(db)
+                field_loc = repository.update_field_loc(field_loc_id, field_loc_data)
+            if field_loc is None:
+                raise FieldLocNotFoundException(message="Field location not found.",
+                                                code=400)
+            return field_loc
         except Exception as error:
             raise error

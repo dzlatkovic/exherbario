@@ -1,4 +1,5 @@
 """This module contains the Pydantic schemas for the storage module."""
+from typing import Optional
 
 from pydantic import BaseModel, UUID4
 
@@ -40,6 +41,24 @@ class StorageSchemaIn(BaseModel):
     room: str
     shelf: str
     box: str
+
+    class Config:
+        """
+        Configuration for Pydantic schema to work with ORM
+        """
+        orm_mode = True
+
+
+class StorageSchemaUpdate(BaseModel):
+    """
+    Pydantic schema for updating an existing storage
+    :param room: The new room of the storage
+    :type room: str
+    :param shelf: The new shelf of the storage
+    :type shelf: str
+    """
+    room: Optional[str]
+    shelf: Optional[str]
 
     class Config:
         """

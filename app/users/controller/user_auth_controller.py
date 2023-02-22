@@ -4,7 +4,8 @@ and verify a JSON Web Token (JWT).
 This is done by extending the `HTTPBearer` class and
 verifying the JWT in the `__call__` method.
 """
-import jwt
+
+
 from fastapi import Request, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.users.services import decodeJWT
@@ -52,6 +53,6 @@ class JWTBearer(HTTPBearer):
         """
         try:
             payload = decodeJWT(jwtoken)
-        except Exception as error:
+        except Exception:
             payload = None
         return {"valid": bool(payload), "role": payload["role"] if payload else None}

@@ -4,6 +4,8 @@ Publication model.
 """
 
 from datetime import date, datetime
+from typing import Optional
+
 from pydantic import BaseModel, UUID4, validator
 
 
@@ -53,6 +55,20 @@ class PublicationSchemaIn(BaseModel):
     class Config:
         """
         Pydantic model configuration options for
-        the PublicationAuthors schema.
+        the Publication schema.
+        """
+        orm_mode = True
+
+
+class PublicationSchemaUpdate(BaseModel):
+    """Pydantic model for updating a publication record."""
+    doi: Optional[str]
+    year: Optional[str]
+    journal: Optional[str]
+    title: Optional[str]
+
+    class Config:
+        """
+        Configuration for Pydantic schema to work with ORM
         """
         orm_mode = True

@@ -40,7 +40,7 @@ def create_new_specimen(specimen: SpecimenSchemaIn):
 
 
 @specimen_router.get("/get-specimen-by-id", response_model=SpecimenSchema)
-def get_storage_by_id(specimen_id: str):
+def get_specimen_by_id(specimen_id: str):
     """
     Retrieve a specimen from the database by its ID.
 
@@ -48,6 +48,7 @@ def get_storage_by_id(specimen_id: str):
     :type specimen_id: str
     return SpecimenController.get_specimen_by_id(specimen_id)
     """
+    return SpecimenController.get_specimen_by_id(specimen_id)
 
 
 @specimen_router.delete("/delete-specimen", dependencies=[Depends(JWTBearer("super_user"))])

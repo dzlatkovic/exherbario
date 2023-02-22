@@ -8,6 +8,7 @@ necessary actions on the storage data.
 from fastapi import HTTPException, Response
 from starlette.responses import JSONResponse
 
+from app.storage.schemas import StorageSchemaUpdate
 from app.storage.services import StorageService
 from app.storage.exceptions import StorageExceptionBox, StorageNotFoundException
 
@@ -81,6 +82,24 @@ class StorageController:
         try:
             content = StorageService.get_box_content(box)
             return JSONResponse(content=content)
+        except StorageNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def update_storage(storage_id: str, storage_data: StorageSchemaUpdate):
+        """
+        It updates the storage with the given storage_id and storage_data
+
+        :param storage_id: str - The ID of the storage to update
+        :type storage_id: str
+        :param storage_data: StorageSchemaUpdate
+        :type storage_data: StorageSchemaUpdate
+        :return: The updated storage object
+        """
+        try:
+            return StorageService.update_storage(storage_id, storage_data)
         except StorageNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

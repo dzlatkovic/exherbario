@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.field_loc.models import FieldLoc
 from app.field_loc.exceptions import FieldLocNotFoundException
+from app.field_loc.schemas import FieldLocSchemaUpdate
 
 
 class FieldLocRepository:
@@ -101,3 +102,24 @@ class FieldLocRepository:
             return True
         except Exception as error:
             raise error
+
+    def update_field_loc(self, field_loc_id: str, field_loc_data: FieldLocSchemaUpdate):
+        """
+        It takes a field_loc_id and a field_loc_data object,
+        finds the field_loc in the database with the matching
+        field_loc_id, and updates the field_loc with the data
+        in the field_loc_data object
+        :param field_loc_id: str
+        :type field_loc_id: str
+        :param field_loc_data: FieldLocSchemaUpdate
+        :type field_loc_data: FieldLocSchemaUpdate
+        :return: The field_loc object is being returned.
+        """
+        field_loc = self.db.query(FieldLoc).filter(FieldLoc.field_loc_id == field_loc_id).first()
+        if field_loc:
+            for key, value in field_loc_data.dict(exclude_unset=True).items():
+                setattr(field_loc, key, value)
+            self.db.commit()
+            self.db.refresh(field_loc)
+            return field_loc
+        return None

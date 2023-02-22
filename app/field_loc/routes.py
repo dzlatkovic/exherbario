@@ -6,11 +6,10 @@ It includes several endpoints for creating, retrieving, and deleting field locat
 uses a controller to handle the logic of these operations.
 """
 
-
 from fastapi import APIRouter, Depends
 
 from app.field_loc.controller import FieldLocController
-from app.field_loc.schemas import FieldLocSchema, FieldLocSchemaIn
+from app.field_loc.schemas import FieldLocSchema, FieldLocSchemaIn, FieldLocSchemaUpdate
 from app.users.controller import JWTBearer
 
 field_loc_router = APIRouter(prefix="/api/field-locations", tags=["FieldLoc"])
@@ -72,3 +71,18 @@ def delete_field_loc_by_id(field_loc_id: str):
     :return: A response indicating whether the field location was successfully deleted.
     """
     return FieldLocController.delete_field_loc_by_id(field_loc_id)
+
+
+@field_loc_router.put("/update-field-loc", response_model=FieldLocSchema,
+                      dependencies=[Depends(JWTBearer("super_user"))])
+def update_field_loc(field_loc_id: str, field_loc_data: FieldLocSchemaUpdate):
+    """
+    Update an existing field location with the given data
+
+    :param field_loc_id: The ID of the field location to update
+    :type field_loc_id: str
+    :param field_loc_data: The data to update the field location with
+    :type field_loc_data: FieldLocSchemaUpdate
+    :return: The updated field_loc object
+    """
+    return FieldLocController.update_field_loc(field_loc_id, field_loc_data)

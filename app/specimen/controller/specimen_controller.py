@@ -58,7 +58,7 @@ class SpecimenController:
                                                        collected_by, verified_by)
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
-        except SpecimenExceptionRegNo as error:
+        except (SpecimenExceptionRegNo, InvalidDateRangeException) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

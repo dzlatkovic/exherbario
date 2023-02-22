@@ -1,6 +1,5 @@
 """This module contains the SpecimenService class."""
 
-
 from datetime import datetime
 import io
 from fastapi import Response
@@ -15,6 +14,7 @@ from app.specimen.schemas import SpecimenSchemaUpdate
 
 class SpecimenService:
     """This class provides a service for managing specimens"""
+
     @staticmethod
     def create_new_specimen(reg_no: str, collection_date: str, reg_date: str,
                             family: str, genus: str, species: str, subnomen: str,
@@ -23,6 +23,10 @@ class SpecimenService:
         """Create a new specimen record in the database."""
         try:
             with SessionLocal() as db:
+                if collection_date > reg_date:
+                    raise InvalidDateRangeException(
+                        message="Collection date cannot be after registration date",
+                        code=400)
                 repository = SpecimenRepository(db)
                 publication = repository.read_specimen_by_reg_num(reg_no)
                 if publication is None:
