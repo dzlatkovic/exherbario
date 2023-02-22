@@ -189,6 +189,17 @@ def generate_qr_code(reg_no: str):
     return SpecimenController.generate_qrcode(reg_no)
 
 
+@specimen_router.get("/search-specimens-by-keyword", response_model=list[SpecimenSchema])
+def search_specimens_by_keyword(keyword: str):
+    """
+    Search for specimens by keyword
+    :param keyword: str
+    :type keyword: str
+    :return: A list of Specimen objects
+    """
+    return SpecimenController.search_specimens_by_keyword(keyword)
+
+
 specimen_publication_router = APIRouter(prefix="/api/specimen_publication",
                                         tags=["Specimen publication"])
 

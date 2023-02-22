@@ -313,3 +313,13 @@ class SpecimenRepository:
                 "distance": distance
             })
         return sorted(results, key=lambda x: x["distance"])
+
+    def search_specimens_by_keyword(self, keyword: str):
+        """
+        This function searches the database for specimens that
+        have a subnomen that contains the keyword
+        :param keyword: str
+        :type keyword: str
+        :return: A list of Specimen objects.
+        """
+        return self.db.query(Specimen).filter(Specimen.subnomen.like(f'%{keyword}%')).all()

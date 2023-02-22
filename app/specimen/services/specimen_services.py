@@ -264,3 +264,19 @@ class SpecimenService:
             return Response(content=contents, media_type="image/png")
         except Exception as error:
             raise error
+
+    @staticmethod
+    def search_specimens_by_keyword(keyword: str):
+        """
+        It takes a keyword as a parameter, and returns a
+        list of specimens that match the keyword
+        :param keyword: str
+        :type keyword: str
+        :return: A list of specimens that match the keyword.
+        """
+        try:
+            with SessionLocal() as db:
+                repository = SpecimenRepository(db)
+                return repository.search_specimens_by_keyword(keyword)
+        except Exception as error:
+            raise error

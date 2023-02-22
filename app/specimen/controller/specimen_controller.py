@@ -252,3 +252,10 @@ class SpecimenController:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def search_specimens_by_keyword(keyword: str):
+        try:
+            return SpecimenService.search_specimens_by_keyword(keyword)
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
