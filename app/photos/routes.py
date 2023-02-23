@@ -2,11 +2,10 @@
 This module defines the endpoints for interacting with photo data.
 """
 
-
 from fastapi import APIRouter, Depends
 
 from app.photos.controller import PhotosController
-from app.photos.schemas import PhotosSchema, PhotosSchemaIn
+from app.photos.schemas import PhotosSchema, PhotosSchemaIn, PhotosSchemaUpdate
 from app.users.controller import JWTBearer
 
 photos_router = APIRouter(prefix="/api/photos", tags=["Photos"])
@@ -53,3 +52,17 @@ def delete_photos_by_id(photos_id: str):
     :return: A `Response` object indicating the status of the delete operation.
     """
     return PhotosController.delete_photos_by_id(photos_id)
+
+
+@photos_router.put("/update-photos", response_model=PhotosSchema,
+                   dependencies=[Depends(JWTBearer("super_user"))])
+def update_photos(photos_id: str, photos_update: PhotosSchemaUpdate):
+    """
+    `Update a photos by id.`
+    :param photos_id: The ID of the photo you want to update
+    :type photos_id: str
+    :param photos_update: PhotosSchemaUpdate
+    :type photos_update: PhotosSchemaUpdate
+    :return: The updated photos
+    """
+    return PhotosController.update_photos(photos_id, photos_update)

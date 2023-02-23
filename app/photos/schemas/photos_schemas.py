@@ -1,7 +1,7 @@
 """
 This module defines the Pydantic schemas for the Photos model.
 """
-
+from typing import Optional
 
 from pydantic import BaseModel, UUID4
 
@@ -36,6 +36,24 @@ class PhotosSchemaIn(BaseModel):
     """
     field_photo: str
     specimen_photo: str
+
+    class Config:
+        """
+        Configuration for Pydantic schema to work with ORM
+        """
+        orm_mode = True
+
+
+class PhotosSchemaUpdate(BaseModel):
+    """
+    Pydantic schema representing a partial update to a photos object.
+
+    Attributes:
+        field_photo (Optional[str]): The new file path for the field photo.
+        specimen_photo (Optional[str]): The new file path for the specimen photo.
+    """
+    field_photo: Optional[str] = None
+    specimen_photo: Optional[str] = None
 
     class Config:
         """

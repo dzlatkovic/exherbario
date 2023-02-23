@@ -9,6 +9,7 @@ reading, and deleting photos.
 
 from fastapi import HTTPException, Response
 
+from app.photos.schemas import PhotosSchemaUpdate
 from app.photos.services import PhotosService
 from app.photos.exceptions import (PhotosNotFoundException,
                                    PhotoAlreadyExistsException,
@@ -77,6 +78,24 @@ class PhotosController:
             return Response(content=f"Photos with provided ID: "
                                     f"{photos_id} deleted.", status_code=200)
         except PhotosNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def update_photos(photos_id: str, photos_update: PhotosSchemaUpdate):
+        """
+        It updates the photos
+        :param photos_id: str
+        :type photos_id: str
+        :param photos_update: PhotosSchemaUpdate
+        :type photos_update: PhotosSchemaUpdate
+        :return: The updated photos
+        """
+        try:
+            return PhotosService.update_photos(photos_id, photos_update)
+        except (PhotoAlreadyExistsException, IdenticalPhotosException,
+                PhotosNotFoundException) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

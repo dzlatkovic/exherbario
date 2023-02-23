@@ -2,11 +2,11 @@
 This module contains the implementation of the `PhotosService` class
 that provides an interface to manipulate the `photos` database.
 """
-
-
+from app.photos.exceptions import IdenticalPhotosException
 from app.photos.models import Photos
 from app.db import SessionLocal
 from app.photos.repository import PhotosRepository
+from app.photos.schemas import PhotosSchemaUpdate
 
 
 class PhotosService:
@@ -76,5 +76,24 @@ class PhotosService:
             with SessionLocal() as db:
                 repository = PhotosRepository(db)
                 return repository.delete_photos(photos_id)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def update_photos(photos_id: str, photos_update: PhotosSchemaUpdate):
+        """
+        It updates the photos of a specimen
+        :param photos_id: str
+        :type photos_id: str
+        :param photos_update: PhotosSchemaUpdate
+        :type photos_update: PhotosSchemaUpdate
+        :return: The updated photos.
+        """
+        try:
+            with SessionLocal() as db:
+                if photos_update.field_photo == photos_update.specimen_photo:
+                    raise IdenticalPhotosException(code=400, message="Identical photos.")
+                repository = PhotosRepository(db)
+                return repository.update_photos(photos_id, photos_update)
         except Exception as error:
             raise error

@@ -255,6 +255,12 @@ class SpecimenController:
 
     @staticmethod
     def search_specimens_by_keyword(keyword: str):
+        """
+        It takes a string as an argument, and returns a list of Specimen objects
+        :param keyword: str
+        :type keyword: str
+        :return: A list of specimens that match the keyword.
+        """
         try:
             return SpecimenService.search_specimens_by_keyword(keyword)
         except Exception as error:

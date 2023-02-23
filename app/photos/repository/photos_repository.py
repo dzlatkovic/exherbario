@@ -10,6 +10,7 @@ from app.photos.models import Photos
 from app.photos.exceptions import (PhotosNotFoundException,
                                    IdenticalPhotosException,
                                    PhotoAlreadyExistsException)
+from app.photos.schemas import PhotosSchemaUpdate
 
 
 class PhotosRepository:
@@ -83,3 +84,26 @@ class PhotosRepository:
             return True
         except Exception as error:
             raise error
+
+    def update_photos(self, photos_id: str, photos_update: PhotosSchemaUpdate):
+        """
+        This function updates the photos table in the database
+        :param photos_id: str
+        :type photos_id: str
+        :param photos_update: PhotosSchemaUpdate
+        :type photos_update: PhotosSchemaUpdate
+        :return: The photos object is being returned.
+        """
+        photos = self.db.query(Photos).filter_by(photos_id=photos_id).first()
+        if not photos:
+            raise PhotosNotFoundException(f"Photos with provided ID: {photos_id} not found.", 400)
+        if self.db.query(Photos).filter(Photos.photos_id != photos_id).filter(
+                (Photos.field_photo == photos_update.field_photo) |
+                (Photos.specimen_photo == photos_update.specimen_photo)).first():
+            raise PhotoAlreadyExistsException(code=400,
+                                              message="Photo already exists in the database")
+        for field, value in photos_update.dict(exclude_unset=True).items():
+            setattr(photos, field, value)
+        self.db.commit()
+        self.db.refresh(photos)
+        return photos
