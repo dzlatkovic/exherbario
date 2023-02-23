@@ -119,6 +119,18 @@ def get_gps_for_genus(genus: str):
     return SpecimenController.get_gps_for_genus(genus)
 
 
+@specimen_router.get("/visualize-gps")
+def visualize_gps_for_genus(genus: str):
+    """
+    This function takes in a genus name and returns a map of the
+     GPS coordinates of all specimens of that genus
+    :param genus: str
+    :type genus: str
+    :return: A list of tuples containing the latitude and longitude of each specimen.
+    """
+    return SpecimenController.visualize_gps_for_genus(genus)
+
+
 @specimen_router.get("/get-last-specimens", response_model=list[SpecimenSchema])
 def get_last_specimens():
     """

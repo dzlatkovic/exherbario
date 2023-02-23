@@ -1,6 +1,7 @@
 """This module contains the SpecimenService class."""
 
 from datetime import datetime
+import folium
 import io
 from fastapi import Response
 import qrcode
@@ -138,6 +139,29 @@ class SpecimenService:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
                 return repository.get_gps_for_genus(genus)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def visualize_gps_for_genus(genus):
+        """
+        It takes a genus name as an argument, calls the SpecimenService
+        to get the GPS coordinates for all specimens of that
+        genus, and then creates a map with markers for each specimen
+        :param genus: the genus of the specimen
+        :return: HTML
+        """
+        try:
+            content = SpecimenService.get_gps_for_genus(genus)
+            m = folium.Map(location=[43.31, 21.92], zoom_start=8, tiles='OpenStreetMap')
+            for specimen in content:
+                folium.Marker(
+                    location=[content[specimen]['gps'][0], content[specimen]['gps'][1]],
+                    popup=content[specimen]['subnomen'],
+                    icon=folium.Icon(color='blue')
+                ).add_to(m)
+            html = m.get_root().render()
+            return html
         except Exception as error:
             raise error
 

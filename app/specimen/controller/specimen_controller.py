@@ -3,9 +3,8 @@ specimen controller layer
 """
 
 
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, HTMLResponse
 from fastapi import HTTPException, Response
-
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.exceptions import (SpecimenExceptionRegNo,
@@ -155,6 +154,21 @@ class SpecimenController:
         try:
             content = SpecimenService.get_gps_for_genus(genus)
             return JSONResponse(content=content)
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def visualize_gps_for_genus(genus: str):
+        """
+        It takes a genus name as input, and returns
+        an HTMLResponse containing an interactive map with
+        markers for all specimens of that genus.
+        :param genus: The genus of the plant you want to get GPS coordinates for
+        :return: An HTMLResponse object containing the map visualization.
+        """
+        try:
+            html = SpecimenService.visualize_gps_for_genus(genus)
+            return HTMLResponse(content=html)
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
