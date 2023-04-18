@@ -10,4 +10,4 @@ USER_SECRET=secret_123
 ALGORITHM=HS256
 
 DB_NAME_TEST=test_herbarium
-USE_TEST_DB=False
+USE_TEST_DB=True

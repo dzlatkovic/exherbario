@@ -9,7 +9,8 @@ from app.db import SessionLocal
 from app.specimen.repository import SpecimenRepository
 from app.specimen.exceptions import (SpecimenExceptionRegNo,
                                      SpecimenNotFoundException,
-                                     InvalidDateRangeException)
+                                     InvalidDateRangeException,
+                                     SearchResultsNotFoundException)
 from app.specimen.schemas import SpecimenSchemaUpdate
 
 
@@ -127,18 +128,23 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def get_gps_for_genus(genus: str):
+    def get_gps_for_search_results(keyword: str):
         """
-        > This function takes a genus name as a string and returns a list
-        of GPS coordinates for all specimens of that genus
-        :param genus: str
-        :type genus: str
-        :return: A list of GPS coordinates for a given genus.
+        Retrieve GPS locations for specimens based on a keyword.
+
+        This method queries the SpecimenRepository to retrieve GPS locations for specimens
+        of that match the provided keyword. The keyword should be part of the subnomen.
+
+        :param keyword: A string representing the keyword used for searching.
+        :type keyword: str
+        :return: A dictionary with specimen registration numbers as keys and GPS locations as values.
+        :rtype: dict
+        :raises: Exception with the original error message in case of errors.
         """
         try:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
-                return repository.get_gps_for_genus(genus)
+                return repository.get_gps_for_search_results(keyword)
         except Exception as error:
             raise error
 
@@ -244,18 +250,19 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def get_specimens_by_genus_and_distance(genus: str):
+    def get_specimens_by_distance(keyword: str):
         """
-        Returns a list of specimens for the specified genus
-        sorted by distance from the specified location
-        :param genus: The genus of the specimens to retrieve.
-        :return: list[dict]: A list of dictionaries containing the registration
-        number, subnomen, and distance of each specimen, sorted by distance.
+        Get specimens by distance from a given keyword.
+
+        :param keyword: The keyword to search for in the subnomen of species.
+        :type keyword: str
+
+        :raises: Exception: If any error occurs during processing.
         """
         try:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
-                return repository.get_specimens_by_genus_and_distance(genus)
+                return repository.get_specimens_by_distance(keyword)
         except Exception as error:
             raise error
 
@@ -301,6 +308,10 @@ class SpecimenService:
         try:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
-                return repository.search_specimens_by_keyword(keyword)
+                search_results = repository.search_specimens_by_keyword(keyword)
+                if not search_results:
+                    raise SearchResultsNotFoundException(message="No search results were found.",
+                                                         code=404)
+                return search_results
         except Exception as error:
             raise error

@@ -137,7 +137,7 @@ class TestSpecimenRepo(TestClass):
         with TestingSessionLocal() as db:
             specimen_repository = SpecimenRepository(db)
             self.create_test_specimen_publication()
-            gps_for_genus = specimen_repository.get_gps_for_genus("Achillea")
+            gps_for_genus = specimen_repository.get_gps_for_search_results("Achillea")
             assert isinstance(gps_for_genus, dict)
 
     def test_get_last_specimens(self):

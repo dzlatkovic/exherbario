@@ -9,7 +9,8 @@ from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.exceptions import (SpecimenExceptionRegNo,
                                      SpecimenNotFoundException,
-                                     InvalidDateRangeException)
+                                     InvalidDateRangeException,
+                                     SearchResultsNotFoundException)
 
 
 class SpecimenController:
@@ -144,16 +145,25 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def get_gps_for_genus(genus):
+    def get_gps_for_search_result(keyword):
         """
-        It takes a genus name as input, and returns a list of GPS coordinates
-        for all specimens of that genus
-        :param genus: The genus of the plant you want to get GPS coordinates for
-        :return: A JSONResponse object.
+        Retrieve GPS locations for search results based on a keyword.
+
+        This method calls the `SpecimenService.get_gps_for_genus` method
+        to retrieve GPS locations for search results that match the provided
+        keyword. The keyword should be a part of the subnomen.
+
+        :param keyword: A string representing the keyword used for searching.
+        :type keyword: str
+        :return: A JSONResponse containing the retrieved GPS locations.
+        :rtype: JSONResponse
+        :raises: HTTPException with appropriate status code and detail message in case of errors.
         """
         try:
-            content = SpecimenService.get_gps_for_genus(genus)
+            content = SpecimenService.get_gps_for_search_results(keyword)
             return JSONResponse(content=content)
+        except SearchResultsNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
@@ -236,17 +246,17 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def get_specimens_by_genus_and_distance(genus: str):
+    def get_specimens_by_distance(keyword: str):
         """
-        Returns a list of specimens for the specified genus
-        sorted by distance from the specified location
-        :param genus: The genus of the specimens to retrieve.
-        :return: list[dict]: A list of dictionaries containing the registration
-        number, subnomen, and distance of each specimen, sorted by distance.
+        Get specimens by distance from a given keyword.
+
+        :param keyword: The keyword to search for in the subnomen of species.
+        :type keyword: str
+
+        :raises: HTTPException: If any error occurs during processing.
         """
         try:
-            return SpecimenService.get_specimens_by_genus_and_distance(genus)
-
+            return SpecimenService.get_specimens_by_distance(keyword)
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
@@ -277,5 +287,7 @@ class SpecimenController:
         """
         try:
             return SpecimenService.search_specimens_by_keyword(keyword)
+        except SearchResultsNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

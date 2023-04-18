@@ -107,16 +107,21 @@ def count_specimen():
 
 
 @specimen_router.get("/get-gps")
-def get_gps_for_genus(genus: str):
+def get_gps_for_search_results(keyword: str):
     """
-    Retrieve the GPS coordinates of all specimens belonging to a given genus.
+    Retrieve GPS locations for search results based on a keyword.
 
-    :param genus: A string representing the genus of the specimens to retrieve.
-    :type genus: str
-    :return: A dictionary of the register number of each specimen and its GPS
-    coordinates, in the format {reg_no: {subnomen, gps}}.
+    This function retrieves GPS locations for search results
+    that match the provided keyword. The keyword can be any
+    part of the subnomen.
+
+    :param keyword: A string representing the keyword used for searching.
+    :type keyword: str
+    :return: A dictionary with specimen registration numbers as keys and GPS locations as values.
+    :rtype: dict
+    :raises: SearchResultsNotFoundException if no search results are found.
     """
-    return SpecimenController.get_gps_for_genus(genus)
+    return SpecimenController.get_gps_for_search_result(keyword)
 
 
 @specimen_router.get("/visualize-gps")
@@ -176,16 +181,20 @@ def get_specimens_by_date_range(start_date: str, end_date: str):
     return SpecimenController.get_specimens_by_date_range(start_date, end_date)
 
 
-@specimen_router.get("/get-specimens-by-genus-and-distance")
-def get_specimens_by_genus_and_distance(genus: str):
+@specimen_router.get("/get-specimens-by-distance")
+def get_specimens_by_distance(keyword: str):
     """
-    Returns a list of specimens for the specified genus
-    sorted by distance from the Faculty of Sciences and Mathematics, Nis
-    :param genus: The genus of the specimens to retrieve.
-    :return: list[dict]: A list of dictionaries containing the registration
-    number, subnomen, and distance of each specimen, sorted by distance from PMF Nis.
+    Get specimens by distance from a given keyword.
+
+    :param keyword: The keyword to search for in the subnomen of species.
+    :type keyword: str
+
+    :return: A list of dictionaries representing the specimens, sorted by distance.
+    :rtype: List[Dict[str, Union[str, int]]]
+
+    :raises HTTPException: If any error occurs during processing.
     """
-    return SpecimenController.get_specimens_by_genus_and_distance(genus)
+    return SpecimenController.get_specimens_by_distance(keyword)
 
 
 @specimen_router.get("/generate_qr_code")

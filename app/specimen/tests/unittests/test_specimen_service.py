@@ -113,7 +113,7 @@ class TestSpecimenService(TestClass):
         dictionary of GPS coordinates for a given genus
         """
         self.create_test_specimen_publication()
-        gps_for_genus = SpecimenService.get_gps_for_genus("Achillea")
+        gps_for_genus = SpecimenService.get_gps_for_search_results("Achillea")
         assert isinstance(gps_for_genus, dict)
 
     def test_get_last_specimens(self):

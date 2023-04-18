@@ -105,7 +105,7 @@ class TestSpecimenController(TestClass):
         This function tests the get_gps_for_genus function in the SpecimenController class
         """
         self.create_test_specimen_publication()
-        gps_for_genus = SpecimenController.get_gps_for_genus("Achillea")
+        gps_for_genus = SpecimenController.get_gps_for_search_result("Achillea")
         assert gps_for_genus.status_code == 200
 
     def test_get_last_specimens(self):

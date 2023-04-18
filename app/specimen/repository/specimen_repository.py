@@ -8,11 +8,10 @@ from geopy.distance import geodesic
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
-
 from app.field_loc.models import FieldLoc
 from app.photos.models import Photos
 from app.specimen.models import Specimen
-from app.specimen.exceptions import SpecimenNotFoundException
+from app.specimen.exceptions import SpecimenNotFoundException, SearchResultsNotFoundException
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.storage.models import Storage
 from app.users.models import User
@@ -177,23 +176,26 @@ class SpecimenRepository:
                 "cnt_genus": cnt_genus,
                 "cnt_species": cnt_species}
 
-    def get_gps_for_genus(self, genus: str):
+    def get_gps_for_search_results(self, keyword: str):
         """
-        This function takes a genus name as an argument and returns a
-        dictionary of species names and their GPS
-        coordinates
-        :param genus: The genus of the specimen you want to get the
-        GPS coordinates for
-        :type genus: str
-        :return: A dictionary of the genus and species of the specimen
-        and the gps coordinates of the field location.
+        Retrieve GPS locations for specimens matching a keyword in the subnomen.
+
+        :param keyword: A keyword to search for in specimen subnomen.
+        :type keyword: str
+
+        :return: A dictionary mapping specimen registration numbers to GPS locations,
+                 where each GPS location is a tuple of (latitude, longitude).
+        :rtype: dict
         """
         gps_locations = {}
         specimens = self.db.query(Specimen, FieldLoc).join(FieldLoc).filter(
-            Specimen.genus == genus).all()
+            Specimen.subnomen.like(f'%{keyword}%')).all()
         for specimen, field_loc in specimens:
             gps_locations[specimen.reg_no] \
                 = {"subnomen": specimen.subnomen, "gps": (field_loc.gps_lat, field_loc.gps_long)}
+        if not gps_locations:
+            raise SearchResultsNotFoundException(message="Search query returned empty results.",
+                                                 code=404)
         return gps_locations
 
     def get_last_specimens(self):
@@ -220,7 +222,7 @@ class SpecimenRepository:
         specimen = self.db.query(Specimen).filter_by(reg_no=reg_no).first()
         label = {
             "reg_no": specimen.reg_no,
-            "species": f"{specimen.genus} {specimen.species}",
+            "subnomen": f"{specimen.subnomen}",
             "country": specimen.field_loc.country,
             "region": specimen.field_loc.region,
             "altitude": specimen.field_loc.altitude,
@@ -291,18 +293,20 @@ class SpecimenRepository:
         return self.db.query(Specimen).filter(Specimen.collection_date >= start_date,
                                               Specimen.collection_date <= end_date).all()
 
-    def get_specimens_by_genus_and_distance(self, genus: str):
+    def get_specimens_by_distance(self, keyword: str):
         """
-        Returns a list of specimens for the specified genus
-        sorted by distance from the specified location
-        :param genus: The genus of the specimens to retrieve.
-        :return: list[dict]: A list of dictionaries containing the registration
-        number, subnomen, and distance of each specimen, sorted by distance.
+        Get specimens by distance from a given keyword.
+
+        :param keyword: The keyword to search for in the subnomen of species.
+        :type keyword: str
+
+        :return: A list of dictionaries representing the specimens, sorted by distance.
+        :rtype: List[Dict[str, Union[str, int]]]
         """
         lat = 43.3097167
         long = 21.9231889
         specimens = self.db.query(Specimen, FieldLoc).filter(
-            Specimen.genus == genus,
+            Specimen.subnomen.like(f'%{keyword}%'),
             Specimen.field_loc_id == FieldLoc.field_loc_id).all()
         results = []
         for specimen, field_loc in specimens:
@@ -310,7 +314,7 @@ class SpecimenRepository:
             results.append({
                 "reg_no": specimen.reg_no,
                 "subnomen": specimen.subnomen,
-                "distance": distance
+                "distance": round(distance)
             })
         return sorted(results, key=lambda x: x["distance"])
 

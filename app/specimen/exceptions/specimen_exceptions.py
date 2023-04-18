@@ -27,3 +27,18 @@ class InvalidDateRangeException(Exception):
     def __init__(self, message, code):
         self.message = message
         self.code = code
+
+
+class SearchResultsNotFoundException(Exception):
+    """
+    Exception raised when no search results are found.
+
+    :param message: A description of the exception.
+    :type message: str
+    :param code: An error code associated with the exception.
+    :type code: int
+    """
+
+    def __init__(self, message, code):
+        self.message = message
+        self.code = code

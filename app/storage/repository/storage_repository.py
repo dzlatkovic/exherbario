@@ -99,9 +99,9 @@ class StorageRepository:
                 data = {
                     "reg_date": specimen.reg_date.strftime("%Y-%m-%d"),
                     "reg_no": specimen.reg_no,
-                    "family": specimen.family,
-                    "genus": specimen.genus,
-                    "species": specimen.species,
+                    "subnomen": specimen.subnomen,
+                    "collection date": specimen.collection_date.strftime("%Y-%m-%d"),
+                    "region": specimen.field_loc.region
                 }
                 results.append(data)
             return results
