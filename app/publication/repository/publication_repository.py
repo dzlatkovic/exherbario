@@ -23,17 +23,18 @@ class PublicationRepository:
         """
         self.db = db
 
-    def create_publication(self, doi: str, year: str, journal: str, title: str):
+    def create_publication(self, doi: str, year: str, journal: str, title: str, abstract: str):
         """
         Creates a new publication with the provided information
         :param doi: Digital Object Identifier for the publication
         :param year:The year in which the publication was published (format: YYYY)
         :param journal: Name of the journal in which the publication was published
         :param title: Title of the publication
+        :param abstract: Publication abstract
         :return: Publication object representing the created publication.
         """
         try:
-            publication = Publication(doi, year, journal, title)
+            publication = Publication(doi, year, journal, title, abstract)
             self.db.add(publication)
             self.db.commit()
             self.db.refresh(publication)
@@ -109,6 +110,8 @@ class PublicationRepository:
                     db_publication.journal = publication.journal
                 if publication.title:
                     db_publication.title = publication.title
+                if publication.abstract:
+                    db_publication.abstract = publication.abstract
                 self.db.commit()
                 self.db.refresh(db_publication)
                 return db_publication

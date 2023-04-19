@@ -15,17 +15,18 @@ class PublicationController:
     Controller class for Publication-related API endpoints.
     """
     @staticmethod
-    def create_new_publication(doi: str, year: str, journal: str, title: str):
+    def create_new_publication(doi: str, year: str, journal: str, title: str, abstract: str):
         """
         Creates a new publication with the provided information
         :param doi: Digital Object Identifier of the publication
         :param year: Publication year
         :param journal: Journal in which the publication was published
         :param title: Title of the publication
+        :param abstract: Publication abstract
         :return: JSON representation of the created publication
         """
         try:
-            return PublicationService.create_new_publication(doi, year, journal, title)
+            return PublicationService.create_new_publication(doi, year, journal, title, abstract)
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except PublicationExceptionDoi as error:

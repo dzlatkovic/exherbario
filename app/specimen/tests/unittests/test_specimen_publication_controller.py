@@ -33,7 +33,8 @@ class TestSpecimenPublicationController(TestClass):
             photos_repository = PhotosRepository(db)
             pub = publication_repository.create_publication("1234", "2020",
                                                             "Journal of Medicine",
-                                                            "COVID-19 Treatment")
+                                                            "COVID-19 Treatment",
+                                                            "Sample text")
             field_loc = field_loc_repository.create_field_loc("Serbia", "Nis", "Suva mt.",
                                                               1400, "woods", 43.0, 22.0)
             storage = storage_repository.create_storage("room1", "shelf1", "box1")

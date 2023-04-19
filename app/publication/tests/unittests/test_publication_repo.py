@@ -20,10 +20,12 @@ class TestPublicationRepo(TestClass):
             publication_repository = PublicationRepository(db)
             publication_repository.create_publication("1200", "2010",
                                                       "Computer Science",
-                                                      "Herbarium API")
+                                                      "Herbarium API",
+                                                      "Abstract text")
             publication_repository.create_publication("1200", "2010",
                                                       "Modern Science",
-                                                      "Covid: Hoax or Truth")
+                                                      "Covid: Hoax or Truth",
+                                                      "Abstract text")
 
     def test_create_publication(self):
         """
@@ -33,7 +35,8 @@ class TestPublicationRepo(TestClass):
             publication_repository = PublicationRepository(db)
             pub = publication_repository.create_publication("1200", "2010",
                                                             "Computer Science",
-                                                            "Herbarium API")
+                                                            "Herbarium API",
+                                                            "Abstract text")
             assert pub.doi == "1200"
             assert pub.journal == "Computer Science"
 
@@ -56,7 +59,8 @@ class TestPublicationRepo(TestClass):
             self.create_publications_for_methods()
             pub = publication_repository.create_publication("1234", "2020",
                                                             "Journal of Medicine",
-                                                            "COVID-19 Treatment")
+                                                            "COVID-19 Treatment",
+                                                            "Sample text")
             retrieved_pub = publication_repository.read_publication_by_id(pub.pub_id)
             assert retrieved_pub.title == "COVID-19 Treatment"
 
@@ -69,7 +73,8 @@ class TestPublicationRepo(TestClass):
             self.create_publications_for_methods()
             pub = publication_repository.create_publication("1234", "2020",
                                                             "Journal of Medicine",
-                                                            "COVID-19 Treatment")
+                                                            "COVID-19 Treatment",
+                                                            "Sample text")
             success = publication_repository.delete_publication(pub.pub_id)
             assert success is True
 
@@ -83,6 +88,7 @@ class TestPublicationRepo(TestClass):
             publication_repository.create_publication("1234",
                                                       "2020",
                                                       "Journal of Medicine",
-                                                      "COVID-19 Treatment")
+                                                      "COVID-19 Treatment",
+                                                      "Sample text")
             retrieved_pub = publication_repository.read_publication_by_doi("1234")
             assert retrieved_pub.title == "COVID-19 Treatment"

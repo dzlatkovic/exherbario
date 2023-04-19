@@ -6,7 +6,7 @@ publication in the database.
 
 from datetime import datetime
 from uuid import uuid4
-from sqlalchemy import Column, String, Date
+from sqlalchemy import Column, String, Date, Text
 
 from app.db import Base
 
@@ -27,8 +27,9 @@ class Publication(Base):
     year = Column(Date)
     journal = Column(String(100))
     title = Column(String(200))
+    abstract = Column(Text)
 
-    def __init__(self, doi: str, year: str, journal: str, title: str):
+    def __init__(self, doi: str, year: str, journal: str, title: str, abstract: str):
         """
         Initializes a new Publication object
         :param doi: Digital Object Identifier for the publication
@@ -40,3 +41,4 @@ class Publication(Base):
         self.year = datetime.strptime(year, "%Y")
         self.journal = journal
         self.title = title
+        self.abstract = abstract

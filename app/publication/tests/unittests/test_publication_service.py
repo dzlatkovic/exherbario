@@ -17,15 +17,15 @@ class TestPublicationService(TestClass):
         """
         It creates two new publications
         """
-        PublicationService.create_new_publication("1234", "2022", "Nature", "Sample Paper 1")
-        PublicationService.create_new_publication("5678", "2022", "Science", "Sample Paper 2")
+        PublicationService.create_new_publication("1234", "2022", "Nature", "Sample Paper 1", "Sample text")
+        PublicationService.create_new_publication("5678", "2022", "Science", "Sample Paper 2", "Different sample text")
 
     def test_create_new_publication(self):
         """
         This function creates a new publication
         """
         publication = PublicationService.create_new_publication("1234", "2022", "Nature",
-                                                                "Sample Paper 1")
+                                                                "Sample Paper 1", "Sample text")
         assert publication.doi == "1234"
         assert publication.journal == "Nature"
 

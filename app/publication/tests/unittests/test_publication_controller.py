@@ -18,16 +18,19 @@ class TestPublicationController(TestClass):
         It creates two new publications
         """
         PublicationController.create_new_publication("0001-01", "2010",
-                                                     "Computer Science", "Herbarium API")
+                                                     "Computer Science", "Herbarium API",
+                                                     "Abstract text")
         PublicationController.create_new_publication("0002-02", "2011",
-                                                     "Modern Science", "Covid: Hoax or Truth")
+                                                     "Modern Science", "Covid: Hoax or Truth",
+                                                     "Different abstract text")
 
     def test_create_new_publication(self):
         """
         This function creates a new publication
         """
         pub = PublicationController.create_new_publication("0003-03", "2012",
-                                                           "Medical Science", "Vaccines and You")
+                                                           "Medical Science", "Vaccines and You",
+                                                           "Abstract text")
         assert pub.doi == "0003-03"
 
     def test_get_all(self):
@@ -44,7 +47,8 @@ class TestPublicationController(TestClass):
         """
         pub = PublicationController.create_new_publication("0004-04", "2013",
                                                            "Environmental Science",
-                                                           "Climate Change and You")
+                                                           "Climate Change and You",
+                                                           "Abstract text")
         retrieved_pub = PublicationController.get_publication_by_id(pub.pub_id)
         assert pub.doi == retrieved_pub.doi
 
@@ -54,7 +58,8 @@ class TestPublicationController(TestClass):
         """
         pub = PublicationController.create_new_publication("0005-05", "2014",
                                                            "Computer Science",
-                                                           "AI and the Future")
+                                                           "AI and the Future",
+                                                           "Abstract text")
         PublicationController.delete_publication_by_id(pub.pub_id)
         with pytest.raises(HTTPException):
             PublicationController.get_publication_by_id(pub.pub_id)

@@ -19,13 +19,14 @@ class PublicationService:
     """
     @staticmethod
     def create_new_publication(doi: str, year: str, journal: str,
-                               title: str) -> PublicationExceptionDoi or Publication:
+                               title: str, abstract: str) -> PublicationExceptionDoi or Publication:
         """
         Creates a new Publication object with the specified DOI, year, journal, and title
         :param doi: The DOI of the publication
         :param year: The publication year
         :param journal: The journal in which the publication was published
         :param title: The title of the publication
+        :param abstract: Publication abstract
         :return: The newly created Publication object
         """
         try:
@@ -33,7 +34,7 @@ class PublicationService:
                 repository = PublicationRepository(db)
                 publication = repository.read_publication_by_doi(doi)
                 if publication is None:
-                    return repository.create_publication(doi, year, journal, title)
+                    return repository.create_publication(doi, year, journal, title, abstract)
                 raise PublicationExceptionDoi(message="Publication exists in the database.",
                                               code=400)
         except Exception as error:

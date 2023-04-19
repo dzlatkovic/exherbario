@@ -29,7 +29,8 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         storage = response.json()
@@ -45,14 +46,16 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         second_response = client.post(url="/api/publication/create-new-publication",
                                       json={"doi": "1234",
                                             "year": "2022",
                                             "journal": "Journal of Phytochemistry",
-                                            "title": "Herbarium API"},
+                                            "title": "Herbarium API",
+                                            "abstract": "Abstract text"},
                                       headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 400
 
@@ -67,7 +70,8 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         pub = response.json()
@@ -87,7 +91,8 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         pub_id = "invalid id"
@@ -105,7 +110,8 @@ class TestPublicationRoutes(TestClass):
                         json={"doi": f"1234{pub}",
                               "year": "2020",
                               "journal": "Journal of Medicine",
-                              "title": f"COVID-19 Treatment, part {pub}"},
+                              "title": f"COVID-19 Treatment, part {pub}",
+                              "abstract": "Abstract text"},
                         headers={"Authorization": f"Bearer {token}"})
         response = client.get(url="/api/publication/get-all")
         assert response.status_code == 200
@@ -122,7 +128,8 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         pub = response.json()
@@ -142,7 +149,8 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         pub_id = "invalid id"
@@ -161,7 +169,8 @@ class TestPublicationRoutes(TestClass):
                                json={"doi": "1234",
                                      "year": "2020",
                                      "journal": "Journal of Medicine",
-                                     "title": "COVID-19 Treatment"},
+                                     "title": "COVID-19 Treatment",
+                                     "abstract": "Abstract text"},
                                headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         pub_id = "invalid id"

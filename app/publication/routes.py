@@ -29,7 +29,8 @@ def create_new_publication(publication: PublicationSchemaIn):
     return PublicationController.create_new_publication(doi=publication.doi,
                                                         year=publication.year,
                                                         journal=publication.journal,
-                                                        title=publication.title)
+                                                        title=publication.title,
+                                                        abstract=publication.abstract)
 
 
 @publication_router.get("/get-all", response_model=list[PublicationSchema])

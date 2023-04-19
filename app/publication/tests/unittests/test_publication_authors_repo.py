@@ -32,7 +32,8 @@ class TestPublicationAuthorsRepo(TestClass):
             pub = publication_repository.create_publication("1200",
                                                             "2010",
                                                             "Computer Science",
-                                                            "Herbarium API")
+                                                            "Herbarium API",
+                                                            "Abstract text")
             pub_author = publication_authors_repository.create_publication_authors(author.user_id,
                                                                                    pub.pub_id)
             assert pub_author.publication_id == pub.pub_id
@@ -73,7 +74,7 @@ class TestPublicationAuthorsRepo(TestClass):
             user_repository = UserRepository(db)
             author = user_repository.create_user("John", "Smith", "john@example.com", "password")
             pub = PublicationRepository(db).create_publication("1200", "2010", "Computer Science",
-                                                               "Herbarium API")
+                                                               "Herbarium API", "Abstract text")
             publication_authors_repository.create_publication_authors(author.user_id, pub.pub_id)
             with pytest.raises(EntryAlreadyExistsException):
                 publication_authors_repository.create_publication_authors(author.user_id,
@@ -88,7 +89,7 @@ class TestPublicationAuthorsRepo(TestClass):
             user_repository = UserRepository(db)
             author = user_repository.create_user("John", "Smith", "john@example.com", "password")
             pub = PublicationRepository(db).create_publication("1200", "2010", "Computer Science",
-                                                               "Herbarium API")
+                                                               "Herbarium API", "Abstract text")
             pub_author = publication_authors_repository.create_publication_authors(author.user_id,
                                                                                    pub.pub_id)
             answer = publication_authors_repository.delete_publication_authors_by_id(
@@ -105,7 +106,7 @@ class TestPublicationAuthorsRepo(TestClass):
             user_repository = UserRepository(db)
             author = user_repository.create_user("John", "Smith", "john@example.com", "password")
             pub = PublicationRepository(db).create_publication("1200", "2010", "Computer Science",
-                                                               "Herbarium API")
+                                                               "Herbarium API", "Abstract text")
             publication_authors_repository.create_publication_authors(author.user_id, pub.pub_id)
             with pytest.raises(PublicationAuthorsNotFoundException):
                 publication_authors_repository.delete_publication_authors_by_id("invalid_id")

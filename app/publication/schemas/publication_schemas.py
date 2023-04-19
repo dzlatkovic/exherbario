@@ -18,6 +18,7 @@ class PublicationSchema(BaseModel):
     year: date
     journal: str
     title: str
+    abstract: str
 
     class Config:
         """
@@ -35,6 +36,7 @@ class PublicationSchemaIn(BaseModel):
     year: str
     journal: str
     title: str
+    abstract: str
 
     @classmethod
     @validator('year')
@@ -66,6 +68,7 @@ class PublicationSchemaUpdate(BaseModel):
     year: Optional[str]
     journal: Optional[str]
     title: Optional[str]
+    abstract: Optional[str]
 
     class Config:
         """

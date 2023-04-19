@@ -26,7 +26,7 @@ class TestPublicationAuthorsController(TestClass):
             user_repository = UserRepository(db)
             author = user_repository.create_user("John", "Smith", "john@example.com", "password")
             pub = publication_repository.create_publication("1200", "2010",
-                                                            "Computer Science", "Herbarium API")
+                                                            "Computer Science", "Herbarium API", "Abstract text")
             pub_author = PublicationAuthorsController.create_new_publication_authors(author.user_id,
                                                                                      pub.pub_id)
             assert pub_author.publication_id == pub.pub_id
@@ -73,7 +73,7 @@ class TestPublicationAuthorsController(TestClass):
                                                  "password")
             pub = PublicationRepository(db).create_publication("1200", "2010",
                                                                "Computer Science",
-                                                               "Herbarium API")
+                                                               "Herbarium API", "Abstract text")
             PublicationAuthorsController.create_new_publication_authors(author.user_id,
                                                                         pub.pub_id)
             with pytest.raises(HTTPException) as error:
@@ -93,7 +93,7 @@ class TestPublicationAuthorsController(TestClass):
                                                  "john@example.com", "password")
             pub = PublicationRepository(db).create_publication("1200", "2010",
                                                                "Computer Science",
-                                                               "Herbarium API")
+                                                               "Herbarium API", "Abstract text")
             pub_author = PublicationAuthorsController.create_new_publication_authors(
                 author.user_id, pub.pub_id)
             PublicationAuthorsController.delete_publication_authors_by_id(
@@ -113,7 +113,7 @@ class TestPublicationAuthorsController(TestClass):
             author = user_repository.create_user(
                 "John", "Smith", "john@example.com", "password")
             pub = PublicationRepository(db).create_publication(
-                "1200", "2010", "Computer Science", "Herbarium API")
+                "1200", "2010", "Computer Science", "Herbarium API", "Abstract text")
             PublicationAuthorsController.create_new_publication_authors(author.user_id, pub.pub_id)
             with pytest.raises(HTTPException) as error:
                 PublicationAuthorsController.delete_publication_authors_by_id("invalid_id")
