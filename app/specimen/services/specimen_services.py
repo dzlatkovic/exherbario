@@ -149,23 +149,28 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def visualize_gps_for_genus(genus):
+    def visualize_gps(keyword: str) -> str:
         """
-        It takes a genus name as an argument, calls the SpecimenService
-        to get the GPS coordinates for all specimens of that
-        genus, and then creates a map with markers for each specimen
-        :param genus: the genus of the specimen
-        :return: HTML
+        Generate a map visualization of the GPS coordinates for specimens that match the given keyword.
+
+        :param keyword: The search keyword used to find matching specimens.
+        :type keyword: str
+
+        :return: The HTML content representing the generated map visualization.
+        :rtype: str
+
+        :raises Exception: If an error occurs while generating the map visualization.
         """
         try:
-            content = SpecimenService.get_gps_for_genus(genus)
+            content = SpecimenService.get_gps_for_search_results(keyword)
             m = folium.Map(location=[43.31, 21.92], zoom_start=8, tiles='OpenStreetMap')
             for specimen in content:
-                folium.Marker(
-                    location=[content[specimen]['gps'][0], content[specimen]['gps'][1]],
-                    popup=content[specimen]['subnomen'],
-                    icon=folium.Icon(color='blue')
-                ).add_to(m)
+                if content[specimen]['gps'][0] and content[specimen]['gps'][1]:
+                    folium.Marker(
+                        location=[content[specimen]['gps'][0], content[specimen]['gps'][1]],
+                        popup=f"No. {specimen}, {content[specimen]['subnomen']}",
+                        icon=folium.Icon(color='blue')
+                    ).add_to(m)
             html = m.get_root().render()
             return html
         except Exception as error:

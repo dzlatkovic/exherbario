@@ -8,6 +8,7 @@ from geopy.distance import geodesic
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
+from app.config import settings
 from app.field_loc.models import FieldLoc
 from app.photos.models import Photos
 from app.specimen.models import Specimen
@@ -303,14 +304,16 @@ class SpecimenRepository:
         :return: A list of dictionaries representing the specimens, sorted by distance.
         :rtype: List[Dict[str, Union[str, int]]]
         """
-        lat = 43.3097167
-        long = 21.9231889
+        lat = settings.LATITUDE
+        long = settings.LONGITUDE
         specimens = self.db.query(Specimen, FieldLoc).filter(
             Specimen.subnomen.like(f'%{keyword}%'),
             Specimen.field_loc_id == FieldLoc.field_loc_id).all()
         results = []
         for specimen, field_loc in specimens:
             distance = geodesic((lat, long), (field_loc.gps_lat, field_loc.gps_long)).kilometers
+            if not field_loc.gps_lat or not field_loc.gps_long:
+                distance = -1
             results.append({
                 "reg_no": specimen.reg_no,
                 "subnomen": specimen.subnomen,

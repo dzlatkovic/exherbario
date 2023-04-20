@@ -25,10 +25,10 @@ class FieldLocSchema(BaseModel):
     country: str
     region: str
     locality: str
-    altitude: int
-    habitat: str
-    gps_lat: float
-    gps_long: float
+    altitude: Optional[int] = None
+    habitat: Optional[str] = None
+    gps_lat: Optional[float] = None
+    gps_long: Optional[float] = None
 
     class Config:
         """
@@ -48,10 +48,10 @@ class FieldLocSchemaIn(BaseModel):
     country: str
     region: str
     locality: str
-    altitude: int
-    habitat: str
-    gps_lat: float
-    gps_long: float
+    altitude: Optional[int] = None
+    habitat: Optional[str] = None
+    gps_lat: Optional[float] = None
+    gps_long: Optional[float] = None
 
     class Config:
         """

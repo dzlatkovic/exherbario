@@ -168,16 +168,9 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def visualize_gps_for_genus(genus: str):
-        """
-        It takes a genus name as input, and returns
-        an HTMLResponse containing an interactive map with
-        markers for all specimens of that genus.
-        :param genus: The genus of the plant you want to get GPS coordinates for
-        :return: An HTMLResponse object containing the map visualization.
-        """
+    def visualize_gps(keyword: str) -> HTMLResponse:
         try:
-            html = SpecimenService.visualize_gps_for_genus(genus)
+            html = SpecimenService.visualize_gps(keyword)
             return HTMLResponse(content=html)
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

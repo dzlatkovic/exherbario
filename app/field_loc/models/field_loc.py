@@ -5,7 +5,7 @@ This module defines the `FieldLoc` model class, which is used to represent a fie
 the application. The `FieldLoc` model is used in the database layer to store field location data
 and to interact with the database.
 """
-
+from typing import Optional
 from uuid import uuid4
 from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.orm import relationship
@@ -26,15 +26,16 @@ class FieldLoc(Base):
     country = Column(String(20))
     region = Column(String(20))
     locality = Column(String(40))
-    altitude = Column(Integer)
-    habitat = Column(String(20))
-    gps_lat = Column(Float)
-    gps_long = Column(Float)
+    altitude = Column(Integer, nullable=True)
+    habitat = Column(String(20), nullable=True)
+    gps_lat = Column(Float, nullable=True)
+    gps_long = Column(Float, nullable=True)
 
     specimens = relationship("Specimen", back_populates="field_loc")
 
-    def __init__(self, country: str, region: str, locality: str, altitude: int,
-                 habitat: str, gps_lat: float, gps_long: float):
+    def __init__(self, country: str, region: str, locality: str, altitude: Optional[int] = None,
+                 habitat: Optional[str] = None, gps_lat: Optional[float] = None,
+                 gps_long: Optional[float] = None):
         """
         Constructor method for creating a new instance of the FieldLoc class.
 

@@ -5,6 +5,7 @@ This module contains the API routers related to the Specimen and SpecimenPublica
 
 
 from fastapi import APIRouter, Depends
+from starlette.responses import HTMLResponse
 
 from app.specimen.controller import SpecimenController, SpecimenPublicationController
 from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn, SpecimenSchemaUpdate
@@ -125,15 +126,19 @@ def get_gps_for_search_results(keyword: str):
 
 
 @specimen_router.get("/visualize-gps")
-def visualize_gps_for_genus(genus: str):
+def visualize_gps(keyword: str) -> HTMLResponse:
     """
-    This function takes in a genus name and returns a map of the
-     GPS coordinates of all specimens of that genus
-    :param genus: str
-    :type genus: str
-    :return: A list of tuples containing the latitude and longitude of each specimen.
+    Generate a map visualization of the GPS coordinates for specimens that match the given keyword.
+
+    :param keyword: The search keyword used to find matching specimens.
+    :type keyword: str
+
+    :return: The HTML content representing the generated map visualization.
+    :rtype: HTMLResponse
+
+    :raises HTTPException: If an error occurs while generating the map visualization.
     """
-    return SpecimenController.visualize_gps_for_genus(genus)
+    return SpecimenController.visualize_gps(keyword)
 
 
 @specimen_router.get("/get-last-specimens", response_model=list[SpecimenSchema])
