@@ -6,18 +6,31 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     """
     A class that defines the settings of the application.
-    Attributes:
-        DB_HOST (str): The hostname of the database server
-        DB_HOSTNAME (str): The name of the database
-        DB_PORT (int): The port number of the database
-        DB_USER (str): The username for connecting to the database
-        DB_PASSWORD (str): The password for connecting to the database
-        DB_NAME (str): The name of the database
-        USER_SECRET (str): The secret key for generating JWT tokens
-        ALGORITHM (str): The algorithm for generating JWT tokens
 
-    Config:
-        env_file (str): The path to the file containing the environment variables
+    :param DB_HOST: The hostname of the database server.
+    :type DB_HOST: str
+    :param DB_HOSTNAME: The name of the database.
+    :type DB_HOSTNAME: str
+    :param DB_PORT: The port number of the database.
+    :type DB_PORT: int
+    :param DB_USER: The username for connecting to the database.
+    :type DB_USER: str
+    :param DB_PASSWORD: The password for connecting to the database.
+    :type DB_PASSWORD: str
+    :param DB_NAME: The name of the database.
+    :type DB_NAME: str
+    :param USER_SECRET: The secret key for generating JWT tokens.
+    :type USER_SECRET: str
+    :param ALGORITHM: The algorithm for generating JWT tokens.
+    :type ALGORITHM: str
+    :param DB_NAME_TEST: The name of the test database.
+    :type DB_NAME_TEST: str
+    :param USE_TEST_DB: A boolean flag indicating whether to use the test database.
+    :type USE_TEST_DB: bool
+    :param LATITUDE: The latitude value used in distance calculations.
+    :type LATITUDE: float
+    :param LONGITUDE: The longitude value used in distance calculations.
+    :type LONGITUDE: float
     """
     DB_HOST: str
     DB_HOSTNAME: str
@@ -29,13 +42,15 @@ class Settings(BaseSettings):
     ALGORITHM: str
     DB_NAME_TEST: str
     USE_TEST_DB: bool
+    LATITUDE: float
+    LONGITUDE: float
 
     class Config:
         """
         The configuration settings for the Settings class.
 
-        Attributes:
-            env_file (str): The path to the file containing the environment variables
+        :param env_file: The path to the file containing the environment variables.
+        :type env_file: str
         """
         env_file = './.env'
 
