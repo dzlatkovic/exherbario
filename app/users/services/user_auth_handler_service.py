@@ -10,6 +10,7 @@ from app.config import settings
 
 USER_SECRET = settings.USER_SECRET
 JWT_ALGORITHM = settings.ALGORITHM
+TOKEN_DURATION = settings.TOKEN_DURATION
 
 
 def signJWT(user_id: str, role: str) -> Dict[str, str]:
@@ -25,7 +26,7 @@ def signJWT(user_id: str, role: str) -> Dict[str, str]:
     payload = {
         "user_id": user_id,
         "role": role,
-        "expires": time.time() + 1200
+        "expires": time.time() + TOKEN_DURATION
     }
     token = jwt.encode(payload, USER_SECRET, algorithm=JWT_ALGORITHM)
 

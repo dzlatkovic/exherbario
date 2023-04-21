@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     :type USE_TEST_DB: bool
     :param LATITUDE: The latitude value used in distance calculations.
     :type LATITUDE: float
+    :param TOKEN_DURATION: The expiration time of the JWT token
+    :type TOKEN_DURATION: int
     :param LONGITUDE: The longitude value used in distance calculations.
     :type LONGITUDE: float
     """
@@ -42,6 +44,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
     DB_NAME_TEST: str
     USE_TEST_DB: bool
+    TOKEN_DURATION: int
     LATITUDE: float
     LONGITUDE: float
 
