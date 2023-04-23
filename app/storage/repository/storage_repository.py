@@ -32,7 +32,7 @@ class StorageRepository:
         :param box: The name of the box
         """
         try:
-            storage = Storage(room, shelf, box)
+            storage = Storage(room=room, shelf=shelf, box=box)
             self.db.add(storage)
             self.db.commit()
             self.db.refresh(storage)

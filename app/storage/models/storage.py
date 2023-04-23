@@ -1,6 +1,7 @@
 """
 This module defines the `Storage` class, which represents a storage box.
 """
+from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import Column, String
@@ -20,11 +21,11 @@ class Storage(Base):
     """
     __tablename__ = "storage"
     storage_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
-    room = Column(String(20))
-    shelf = Column(String(20))
     box = Column(String(100), nullable=False, unique=True)
+    room = Column(String(20), nullable=True)
+    shelf = Column(String(20), nullable=True)
 
-    def __init__(self, room: str, shelf: str, box: str):
+    def __init__(self, box: str, room: Optional[str] = None, shelf: Optional[str] = None):
         """
         Initializes a new instance of the Storage class
         :param room: The name or number of the room
@@ -34,6 +35,6 @@ class Storage(Base):
         :param box: The unique identifier of the box
         :type box: str
         """
+        self.box = box
         self.room = room
         self.shelf = shelf
-        self.box = box

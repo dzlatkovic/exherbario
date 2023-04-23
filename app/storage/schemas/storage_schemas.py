@@ -17,9 +17,9 @@ class StorageSchema(BaseModel):
     :type box: str
     """
     storage_id: UUID4
-    room: str
-    shelf: str
     box: str
+    room: Optional[str]
+    shelf: Optional[str]
 
     class Config:
         """
@@ -38,9 +38,9 @@ class StorageSchemaIn(BaseModel):
     :param box: The box of the storage
     :type box: str
     """
-    room: str
-    shelf: str
     box: str
+    room: Optional[str]
+    shelf: Optional[str]
 
     class Config:
         """

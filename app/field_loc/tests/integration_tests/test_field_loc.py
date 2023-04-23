@@ -70,7 +70,7 @@ class TestFieldLocRoutes(TestClass):
         assert response.status_code == 200
         second_response = client.get(url="/api/field-locations/get-field-loc-by-id",
                                      params={"field_loc_id": "invalid id"})
-        assert second_response.status_code == 400
+        assert second_response.status_code == 404
 
     def test_get_all_field_loc(self):
         """
