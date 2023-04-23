@@ -1,5 +1,6 @@
 from uuid import uuid4
 from sqlalchemy import Column, String, Float, ForeignKey
+from sqlalchemy.orm import relationship
 
 from app.db import Base
 
@@ -13,6 +14,8 @@ class Weather(Base):
     precipitation = Column(Float)
     wind_speed = Column(Float)
     wind_direction = Column(Float)
+
+    specimen = relationship("Specimen", back_populates="weather")
 
     def __init__(self, specimen_id: str, mean_temperature: float, humidity: float,
                  precipitation: float, wind_speed: float, wind_direction: float):

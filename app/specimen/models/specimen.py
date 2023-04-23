@@ -27,6 +27,7 @@ class Specimen(Base):
     verified_by = Column(String(50), ForeignKey("users.user_id"))
 
     field_loc = relationship("FieldLoc", back_populates="specimens")
+    weather = relationship("Weather", back_populates="specimen", uselist=False, cascade="all, delete")
 
     def __init__(self, reg_no: str, collection_date: str, reg_date: str,
                  family: str, genus: str, species: str, subnomen: str,
