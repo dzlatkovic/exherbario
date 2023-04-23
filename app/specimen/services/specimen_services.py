@@ -203,7 +203,7 @@ class SpecimenService:
                 repository = SpecimenRepository(db)
                 if not repository.read_specimen_by_reg_num(reg_no):
                     raise SpecimenExceptionRegNo(message="No such specimen in the database",
-                                                 code=400)
+                                                 code=404)
                 return repository.get_herbarium_label(reg_no)
         except Exception as error:
             raise error

@@ -82,7 +82,7 @@ class FieldLocRepository:
                                                    == field_loc_id).first()
         if field_loc is None:
             raise FieldLocNotFoundException(f"Location with provided ID: "
-                                            f"{field_loc_id} not found.", 400)
+                                            f"{field_loc_id} not found.", 404)
         return field_loc
 
     def delete_field_loc(self, field_loc_id: str):
