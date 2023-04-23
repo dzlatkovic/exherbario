@@ -4,6 +4,12 @@ class SpecimenDoesNotExistException(Exception):
         self.code = code
 
 
+class InvalidWeatherIdException(Exception):
+    def __init__(self, message, code):
+        self.message = message
+        self.code = code
+
+
 class DataAlreadyExistException(Exception):
     def __init__(self, message, code):
         self.message = message
@@ -17,6 +23,12 @@ class UnsuccessfulAPIRequestException(Exception):
 
 
 class MissingGPSException(Exception):
+    def __init__(self, message, code):
+        self.message = message
+        self.code = code
+
+
+class MissingWeatherDataException(Exception):
     def __init__(self, message, code):
         self.message = message
         self.code = code

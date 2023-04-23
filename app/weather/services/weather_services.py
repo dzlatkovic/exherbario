@@ -5,7 +5,9 @@ from app.db import SessionLocal
 from app.specimen.exceptions import SpecimenNotFoundException
 from app.specimen.models import Specimen
 from app.specimen.services import SpecimenService
-from app.weather.exceptions import UnsuccessfulAPIRequestException, MissingGPSException
+from app.weather.exceptions import (UnsuccessfulAPIRequestException,
+                                    MissingGPSException,
+                                    MissingWeatherDataException)
 from app.weather.repository import WeatherRepository
 from app.weather.schemas import WeatherSchemaIn
 
@@ -83,5 +85,45 @@ class WeatherService:
                                                                            latitude,
                                                                            specimen.collection_date)
             return WeatherService.save_weather_data(weather_object_in)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def read_weather_by_specimen_id(specimen_id: str):
+        try:
+            with SessionLocal() as db:
+                repository = WeatherRepository(db)
+                if not db.query(Specimen).filter_by(specimen_id=specimen_id).first():
+                    raise SpecimenNotFoundException(
+                        code=404,
+                        message=f"Specimen with ID: {specimen_id} does not exist."
+                    )
+                weather_data = repository.read_weather_by_specimen_id(specimen_id)
+                if weather_data is None:
+                    raise MissingWeatherDataException(
+                        code=404,
+                        message=f"Weather data for specimen with ID: {specimen_id} does not exist."
+                    )
+                return weather_data
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def delete_weather_data(specimen_id: str):
+        try:
+            with SessionLocal() as db:
+                repository = WeatherRepository(db)
+                if not db.query(Specimen).filter_by(specimen_id=specimen_id).first():
+                    raise SpecimenNotFoundException(
+                        code=404,
+                        message=f"Specimen with ID: {specimen_id} does not exist."
+                    )
+                weather_data = repository.read_weather_by_specimen_id(specimen_id)
+                if weather_data is None:
+                    raise MissingWeatherDataException(
+                        code=404,
+                        message=f"Weather data for specimen with ID: {specimen_id} does not exist."
+                    )
+                return repository.delete_weather_data(specimen_id)
         except Exception as error:
             raise error

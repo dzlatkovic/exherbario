@@ -36,3 +36,16 @@ class WeatherRepository:
             return weather_data
         except Exception as error:
             raise error
+
+    def read_weather_by_specimen_id(self, specimen_id: str):
+        return self.db.query(Weather).filter(Weather.specimen_id == specimen_id).first()
+
+    def delete_weather_data(self, specimen_id: str):
+        try:
+            weather_data = self.db.query(Weather).filter(Weather.specimen_id
+                                                         == specimen_id).first()
+            self.db.delete(weather_data)
+            self.db.commit()
+            return True
+        except Exception as error:
+            raise error
