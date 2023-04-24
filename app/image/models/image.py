@@ -9,7 +9,7 @@ from app.db import Base
 class Image(Base):
     __tablename__ = "image"
     image_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
-    specimen_id = Column(String(50), ForeignKey("specimen.specimen_id"), unique=True)
+    specimen_id = Column(String(50), ForeignKey("specimen.specimen_id"))
     file_path = Column(String(150))
     width = Column(Integer)
     height = Column(Integer)

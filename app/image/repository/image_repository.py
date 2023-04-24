@@ -1,5 +1,3 @@
-import json
-
 from sqlalchemy.orm import Session
 from app.image.models import Image
 from app.image.schemas import ImageSchemaIn

@@ -1,4 +1,3 @@
-import json
 import os
 from datetime import datetime
 
@@ -7,13 +6,22 @@ from app.db import SessionLocal
 from app.image.repository import ImageRepository
 from app.image.schemas import ImageSchemaIn
 from PIL import Image
+from app.image.exceptions import InvalidImageFileException, InvalidImageFormatException
 
 
 class ImageService:
     @staticmethod
     def get_image_data(file: UploadFile):
         file_path = f"images/{file.filename}"
-        img = Image.open(file.file)
+        try:
+            img = Image.open(file.file)
+        except Exception:
+            raise InvalidImageFileException(code=400,
+                                            message="Invalid image file.")
+        if img.format not in ['JPEG', 'JPG']:
+            raise InvalidImageFormatException(
+                code=400,
+                message="Invalid image format. Only JPEG and JPG are supported.")
         width, height = img.size
         return file_path, width, height
 
