@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import UploadFile
 from app.db import SessionLocal
 from app.image.repository import ImageRepository
-from app.image.schemas import ImageSchemaIn
+from app.image.schemas import ImageSchemaIn, ImageType
 from PIL import Image
 from app.image.exceptions import InvalidImageFileException, InvalidImageFormatException
 
@@ -26,7 +26,7 @@ class ImageService:
         return file_path, width, height
 
     @staticmethod
-    def create_image(specimen_id: str, file: UploadFile):
+    def create_image(specimen_id: str, image_type: ImageType, file: UploadFile):
         # Read the image data from the upload file
         image_data = file.file.read()
 
@@ -35,6 +35,7 @@ class ImageService:
         # Create a Pydantic model for the image
         image = ImageSchemaIn(
             specimen_id=specimen_id,
+            image_type=image_type,
             file_path=file_path,
             width=width,
             height=height,

@@ -1,11 +1,20 @@
 from datetime import date
+from enum import Enum
 
-from pydantic import BaseModel, UUID4, Json
+from pydantic import BaseModel, UUID4
+
+
+class ImageType(Enum):
+    field = "field"
+    herbarium = "herbarium"
+    macro = "macro"
+    microscope = "microscope"
 
 
 class ImageSchema(BaseModel):
     image_id: UUID4
     specimen_id: str
+    image_type: ImageType
     file_path: str
     width: int
     height: int
@@ -20,6 +29,7 @@ class ImageSchema(BaseModel):
 
 class ImageSchemaIn(BaseModel):
     specimen_id: str
+    image_type: ImageType
     file_path: str
     width: int
     height: int

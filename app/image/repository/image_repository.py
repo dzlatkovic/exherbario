@@ -10,6 +10,7 @@ class ImageRepository:
 
     def create_image(self, image_data: ImageSchemaIn):
         db_image = Image(specimen_id=image_data.specimen_id,
+                         image_type=image_data.image_type,
                          file_path=image_data.file_path,
                          width=image_data.width,
                          height=image_data.height,
