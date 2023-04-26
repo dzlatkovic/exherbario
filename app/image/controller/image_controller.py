@@ -1,8 +1,12 @@
-from fastapi import HTTPException, UploadFile
-from app.image.exceptions import InvalidImageFileException, InvalidImageFormatException
+from fastapi import HTTPException, UploadFile, Response
+from app.image.exceptions import (InvalidImageFileException,
+                                  InvalidImageFormatException,
+                                  MaximumDimensionsExceededException,
+                                  ImageNotFoundException, MissingFileException)
 from app.image.schemas import ImageType
 
 from app.image.services import ImageService
+from app.specimen.exceptions import SpecimenNotFoundException
 
 
 class ImageController:
@@ -10,7 +14,38 @@ class ImageController:
     def create_image(specimen_id: str, image_type: ImageType, file: UploadFile):
         try:
             return ImageService.create_image(specimen_id, image_type, file)
-        except (InvalidImageFileException, InvalidImageFormatException) as error:
+        except (InvalidImageFileException,
+                InvalidImageFormatException,
+                MaximumDimensionsExceededException) as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_image_by_id(image_id):
+        try:
+            return ImageService.get_image_by_id(image_id)
+        except ImageNotFoundException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_all_images_for_specimen(specimen_id: str):
+        try:
+            return ImageService.get_all_images_for_specimen(specimen_id)
+        except (ImageNotFoundException, SpecimenNotFoundException) as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def delete_image(image_id: str):
+        try:
+            ImageService.delete_image(image_id)
+            return Response(content=f"Image file was deleted from both server and the database",
+                            status_code=200)
+        except (MissingFileException, ImageNotFoundException) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
