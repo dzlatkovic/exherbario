@@ -102,9 +102,9 @@ class ImageService:
             with SessionLocal() as db:
                 repository = ImageRepository(db)
                 image = ImageService.get_image_by_id(image_id)
-                flag = repository.delete_image_data(image_id)
+                is_deleted = repository.delete_image_data(image_id)
                 ImageService.delete_image_file(image.file_path)
-                return flag
+                return is_deleted
         except MissingFileException as error:
             raise error
         except Exception as error:
