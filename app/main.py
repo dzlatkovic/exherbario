@@ -24,6 +24,7 @@ from app.storage.routes import storage_router
 from app.users.routes import user_router
 from app.weather.routes import weather_router
 from app.image.routes import image_router
+from app.taxonomy.routes import taxonomy_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -46,6 +47,7 @@ def init_app():
     fastapi_app.include_router(specimen_publication_router)
     fastapi_app.include_router(specimen_router)
     fastapi_app.include_router(storage_router)
+    fastapi_app.include_router(taxonomy_router)
     fastapi_app.include_router(user_router)
     fastapi_app.include_router(weather_router)
     return fastapi_app
