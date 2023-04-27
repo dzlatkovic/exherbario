@@ -1,5 +1,3 @@
-import os
-
 from sqlalchemy.orm import Session
 from app.image.exceptions import ImageNotFoundException
 from app.image.models import Image
