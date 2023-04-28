@@ -5,16 +5,16 @@ from pydantic import BaseModel, UUID4
 
 
 class TaxonRank(Enum):
-    form = "form"
-    variety = "variety"
-    subspecies = "subspecies"
-    species = "species"
-    genus = "genus"
-    family = "family"
-    order = "order"
+    FORM = "form"
+    VARIETY = "variety"
+    SUBSPECIES = "subspecies"
+    SPECIES = "species"
+    GENUS = "genus"
+    FAMILY = "family"
+    ORDER = "order"
     CLASS = "class"
-    phylum = "phylum"
-    kingdom = "kingdom"
+    PHYLUM = "phylum"
+    KINGDOM = "kingdom"
 
 
 class TaxonomySchema(BaseModel):
@@ -22,7 +22,7 @@ class TaxonomySchema(BaseModel):
     taxon_name: str
     gbif_key: str
     taxon_rank: TaxonRank
-    parent_gbif_key: Optional[str]
+    parent_taxon_key: Optional[str]
     common_name: Optional[str]
     authority: Optional[str]
 
@@ -36,7 +36,7 @@ class TaxonomySchema(BaseModel):
 class TaxonomySchemaIn(BaseModel):
     taxon_name: str
     gbif_key: str
-    parent_gbif_key: Optional[str]
+    parent_taxon_key: Optional[str]
     common_name: Optional[str]
     authority: Optional[str]
 
