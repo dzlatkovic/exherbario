@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     :param ALGORITHM: The algorithm for generating JWT tokens.
     :param DB_NAME_TEST: The name of the test database.
     :param USE_TEST_DB: A boolean flag indicating whether to use the test database.
-    :param LATITUDE: The latitude value used in distance calculations.
     :param TOKEN_DURATION: The expiration time of the JWT token
+    :param LATITUDE: The latitude value used in distance calculations.
     :param LONGITUDE: The longitude value used in distance calculations.
     """
     DB_HOST: str
