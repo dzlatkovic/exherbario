@@ -88,7 +88,7 @@ class StorageRepository:
         """
         try:
             if not self.db.query(Storage).filter(Storage.box == box).first():
-                raise StorageNotFoundException("Box not found.", 400)
+                raise StorageNotFoundException(message=f"Box {box} not found.", code=404)
             query = self.db.query(Storage, Specimen) \
                 .filter(Storage.box == box) \
                 .filter(Specimen.storage_id == Storage.storage_id) \
