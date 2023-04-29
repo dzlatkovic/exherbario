@@ -36,6 +36,7 @@ Before you start, make sure you have the following installed:
    - `ALGORITHM`: the algorithm used for JWT encoding.
    - `TOKEN_DURATION`: the expiration time of the JWT token.
    - `LATITUDE` and `LONGITUDE`: GPS coordinates used in distance calculations (e.g. University building).
+   - `PLANTNET_API_KEY`: Private key for Pl@ntNet API [(plantnet.org)](https://my.plantnet.org/)
 
    The following environment variables have been added to support running tests on a separate test database:
 
