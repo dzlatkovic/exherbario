@@ -72,7 +72,38 @@ CREATE TABLE `image` (
 
 LOCK TABLES `image` WRITE;
 /*!40000 ALTER TABLE `image` DISABLE KEYS */;
+INSERT INTO `image` VALUES ('b00818f8-e78e-4523-aacc-64cd4d1fa469','1d025af2-3f3c-45a6-9a10-e07c6b36be6b','field','images/1d025af2-3f3c-45a6-9a10-e07c6b36be6b/fragiferum.jpg',640,596,'2023-04-29'),('e5aa1b86-15dc-4cda-86b2-b875572587a9','16e91f91-7638-4e19-bd07-bd4f1e6e7644','field','images/16e91f91-7638-4e19-bd07-bd4f1e6e7644/trifoliumrepens.jpg',1536,2048,'2023-04-29');
 /*!40000 ALTER TABLE `image` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `plantnet_result`
+--
+
+DROP TABLE IF EXISTS `plantnet_result`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `plantnet_result` (
+  `result_id` varchar(50) NOT NULL,
+  `image_id` varchar(50) DEFAULT NULL,
+  `best_match` varchar(150) DEFAULT NULL,
+  `gbif_id` varchar(20) DEFAULT NULL,
+  `score` float DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  PRIMARY KEY (`result_id`),
+  KEY `image_id` (`image_id`),
+  CONSTRAINT `plantnet_result_ibfk_1` FOREIGN KEY (`image_id`) REFERENCES `image` (`image_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `plantnet_result`
+--
+
+LOCK TABLES `plantnet_result` WRITE;
+/*!40000 ALTER TABLE `plantnet_result` DISABLE KEYS */;
+INSERT INTO `plantnet_result` VALUES ('80d86170-1730-4239-bbc0-3072773cb7e4','b00818f8-e78e-4523-aacc-64cd4d1fa469','Trifolium fragiferum L.','5358935',0.55242,'2023-04-29 19:32:33'),('ec0af8f1-d196-4fff-81ef-be22a26bd0e5','e5aa1b86-15dc-4cda-86b2-b875572587a9','Trifolium nigrescens Viv.','5358774',0.72321,'2023-04-29 19:28:45');
+/*!40000 ALTER TABLE `plantnet_result` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -333,4 +364,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-04-29 18:32:50
+-- Dump completed on 2023-04-29 21:39:26
