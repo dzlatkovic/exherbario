@@ -34,6 +34,8 @@ Before you start, make sure you have the following installed:
    - `DB_NAME`: the name of the main database.
    - `USER_SECRET`: the secret key used for JSON Web Token (JWT) encoding.
    - `ALGORITHM`: the algorithm used for JWT encoding.
+   - `TOKEN_DURATION`: the expiration time of the JWT token.
+   - `LATITUDE` and `LONGITUDE`: GPS coordinates used in distance calculations (e.g. University building).
 
    The following environment variables have been added to support running tests on a separate test database:
 
@@ -56,7 +58,7 @@ Before you start, make sure you have the following installed:
 
 ### Documentation
 
-The `docs/` folder contains a project proposal, an EER scheme image, and a sample MySQL database that can be used to test the app. Simply import the database into your local MySQL server and update the `.env` file to use the correct database name, username, and password. Note that the sample database contains a superuser with email "john@example.com" and password "string". You can use this superuser to access the protected routes in the app.
+The `docs/` folder contains a project proposal, an EER scheme image, and a sample MySQL database that can be used to test the app. Simply import the database into your local MySQL server and update the `.env` file to use the correct database name, username, and password. Note that the sample database contains a superuser with email "user@example.com" and password "string". You can use this superuser to access the protected routes in the app.
 
 ## Meta
 
