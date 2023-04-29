@@ -14,48 +14,12 @@ from app.specimen.exceptions import (SpecimenExceptionRegNo,
 
 
 class SpecimenController:
-    """This class is used to control the specimen"""
 
     @staticmethod
-    def create_new_specimen(reg_no: str, collection_date: str, reg_date: str,
-                            family: str, genus: str, species: str, subnomen: str,
-                            field_loc_id: str, storage_id: str, photos_id: str,
-                            collected_by: str, verified_by: str):
-        """Create a new specimen record in the database.
+    def create_new_specimen(specimen):
 
-        This method creates a new `Specimen` object with the specified field values, and saves it to
-        the database using the `SpecimenService.create_new_specimen` method. If any errors occur,
-        this method catches them and raises an appropriate `HTTPException` with the error message
-        :param reg_no: The registration number for the specimen record
-        :type reg_no: str
-        :param collection_date: The date the specimen was collected, in "yyyy-mm-dd" format.
-        :type collection_date: str
-        :param reg_date: The date the specimen was registered, in "yyyy-mm-dd" format
-        :type reg_date: str
-        :param family: The family of the specimen
-        :type family: str
-        :param genus: The genus of the specimen
-        :type genus: str
-        :param species: The species of the specimen
-        :type species: str
-        :param subnomen: The subnomen of the specimen
-        :type subnomen: str
-        :param field_loc_id: The ID of the field location where the specimen was collected
-        :type field_loc_id: str
-        :param storage_id: The ID of the storage location where the specimen is stored
-        :type storage_id: str
-        :param photos_id: The ID of the photos associated with the specimen
-        :type photos_id: str
-        :param collected_by: The ID of the user who collected the specimen
-        :type collected_by: str
-        :param verified_by: The ID of the user who verified the specimen
-        :type verified_by: str
-        """
         try:
-            return SpecimenService.create_new_specimen(reg_no, collection_date, reg_date,
-                                                       family, genus, species, subnomen,
-                                                       field_loc_id, storage_id, photos_id,
-                                                       collected_by, verified_by)
+            return SpecimenService.create_new_specimen(specimen)
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except (SpecimenExceptionRegNo, InvalidDateRangeException) as error:
@@ -128,18 +92,6 @@ class SpecimenController:
         """
         try:
             content = SpecimenService.get_specimens_per_region()
-            return JSONResponse(content=content)
-        except Exception as error:
-            raise HTTPException(status_code=500, detail=str(error)) from error
-
-    @staticmethod
-    def count_specimens():
-        """
-        It returns the number of specimens in the database
-        :return: The number of specimens in the database.
-        """
-        try:
-            content = SpecimenService.count_specimens()
             return JSONResponse(content=content)
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

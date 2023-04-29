@@ -10,13 +10,14 @@ class TaxonomyService:
         try:
             with SessionLocal() as db:
                 repository = TaxonomyRepository(db)
-                parent_taxon = repository.read_taxon_by_taxon_id(taxon_data.parent_taxon_key)
-                if not parent_taxon:
-                    raise TaxonDoesNotExistException(
-                        code=404,
-                        message=f"Parent taxon with if: "
-                                f"{taxon_data.parent_taxon_key} does not exist in the database."
-                    )
+                if taxon_data.parent_taxon_key is not None:
+                    parent_taxon = repository.read_taxon_by_taxon_id(taxon_data.parent_taxon_key)
+                    if not parent_taxon:
+                        raise TaxonDoesNotExistException(
+                            code=404,
+                            message=f"Parent taxon with id: "
+                                    f"{taxon_data.parent_taxon_key} does not exist in the database."
+                        )
                 return repository.create_taxon(taxon_data, taxon_rank)
         except Exception as error:
             raise error

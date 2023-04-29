@@ -26,18 +26,7 @@ def create_new_specimen(specimen: SpecimenSchemaIn):
     :type specimen: SpecimenSchemaIn
     :return: The newly created specimen object.
     """
-    return SpecimenController.create_new_specimen(reg_no=specimen.reg_no,
-                                                  collection_date=specimen.collection_date,
-                                                  reg_date=specimen.reg_date,
-                                                  family=specimen.family,
-                                                  genus=specimen.genus,
-                                                  species=specimen.species,
-                                                  subnomen=specimen.subnomen,
-                                                  field_loc_id=specimen.field_loc_id,
-                                                  storage_id=specimen.storage_id,
-                                                  photos_id=specimen.photos_id,
-                                                  collected_by=specimen.collected_by,
-                                                  verified_by=specimen.verified_by)
+    return SpecimenController.create_new_specimen(specimen)
 
 
 @specimen_router.get("/get-specimen-by-id", response_model=SpecimenSchema)
@@ -94,17 +83,6 @@ def get_specimen_per_region():
     collected in that region.
     """
     return SpecimenController.get_specimens_per_region()
-
-
-@specimen_router.get("/count-specimen")
-def count_specimen():
-    """
-    Count the number of unique specimens, families, genera, and species in the database.
-
-    :return: A dictionary containing the counts of unique specimens, families,
-    genera, and species in the database.
-    """
-    return SpecimenController.count_specimens()
 
 
 @specimen_router.get("/get-gps")

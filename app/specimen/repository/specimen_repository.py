@@ -10,11 +10,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
 from app.config import settings
 from app.field_loc.models import FieldLoc
-from app.photos.models import Photos
 from app.specimen.models import Specimen
 from app.specimen.exceptions import SpecimenNotFoundException, SearchResultsNotFoundException
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.storage.models import Storage
+from app.taxonomy.models import Taxonomy
 from app.users.models import User
 
 
@@ -33,17 +33,22 @@ class SpecimenRepository:
         """
         self.db = db
 
-    def validate_foreign_keys(self, field_loc_id: str, storage_id: str, photos_id: str,
+    def validate_foreign_keys(self, taxon_id: str, field_loc_id: str, storage_id: str,
                               collected_by: str, verified_by: str):
         """
         Check if provided foreign keys are valid
+        :param taxon_id: The ID of the taxon to check
         :param field_loc_id: The ID of the field location to check
         :param storage_id: The ID of the storage to check
-        :param photos_id: The ID of the photos to check
         :param collected_by: The ID of the collector to check
         :param verified_by: The ID of the verifier to check
         :raises ValueError: If any of the provided foreign keys are invalid
         """
+        if taxon_id:
+            if not self.db.query(Taxonomy).filter(Taxonomy.taxon_id
+                                                  == taxon_id).first():
+                raise ValueError(f"Invalid taxon_id: {taxon_id}")
+
         if field_loc_id:
             if not self.db.query(FieldLoc).filter(FieldLoc.field_loc_id
                                                   == field_loc_id).first():
@@ -51,9 +56,6 @@ class SpecimenRepository:
         if storage_id:
             if not self.db.query(Storage).filter(Storage.storage_id == storage_id).first():
                 raise ValueError(f"Invalid storage_id: {storage_id}")
-        if photos_id:
-            if not self.db.query(Photos).filter(Photos.photos_id == photos_id).first():
-                raise ValueError(f"Invalid photos_id: {photos_id}")
         if collected_by:
             if not self.db.query(User).filter(User.user_id == collected_by).first():
                 raise ValueError(f"Invalid collected_by: {collected_by}")
@@ -61,19 +63,26 @@ class SpecimenRepository:
             if not self.db.query(User).filter(User.user_id == verified_by).first():
                 raise ValueError(f"Invalid verified_by: {verified_by}")
 
-    def create_specimen(self, reg_no: str, collection_date: str, reg_date: str,
-                        family: str, genus: str, species: str, subnomen: str,
-                        field_loc_id: str, storage_id: str, photos_id: str,
-                        collected_by: str, verified_by: str):
+    def create_specimen(self, specimen):
         """Create a new specimen record in the database."""
-        if self.db.query(Specimen).filter_by(photos_id=photos_id).first():
-            raise ValueError('A specimen with the same photos_id already exists in the database')
         try:
-            self.validate_foreign_keys(field_loc_id, storage_id, photos_id, collected_by,
-                                       verified_by)
-            specimen = Specimen(reg_no, collection_date, reg_date, family,
-                                genus, species, subnomen, field_loc_id, storage_id,
-                                photos_id, collected_by, verified_by)
+            self.validate_foreign_keys(
+                specimen.taxon_id,
+                specimen.field_loc_id,
+                specimen.storage_id,
+                specimen.collected_by,
+                specimen.verified_by
+            )
+            specimen = Specimen(
+                reg_no=specimen.reg_no,
+                collection_date=specimen.collection_date,
+                reg_date=specimen.reg_date,
+                taxon_id=specimen.taxon_id,
+                subnomen=specimen.subnomen,
+                field_loc_id=specimen.field_loc_id,
+                storage_id=specimen.storage_id,
+                collected_by=specimen.collected_by,
+                verified_by=specimen.verified_by)
             self.db.add(specimen)
             self.db.commit()
             self.db.refresh(specimen)
@@ -163,20 +172,6 @@ class SpecimenRepository:
             .all()
         return {row[0]: row[1] for row in result}
 
-    def count_specimens(self):
-        """
-        It counts the number of specimens, families, genus, and species in the database
-        :return: A dictionary with the counts of specimens, families, genus, and species.
-        """
-        cnt_specimens = self.db.query(func.count(Specimen.specimen_id)).scalar()
-        cnt_families = self.db.query(func.count(distinct(Specimen.family))).scalar()
-        cnt_genus = self.db.query(func.count(distinct(Specimen.genus))).scalar()
-        cnt_species = self.db.query(func.count(distinct(Specimen.species))).scalar()
-        return {"cnt_specimens": cnt_specimens,
-                "cnt_families": cnt_families,
-                "cnt_genus": cnt_genus,
-                "cnt_species": cnt_species}
-
     def get_gps_for_search_results(self, keyword: str):
         """
         Retrieve GPS locations for specimens matching a keyword in the subnomen.
@@ -254,28 +249,27 @@ class SpecimenRepository:
         :type specimen: SpecimenSchemaUpdate
         :return: The updated specimen.
         """
-        self.validate_foreign_keys(specimen.field_loc_id, specimen.storage_id,
-                                   specimen.photos_id, specimen.collected_by, specimen.verified_by)
+        self.validate_foreign_keys(
+            specimen.taxon_id,
+            specimen.field_loc_id,
+            specimen.storage_id,
+            specimen.collected_by,
+            specimen.verified_by
+        )
         db_specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()
         if db_specimen:
             if specimen.reg_no:
                 db_specimen.reg_no = specimen.reg_no
             if specimen.collection_date:
                 db_specimen.collection_date = specimen.collection_date
-            if specimen.family:
-                db_specimen.family = specimen.family
-            if specimen.genus:
-                db_specimen.genus = specimen.genus
-            if specimen.species:
-                db_specimen.species = specimen.species
+            if specimen.taxon_id:
+                db_specimen.taxon_id = specimen.taxon_id
             if specimen.subnomen:
                 db_specimen.subnomen = specimen.subnomen
             if specimen.field_loc_id:
                 db_specimen.field_loc_id = specimen.field_loc_id
             if specimen.storage_id:
                 db_specimen.storage_id = specimen.storage_id
-            if specimen.photos_id:
-                db_specimen.photos_id = specimen.photos_id
             if specimen.collected_by:
                 db_specimen.collected_by = specimen.collected_by
             if specimen.verified_by:

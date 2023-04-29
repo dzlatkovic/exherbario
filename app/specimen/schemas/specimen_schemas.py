@@ -13,13 +13,10 @@ class SpecimenSchema(BaseModel):
     reg_no: str
     collection_date: date
     reg_date: date
-    family: str
-    genus: str
-    species: str
+    taxon_id: str
     subnomen: str
     field_loc_id: str
     storage_id: str
-    photos_id: str
     collected_by: str
     verified_by: str
 
@@ -35,13 +32,10 @@ class SpecimenSchemaIn(BaseModel):
     reg_no: str
     collection_date: str
     reg_date: str
-    family: str
-    genus: str
-    species: str
+    taxon_id: str
     subnomen: str
     field_loc_id: str
     storage_id: str
-    photos_id: str
     collected_by: str
     verified_by: str
 
@@ -88,12 +82,9 @@ class SpecimenSchemaUpdate(BaseModel):
     """Pydantic model for updating a specimen record."""
     reg_no: Optional[str]
     collection_date: Optional[date]
-    family: Optional[str]
-    genus: Optional[str]
-    species: Optional[str]
+    taxon_id: Optional[str]
     subnomen: Optional[str]
     field_loc_id: Optional[str]
     storage_id: Optional[str]
-    photos_id: Optional[str]
     collected_by: Optional[str]
     verified_by: Optional[str]

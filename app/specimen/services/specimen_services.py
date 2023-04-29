@@ -18,24 +18,18 @@ class SpecimenService:
     """This class provides a service for managing specimens"""
 
     @staticmethod
-    def create_new_specimen(reg_no: str, collection_date: str, reg_date: str,
-                            family: str, genus: str, species: str, subnomen: str,
-                            field_loc_id: str, storage_id: str, photos_id: str,
-                            collected_by: str, verified_by: str):
+    def create_new_specimen(specimen):
         """Create a new specimen record in the database."""
         try:
             with SessionLocal() as db:
-                if collection_date > reg_date:
+                if specimen.collection_date > specimen.reg_date:
                     raise InvalidDateRangeException(
                         message="Collection date cannot be after registration date",
                         code=400)
                 repository = SpecimenRepository(db)
-                publication = repository.read_specimen_by_reg_num(reg_no)
+                publication = repository.read_specimen_by_reg_num(specimen.reg_no)
                 if publication is None:
-                    return repository.create_specimen(reg_no, collection_date, reg_date,
-                                                      family, genus, species, subnomen,
-                                                      field_loc_id, storage_id, photos_id,
-                                                      collected_by, verified_by)
+                    return repository.create_specimen(specimen)
                 raise SpecimenExceptionRegNo(message="Specimen already exists in the database.",
                                              code=400)
         except Exception as error:
@@ -110,20 +104,6 @@ class SpecimenService:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
                 return repository.get_specimens_per_region()
-        except Exception as error:
-            raise error
-
-    @staticmethod
-    def count_specimens():
-        """
-        It creates a database session, creates a repository,
-        and then calls the repository's count_specimens() method.
-        :return: The number of specimens in the database.
-        """
-        try:
-            with SessionLocal() as db:
-                repository = SpecimenRepository(db)
-                return repository.count_specimens()
         except Exception as error:
             raise error
 
@@ -221,9 +201,8 @@ class SpecimenService:
         try:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
-                repository.validate_foreign_keys(specimen.field_loc_id, specimen.storage_id,
-                                                 specimen.photos_id, specimen.collected_by,
-                                                 specimen.verified_by)
+                repository.validate_foreign_keys(specimen.taxon_id, specimen.field_loc_id, specimen.storage_id,
+                                                 specimen.collected_by, specimen.verified_by)
                 db_specimen = repository.update_specimen(specimen_id, specimen)
             if db_specimen is None:
                 raise SpecimenNotFoundException(message="Specimen not found.", code=400)
