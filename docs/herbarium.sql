@@ -41,36 +41,38 @@ CREATE TABLE `field_loc` (
 
 LOCK TABLES `field_loc` WRITE;
 /*!40000 ALTER TABLE `field_loc` DISABLE KEYS */;
-INSERT INTO `field_loc` VALUES ('088ea826-cbd3-4d9d-b685-8c5ecb5c93ad','Serbia','Niš','Suva Mt.',1400,'wood',43.25,22.03),('12e2d668-072a-4a9e-bde5-404f4140005a','Greece','Thessaloniki','Peraia',0,'beach',40.507,22.92),('27d6dd52-8702-4b93-9935-76d6f4057fee','Serbia','Niš','urban area',20,'park',43.32,21.9),('395c0852-0348-4b71-b05e-462321c5e54e','Serbia','Kosovo','Šara Mt.',100,'wood',42.39,21.57),('5d4fd21e-c061-42d8-80d4-1949f41a72e8','Serbia','Pirot','Staničenje',200,'wood',43.2,22.514),('7b74fff3-1f5e-47de-a55b-14febe71586a','Serbia','Niš','Hum',150,'pasture',43.37,21.9),('8d5f9189-f85e-4f5e-89c3-51fa6878f273','Serbia','Jablanički','Lipovica',0,'field',43.13,21.89),('9b26646b-f75a-444e-91e9-1e7e83d03c37','Austria','Styria','Graz',100,'urban area',47.05,15.46),('a8db55fa-92d7-4155-b6da-1d281e649aa3','Serbia','Vojvodina','Slano Kopovo',100,'swamp',45.61,20.21),('aa353840-4818-4e38-b275-3fe0854a81e6','Serbia','Šumadija','Grabovac',100,'wood',43.91,20.76),('ad89502b-0863-446a-a79a-16a4a3dd9032','Greece','Thessaloniki','Kalamaria',10,'park',40.64,22.93),('b2ab6a0c-d0e2-4fce-8572-76f8a3f245e7','Serbia','Niš','urban area',50,'park',43.31,21.91),('ca69800d-21b2-4f12-961f-48ac829c204d','Serbia','Pirot','Zavojsko lake',15,'wood',43.24,22.64),('dc44c8ba-2c86-4a68-b289-d497ece8f2f7','Serbia','Toplica','Kuršumlija',150,'urban area',43.13,21.28),('e5a9c5a5-16f6-4584-85e8-e30dd0eb0b42','Serbia','Pirot','Stara Mt.',1200,'wood',43.29,22.7);
+INSERT INTO `field_loc` VALUES ('5188e34c-5f5e-40b6-b1e8-3565e5f9d1a5','Montenegro','Kotor','Durmitor National Park',1650,'Meadow',43.0813,19.0832),('5c2400b7-9bdc-4567-8f5b-4352d76cc33e','Serbia','Belgrade','Avala Mountain',511,'Forest',44.6826,20.5079),('78cf9b2d-6406-4e02-bc71-f174a30a1b08','Bosnia','Federation of Bosnia','Bjelašnica Mountain',2067,'Rocky Terrain',43.6947,18.2703),('812f58d4-69a9-4e77-9c4e-4c4e4b3dbf63','Croatia','Split-Dalmatia','Biokovo Mountain',1762,'Alpine Meadow',43.3591,16.6772),('a61dfc17-7b04-4f8f-879f-59ed94427a89','North Macedonia','Ohrid','Galičica National Park',2255,'Alpine Forest',41.0805,20.8109);
 /*!40000 ALTER TABLE `field_loc` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
--- Table structure for table `photos`
+-- Table structure for table `image`
 --
 
-DROP TABLE IF EXISTS `photos`;
+DROP TABLE IF EXISTS `image`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `photos` (
-  `photos_id` varchar(50) NOT NULL,
-  `field_photo` varchar(200) DEFAULT NULL,
-  `specimen_photo` varchar(200) DEFAULT NULL,
-  PRIMARY KEY (`photos_id`),
-  UNIQUE KEY `field_photo` (`field_photo`),
-  UNIQUE KEY `specimen_photo` (`specimen_photo`),
-  CONSTRAINT `photos_chk_1` CHECK ((`field_photo` <> `specimen_photo`))
+CREATE TABLE `image` (
+  `image_id` varchar(50) NOT NULL,
+  `specimen_id` varchar(50) DEFAULT NULL,
+  `image_type` enum('field','herbarium','macro','microscope') DEFAULT NULL,
+  `file_path` varchar(150) DEFAULT NULL,
+  `width` int DEFAULT NULL,
+  `height` int DEFAULT NULL,
+  `upload_date` date DEFAULT NULL,
+  PRIMARY KEY (`image_id`),
+  KEY `specimen_id` (`specimen_id`),
+  CONSTRAINT `image_ibfk_1` FOREIGN KEY (`specimen_id`) REFERENCES `specimen` (`specimen_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `photos`
+-- Dumping data for table `image`
 --
 
-LOCK TABLES `photos` WRITE;
-/*!40000 ALTER TABLE `photos` DISABLE KEYS */;
-INSERT INTO `photos` VALUES ('000fddff-dfb1-4a16-8f01-9a24f345e491','field6.jpg','specimen6.jpg'),('04c4cf55-fef0-45d8-a748-1b7f8a091d50','field8.jpg','specimen8.jpg'),('0858f2aa-00e0-4eff-afd6-cbac79729aa9','field15.jpg','specimen15.jpg'),('0ec0ec7d-55f5-4b19-97d0-0b3cd2e631f9','field11.jpg','specimen11.jpg'),('1bde4dc7-ca4e-4eef-8df2-568d43d84f01','field17.jpg','specimen17.jpg'),('25c45214-16c6-4a16-b295-fb21b205121f','field9.jpg','specimen9.jpg'),('3ae66645-3b05-4edf-beca-19354fed092c','field14.jpg','specimen14.jpg'),('430a07d4-2e0d-4514-b46d-37905de6ecb0','field4.jpg','specimen4.jpg'),('469a86a4-923f-47d9-9def-dc7c7868619c','field13.jpg','specimen13.jpg'),('4fd0493a-d895-482a-afa0-34d88d2f6181','field1.jpg','specimen1.jpg'),('516cba54-d2f1-429c-b53d-59b10645f884','field5.jpg','specimen5.jpg'),('743733a7-71f7-42cb-abd6-fc71356c6b87','field16.jpg','specimen16.jpg'),('91abcded-8230-4e4d-bf48-b5242ad32fee','field18.jpg','specimen18.jpg'),('9243ff52-7d31-4308-8c71-dd6a9f6cdb40','field3.jpg','specimen3.jpg'),('93e3af18-67d1-4f3f-bb04-e5a031e9345a','field20.jpg','specimen20.jpg'),('a8dc9e9c-a7a5-4223-9157-d80c5d2deeb6','field7.jpg','specimen7.jpg'),('ab195cc7-a4d6-477b-8e90-94a4586672f6','field19.jpg','specimen19.jpg'),('b7d88c8a-ea77-4683-acf8-0f75f139fe45','field10.jpg','specimen10.jpg'),('d75e84d0-cc96-4e16-81b9-d1c5a0fdada5','field21.jpg','specimen21.jpg'),('e9ee493c-109f-4dfe-9a45-155e1dfc14a2','field2.jpg','specimen2.jpg'),('fa283ef3-0c33-498d-a2ce-086713309127','field12.jpg','specimen12.jpg');
-/*!40000 ALTER TABLE `photos` ENABLE KEYS */;
+LOCK TABLES `image` WRITE;
+/*!40000 ALTER TABLE `image` DISABLE KEYS */;
+/*!40000 ALTER TABLE `image` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -86,6 +88,7 @@ CREATE TABLE `publication` (
   `year` date DEFAULT NULL,
   `journal` varchar(100) DEFAULT NULL,
   `title` varchar(200) DEFAULT NULL,
+  `abstract` text,
   PRIMARY KEY (`pub_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -96,7 +99,7 @@ CREATE TABLE `publication` (
 
 LOCK TABLES `publication` WRITE;
 /*!40000 ALTER TABLE `publication` DISABLE KEYS */;
-INSERT INTO `publication` VALUES ('1a491644-976b-4a86-9460-ec9765fa938d','10.7890/qrst.2019.005','2019-01-01','Journal of Simulated Studies','Simulation and Its Applications in Mock Research'),('1b997bfc-f02c-458a-aec7-7a0d8518bafa','10.5879/erty.2010.001','1991-01-01','Journal of Imaginary Sciences','The Impact of Hypothetical Scenarios on Fictive Behaviors'),('8a1594cd-bc6d-4239-87a8-b62715c4facf','10.5678/efgh.2022.002','2022-01-01','Journal of Fictitious Research','Examining the Effects of Pretend Variables on Mock Outcomes'),('f4e2f757-cb88-410e-b8a9-84912993061f','10.1234/abcd.2023.001','2023-01-01','Journal of Mock Studies','An Analysis of Mock Data'),('f668258b-6d7c-4eb0-b262-07d3aed56557','10.3456/mnop.2020.004','2020-01-01','Journal of Nonexistent Phenomena','Investigating the Characteristics of Imaginary Participants'),('f6850293-5abc-4190-90b6-99b15b9f7bd0','10.2345/uvwx.2018.006','2018-01-01','Journal of Made-Up Sciences','A Study of Fabricated Data and Its Implications for Mock Research');
+INSERT INTO `publication` VALUES ('02368f90-7cfa-4ca9-8b4d-4e4c3fb90dc4','10.1016/j.atmosenv.2020.117941','2021-02-01','Atmospheric Environment','Air Pollution and Human Health','Air pollution is a significant public health issue, contributing to respiratory and cardiovascular diseases and other health problems. This review summarizes the current understanding of the health impacts of air pollution and highlights the need for effective air pollution mitigation strategies.'),('238f1a81-d1da-44cf-8a2d-689764ef81f1','10.1016/j.biocon.2021.109099','2021-10-01','Biological Conservation','Conservation of Endangered Species in Fragmented Habitats','Fragmentation of natural habitats has led to increased extinction risk for many species. This study explores strategies for conserving endangered species in fragmented habitats, including habitat restoration and creation of habitat corridors.'),('2b73a216-d26f-4613-8a9d-cf9c1a6d36d7','10.1002/ece3.7759','2021-05-01','Ecology and Evolution','The Role of Microbes in Plant Health','Microbes play important roles in plant health, influencing nutrient uptake, disease resistance, and other factors. This review summarizes the current understanding of plant-microbe interactions and their implications for plant health.'),('31c8d623-0c2d-4f7b-a1e8-79dfc6f2be6f','10.1016/j.scitotenv.2020.137520','2020-12-15','Science of the Total Environment','Climate-driven increase in the occurrence of wildfires in the Mediterranean','We analyzed the frequency and intensity of wildfires across the Mediterranean and found that climate change has resulted in increased frequency and intensity of wildfires in the region.'),('3abfeee8-00a3-49a9-b157-5832e44063b4','10.1016/j.jenvman.2021.112704','2021-11-15','Journal of Environmental Management','Sustainable Management of Water Resources','Water is a critical resource for human and ecosystem health, but it is also under increasing pressure from population growth and climate change. This study explores strategies for sustainable management of water resources, including water conservation and watershed management.'),('3fb3e731-34d3-44f1-9da1-7730fa0b2c7f','10.1016/j.foreco.2021.119442','2021-12-01','Forest Ecology and Management','Effects of Forest Management on Biodiversity','Forest management practices can have significant impacts on biodiversity. This study examines the effects of different forest management strategies on biodiversity and highlights the importance of incorporating biodiversity conservation into forest management planning.'),('4b24cb4b-4c4b-4c81-82b3-7313d0743f8d','10.1126/science.abc5424','2020-08-28','Science','COVID-19 and the Global Environment','The COVID-19 pandemic has had a significant impact on the global environment, with reductions in greenhouse gas emissions and improved air and water quality in many regions. However, the pandemic has also led to increased use of single-use plastics and other environmental issues.'),('54f1515d-d11a-43d3-88a8-25af3e8893f1','10.1016/j.ecolind.2021.107571','2021-12-01','Ecological Indicators','Assessing Biodiversity in Forest Ecosystems','Biodiversity is an important indicator of ecosystem health, but assessing biodiversity can be challenging. This study examines the use of various indicators for assessing biodiversity in forest ecosystems and highlights the importance of integrating multiple indicators for effective biodiversity assessment.'),('6803c0b8-df75-47e1-8cc4-697b1c4d2875','10.1038/s41586-021-03738-2','2021-09-01','Nature','The Role of Seagrass in Carbon Sequestration','Seagrasses are important coastal ecosystems that can sequester significant amounts of carbon. This study quantifies the carbon sequestration potential of seagrass ecosystems and highlights the need for conservation and restoration of these habitats.'),('6f6723e3-6b8b-48c3-bd7f-1aa2bf1b3056','10.1038/s41558-021-01060-6','2021-10-01','Nature Climate Change','Climate Change and the Global Food System','Climate change is expected to have significant impacts on the global food system, including changes in crop yields and food security. This review summarizes the current state of knowledge on the interactions between climate change and the global food system.'),('8e80c0c1-6b9c-447c-8db7-6c75259b3d29','10.1021/acs.est.1c02491','2021-08-17','Environmental Science and Technology','Environmental Impacts of Single-Use Plastics','Single-use plastics have become a ubiquitous part of our daily lives, but their disposal has led to significant environmental impacts, including pollution of waterways and wildlife ingestion. This review summarizes the current state of knowledge on the environmental impacts of single-use plastics.');
 /*!40000 ALTER TABLE `publication` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -125,7 +128,7 @@ CREATE TABLE `publication_authors` (
 
 LOCK TABLES `publication_authors` WRITE;
 /*!40000 ALTER TABLE `publication_authors` DISABLE KEYS */;
-INSERT INTO `publication_authors` VALUES ('d3ede2c3-a1c9-4e0e-b0f5-1eef62377b06','181488bc-722b-4ad0-9d21-83ef569720e1','1a491644-976b-4a86-9460-ec9765fa938d'),('da3d27a8-4769-43d7-97ff-5eb0ae59cb16','181488bc-722b-4ad0-9d21-83ef569720e1','f4e2f757-cb88-410e-b8a9-84912993061f'),('c9917163-0596-434e-847b-5f1a3e29808a','181488bc-722b-4ad0-9d21-83ef569720e1','f6850293-5abc-4190-90b6-99b15b9f7bd0'),('58ff500f-1803-42f2-bd69-151a449c7386','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','1a491644-976b-4a86-9460-ec9765fa938d'),('23970663-cffa-4ec8-99a2-82d7765cefa7','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','f4e2f757-cb88-410e-b8a9-84912993061f'),('17689a31-fd77-427c-8fdd-c8a62bf6f64a','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','f668258b-6d7c-4eb0-b262-07d3aed56557'),('2077034e-72a4-446a-81bf-4e4f860f6b6a','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','f6850293-5abc-4190-90b6-99b15b9f7bd0'),('c224cf99-7683-485a-aad4-b421164257b1','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','1a491644-976b-4a86-9460-ec9765fa938d'),('4533df72-f609-4e55-aa33-d98edeb16717','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','1b997bfc-f02c-458a-aec7-7a0d8518bafa'),('84a9486d-eda9-43a1-99a5-7041b821c0c5','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','8a1594cd-bc6d-4239-87a8-b62715c4facf'),('60fb80c8-2747-43d3-b3be-6f99282c2f5d','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','f6850293-5abc-4190-90b6-99b15b9f7bd0');
+INSERT INTO `publication_authors` VALUES ('0472f144-d0f3-44c7-946f-c8ecdf0d1661','9d1cb3db-3c90-4b62-b6b4-684ad57a4124','8e80c0c1-6b9c-447c-8db7-6c75259b3d29'),('4ad239a4-ef5b-4f5c-a306-128f9b1a2a4f','a3b8d514-37f5-4c75-9d67-9f9319e8aaf5','238f1a81-d1da-44cf-8a2d-689764ef81f1'),('c7fbbd1f-2f8b-46b6-a7b6-aa9e02d9c28e','a3b8d514-37f5-4c75-9d67-9f9319e8aaf5','31c8d623-0c2d-4f7b-a1e8-79dfc6f2be6f'),('3c4fdebc-4cb4-4c26-9c9c-cd36b1e482e2','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','8e80c0c1-6b9c-447c-8db7-6c75259b3d29'),('bf71f719-58e7-4652-946e-52df2cb46f84','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4','8e80c0c1-6b9c-447c-8db7-6c75259b3d29'),('38cc3e3e-52a8-4750-94f1-54d369332117','e95a99c7-2da2-40c7-bf6e-69e8b11ec89e','238f1a81-d1da-44cf-8a2d-689764ef81f1'),('f285b79d-f34e-4e7b-8b28-200f666520b9','e95a99c7-2da2-40c7-bf6e-69e8b11ec89e','31c8d623-0c2d-4f7b-a1e8-79dfc6f2be6f'),('055580e6-1d6e-4c58-b69a-5365cf5b058f','f4310dc7-43cc-4d5e-a424-0b78d7b2f4ad','8e80c0c1-6b9c-447c-8db7-6c75259b3d29');
 /*!40000 ALTER TABLE `publication_authors` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -141,25 +144,22 @@ CREATE TABLE `specimen` (
   `reg_no` varchar(10) NOT NULL,
   `collection_date` date DEFAULT NULL,
   `reg_date` date DEFAULT NULL,
-  `family` varchar(50) DEFAULT NULL,
-  `genus` varchar(50) DEFAULT NULL,
-  `species` varchar(50) DEFAULT NULL,
+  `taxon_id` varchar(50) DEFAULT NULL,
   `subnomen` varchar(200) DEFAULT NULL,
   `field_loc_id` varchar(50) DEFAULT NULL,
   `storage_id` varchar(50) DEFAULT NULL,
-  `photos_id` varchar(50) DEFAULT NULL,
   `collected_by` varchar(50) DEFAULT NULL,
   `verified_by` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`specimen_id`),
   UNIQUE KEY `reg_no` (`reg_no`),
-  UNIQUE KEY `photos_id` (`photos_id`),
+  KEY `taxon_id` (`taxon_id`),
   KEY `field_loc_id` (`field_loc_id`),
   KEY `storage_id` (`storage_id`),
   KEY `collected_by` (`collected_by`),
   KEY `verified_by` (`verified_by`),
-  CONSTRAINT `specimen_ibfk_1` FOREIGN KEY (`field_loc_id`) REFERENCES `field_loc` (`field_loc_id`),
-  CONSTRAINT `specimen_ibfk_2` FOREIGN KEY (`storage_id`) REFERENCES `storage` (`storage_id`),
-  CONSTRAINT `specimen_ibfk_3` FOREIGN KEY (`photos_id`) REFERENCES `photos` (`photos_id`),
+  CONSTRAINT `specimen_ibfk_1` FOREIGN KEY (`taxon_id`) REFERENCES `taxonomy` (`taxon_id`),
+  CONSTRAINT `specimen_ibfk_2` FOREIGN KEY (`field_loc_id`) REFERENCES `field_loc` (`field_loc_id`),
+  CONSTRAINT `specimen_ibfk_3` FOREIGN KEY (`storage_id`) REFERENCES `storage` (`storage_id`),
   CONSTRAINT `specimen_ibfk_4` FOREIGN KEY (`collected_by`) REFERENCES `users` (`user_id`),
   CONSTRAINT `specimen_ibfk_5` FOREIGN KEY (`verified_by`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -171,7 +171,7 @@ CREATE TABLE `specimen` (
 
 LOCK TABLES `specimen` WRITE;
 /*!40000 ALTER TABLE `specimen` DISABLE KEYS */;
-INSERT INTO `specimen` VALUES ('0b0d716f-30fb-4e0d-8c96-436786f9246a','020','2020-04-04','2020-04-10','Asteraceae','Blumea','balsamifera','Blumea balsamifera (L.) DC.','b2ab6a0c-d0e2-4fce-8572-76f8a3f245e7','53095394-1ae2-428d-a4c2-f3b52751877a','ab195cc7-a4d6-477b-8e90-94a4586672f6','181488bc-722b-4ad0-9d21-83ef569720e1','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('34c9e0b4-85e7-4a41-a5c7-b76900920801','008','2021-07-11','2021-08-11','Fagaceae','Quercus','toumeyi','Quercus toumeyi Sarg.','a8db55fa-92d7-4155-b6da-1d281e649aa3','53095394-1ae2-428d-a4c2-f3b52751877a','d75e84d0-cc96-4e16-81b9-d1c5a0fdada5','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('3a48220a-85bf-408e-8d5b-791da5f28803','002','2019-03-10','2019-05-22','Asteraceae','Blumea','lacera','Blumea lacera (Burm. f.) DC.','27d6dd52-8702-4b93-9935-76d6f4057fee','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','04c4cf55-fef0-45d8-a748-1b7f8a091d50','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('3f9b13fe-db6a-4444-ac3a-002e3ae79348','005','1999-04-11','1999-05-11','Asteraceae','Blumea','lacera','Blumea lacera (Burm. f.) DC.','7b74fff3-1f5e-47de-a55b-14febe71586a','e833413c-a68e-44e4-b380-fb0e81048ab9','516cba54-d2f1-429c-b53d-59b10645f884','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','6f756ee3-0fb0-45f3-a905-a9a910f33ce6'),('42d7d4ce-3a69-430d-9b82-c6a337826d6f','001','2015-02-10','2015-02-22','Plantaginaceae','Plantago','sparsiflora','Plantago sparsiflora Michx.','088ea826-cbd3-4d9d-b685-8c5ecb5c93ad','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','25c45214-16c6-4a16-b295-fb21b205121f','181488bc-722b-4ad0-9d21-83ef569720e1','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('4383b9ae-8778-4d39-9440-4f54baf670de','004','2022-05-10','2022-06-11','Asteraceae','Blumea','lacera','Blumea lacera (Burm. f.) DC.','5d4fd21e-c061-42d8-80d4-1949f41a72e8','53095394-1ae2-428d-a4c2-f3b52751877a','000fddff-dfb1-4a16-8f01-9a24f345e491','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','6f756ee3-0fb0-45f3-a905-a9a910f33ce6'),('51914074-1a38-438b-8934-043d6da4939a','003','2014-10-10','2014-10-11','Asteraceae','Blumea','lacera','Blumea lacera (Burm. f.) DC.','395c0852-0348-4b71-b05e-462321c5e54e','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','a8dc9e9c-a7a5-4223-9157-d80c5d2deeb6','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('714c0448-c748-4bbd-84a5-e02f87b0fd09','022','2018-05-04','2019-05-10','Asteraceae','Blumea','tenella','Blumea tenella DC.','ca69800d-21b2-4f12-961f-48ac829c204d','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','1bde4dc7-ca4e-4eef-8df2-568d43d84f01','181488bc-722b-4ad0-9d21-83ef569720e1','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('852bba4f-5155-4a63-80c5-2d26fc975215','006','2000-04-11','2000-05-11','Rosaceae','Rubus','vermontanus','Rubus vermontanus Blanch.','8d5f9189-f85e-4f5e-89c3-51fa6878f273','53095394-1ae2-428d-a4c2-f3b52751877a','430a07d4-2e0d-4514-b46d-37905de6ecb0','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','6f756ee3-0fb0-45f3-a905-a9a910f33ce6'),('877bae4c-b730-4934-a99f-5996725db82f','025','2016-08-08','2017-01-02','Asteraceae','Achillea','clavennea','Achillea clavennae L.','dc44c8ba-2c86-4a68-b289-d497ece8f2f7','e833413c-a68e-44e4-b380-fb0e81048ab9','3ae66645-3b05-4edf-beca-19354fed092c','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('c7e36ac3-33a9-4e8c-acb1-e7d27d0f3eae','009','2020-06-11','2020-06-11','Asteraceae','Rudbeckia','occidentalis','Rudbeckia occidentalis Nutt.','a8db55fa-92d7-4155-b6da-1d281e649aa3','53095394-1ae2-428d-a4c2-f3b52751877a','93e3af18-67d1-4f3f-bb04-e5a031e9345a','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('cd2b115c-8086-433e-a235-7b1c96d855f1','023','2017-06-06','2017-06-11','Fabaceae','Astragalus','scopulorum','Astragalus scopulorum Porter','b2ab6a0c-d0e2-4fce-8572-76f8a3f245e7','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','743733a7-71f7-42cb-abd6-fc71356c6b87','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('dc280779-524a-4cd3-b38a-b3bcc67c2a68','021','2019-04-04','2019-04-10','Asteraceae','Blumea','flava','Blumea flava DC.','ca69800d-21b2-4f12-961f-48ac829c204d','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','91abcded-8230-4e4d-bf48-b5242ad32fee','181488bc-722b-4ad0-9d21-83ef569720e1','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('e3f16b10-9f96-42dc-9652-c7ff2672eb6e','024','2017-02-02','2017-02-02','Asteraceae','Blumea','riparia','Blumea riparia DC.','ca69800d-21b2-4f12-961f-48ac829c204d','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','0858f2aa-00e0-4eff-afd6-cbac79729aa9','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('e560112f-8144-47dc-92d7-c8bb5d110dc9','019','2020-04-04','2020-04-10','Lamiaceae','Phyllostegia','waimeae','Phyllostegia waimeae Wawra','aa353840-4818-4e38-b275-3fe0854a81e6','e833413c-a68e-44e4-b380-fb0e81048ab9','e9ee493c-109f-4dfe-9a45-155e1dfc14a2','6f756ee3-0fb0-45f3-a905-a9a910f33ce6','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c'),('ec1c2313-997c-48f8-831e-d1a1b87a8453','026','2020-05-01','2020-05-04','Asteraceae','Achillea','millefolium','Achillea millefolium L.','088ea826-cbd3-4d9d-b685-8c5ecb5c93ad','0a3562ae-8b5a-47e8-9a47-51d84dc6adde','fa283ef3-0c33-498d-a2ce-086713309127','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','181488bc-722b-4ad0-9d21-83ef569720e1'),('f4dfc49c-47c8-4e1a-aec8-74c7a4f54a7c','007','2022-04-11','2022-05-11','Fabaceae','Vicia','faba','Vicia faba L.','9b26646b-f75a-444e-91e9-1e7e83d03c37','e833413c-a68e-44e4-b380-fb0e81048ab9','9243ff52-7d31-4308-8c71-dd6a9f6cdb40','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c');
+INSERT INTO `specimen` VALUES ('16e91f91-7638-4e19-bd07-bd4f1e6e7644','S00003','2006-06-18','2006-06-19','aa49f0d5-53ed-44c2-9942-e89b5e5b9c5d','Trifolium repens','78cf9b2d-6406-4e02-bc71-f174a30a1b08','9f2ef7b1-0ee8-4f31-b69c-b98380a75f02','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4'),('1d025af2-3f3c-45a6-9a10-e07c6b36be6b','S00002','2001-05-22','2001-05-23','0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','812f58d4-69a9-4e77-9c4e-4c4e4b3dbf63','7b46c2f9-d7a7-47c8-bc84-2b85a60f41d8','a3b8d514-37f5-4c75-9d67-9f9319e8aaf5','a41c0dd2-1d96-4c2c-bf1c-59a3d7dec813'),('20bdf63a-eeec-4b20-8d89-7cebb07a63df','SP0002','2023-04-02','2023-04-03','41fcf6a5-b864-47b7-9eb6-c8c7f21e9d3a','Trifolium hybridum.','812f58d4-69a9-4e77-9c4e-4c4e4b3dbf63','7b46c2f9-d7a7-47c8-bc84-2b85a60f41d8','a3b8d514-37f5-4c75-9d67-9f9319e8aaf5','a41c0dd2-1d96-4c2c-bf1c-59a3d7dec813'),('22a9f0e3-7f63-45a1-9377-2d2f98f7fc68','00270','2019-07-08','2019-07-10','5de0a4df-4d4c-4c7a-952d-0d4232f37ba3','Trifolium pratense','5188e34c-5f5e-40b6-b1e8-3565e5f9d1a5','9f2ef7b1-0ee8-4f31-b69c-b98380a75f02','6931e6d9-aa67-4d06-9a39-42af8b7756cf','f4310dc7-43cc-4d5e-a424-0b78d7b2f4ad'),('234d1e25-96d2-4d7f-b86e-956b9a0d2aa8','00271','2012-08-12','2012-08-13','41fcf6a5-b864-47b7-9eb6-c8c7f21e9d3a','Trifolium hybridum','812f58d4-69a9-4e77-9c4e-4c4e4b3dbf63','f37c2a25-963c-40ce-983e-28fc39c690d7','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4','9d1cb3db-3c90-4b62-b6b4-684ad57a4124'),('2eafdd44-9d13-4f23-9a83-4c4b726d4ef4','1234','2001-05-12','2001-05-15','0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','a61dfc17-7b04-4f8f-879f-59ed94427a89','3df3b1d2-92cf-463a-9c1d-b7d8950ecfae','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','e95a99c7-2da2-40c7-bf6e-69e8b11ec89e'),('4a34d152-1cf0-4ea4-8c11-135d3604c3f2','2345','2002-06-20','2002-06-21','41fcf6a5-b864-47b7-9eb6-c8c7f21e9d3a','Trifolium hybridum','812f58d4-69a9-4e77-9c4e-4c4e4b3dbf63','7b46c2f9-d7a7-47c8-bc84-2b85a60f41d8','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','f4310dc7-43cc-4d5e-a424-0b78d7b2f4ad'),('4a67de45-3054-4e67-9783-0f9451c31d95','SP006','2007-08-12','2007-08-28','5de0a4df-4d4c-4c7a-952d-0d4232f37ba3','Trifolium pratense','a61dfc17-7b04-4f8f-879f-59ed94427a89','7b46c2f9-d7a7-47c8-bc84-2b85a60f41d8','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4','6931e6d9-aa67-4d06-9a39-42af8b7756cf'),('5c41e5d7-90a9-41d8-b1d9-9880f82c0bfb','SP004','2005-07-18','2005-08-01','aa49f0d5-53ed-44c2-9942-e89b5e5b9c5d','Trifolium repens.','78cf9b2d-6406-4e02-bc71-f174a30a1b08','f37c2a25-963c-40ce-983e-28fc39c690d7','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','f4310dc7-43cc-4d5e-a424-0b78d7b2f4ad'),('5ec6f1e6-5e6e-4855-b16f-02dcd6d1ed9c','3456','2003-07-15','2003-07-20','4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','78cf9b2d-6406-4e02-bc71-f174a30a1b08','9f2ef7b1-0ee8-4f31-b69c-b98380a75f02','a3b8d514-37f5-4c75-9d67-9f9319e8aaf5','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4'),('73042e3c-24e9-4a9d-aeb2-72a29a2a83a1','SP005','2006-06-29','2006-07-15','4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','5188e34c-5f5e-40b6-b1e8-3565e5f9d1a5','3df3b1d2-92cf-463a-9c1d-b7d8950ecfae','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4'),('a7d91c0e-27b7-4dd6-a33c-0ce6b0a6fb8d','SP0003','2023-04-03','2023-04-04','4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','78cf9b2d-6406-4e02-bc71-f174a30a1b08','9f2ef7b1-0ee8-4f31-b69c-b98380a75f02','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4'),('ba58b749-ecf3-4b6a-a5c1-5b94f5b1af04','S00001','2002-07-12','2002-07-13','0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','a61dfc17-7b04-4f8f-879f-59ed94427a89','3df3b1d2-92cf-463a-9c1d-b7d8950ecfae','6931e6d9-aa67-4d06-9a39-42af8b7756cf','9d1cb3db-3c90-4b62-b6b4-684ad57a4124'),('e64a8b3d-0e5a-4a85-8d8d-0d9ebcb86e65','SP0001','2023-04-01','2023-04-02','0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','a61dfc17-7b04-4f8f-879f-59ed94427a89','3df3b1d2-92cf-463a-9c1d-b7d8950ecfae','6931e6d9-aa67-4d06-9a39-42af8b7756cf','9d1cb3db-3c90-4b62-b6b4-684ad57a4124'),('ffb37f52-406a-4d4f-a1f8-5c37a5e5faaa','00269','2015-06-21','2015-06-23','4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','5c2400b7-9bdc-4567-8f5b-4352d76cc33e','7b46c2f9-d7a7-47c8-bc84-2b85a60f41d8','c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4');
 /*!40000 ALTER TABLE `specimen` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -200,7 +200,7 @@ CREATE TABLE `specimen_publication` (
 
 LOCK TABLES `specimen_publication` WRITE;
 /*!40000 ALTER TABLE `specimen_publication` DISABLE KEYS */;
-INSERT INTO `specimen_publication` VALUES ('d52be018-72de-47c5-8bde-faf0b9bb1bd2','34c9e0b4-85e7-4a41-a5c7-b76900920801','8a1594cd-bc6d-4239-87a8-b62715c4facf'),('cf0fc939-09a2-4ced-a349-5f82da8e6072','42d7d4ce-3a69-430d-9b82-c6a337826d6f','f4e2f757-cb88-410e-b8a9-84912993061f'),('9c875ebc-d7f4-4279-9c89-0c12322b887c','51914074-1a38-438b-8934-043d6da4939a','1b997bfc-f02c-458a-aec7-7a0d8518bafa'),('2b771290-c2f7-438d-8f6c-04901bf5c752','51914074-1a38-438b-8934-043d6da4939a','f6850293-5abc-4190-90b6-99b15b9f7bd0'),('3ad3b5f7-6d7c-4e4c-8996-309785d45ab8','714c0448-c748-4bbd-84a5-e02f87b0fd09','1b997bfc-f02c-458a-aec7-7a0d8518bafa'),('a240bc99-037b-460f-aa8f-43ae4b080a5c','877bae4c-b730-4934-a99f-5996725db82f','1a491644-976b-4a86-9460-ec9765fa938d'),('346be938-be11-46a4-bd78-20d5ea4ede11','cd2b115c-8086-433e-a235-7b1c96d855f1','8a1594cd-bc6d-4239-87a8-b62715c4facf'),('b4c0e7ed-1854-4ddb-8c71-9e69f9fb9a0b','f4dfc49c-47c8-4e1a-aec8-74c7a4f54a7c','f668258b-6d7c-4eb0-b262-07d3aed56557');
+INSERT INTO `specimen_publication` VALUES ('40cfe685-baa7-4666-9145-12f5a5c5c9e5','16e91f91-7638-4e19-bd07-bd4f1e6e7644','4b24cb4b-4c4b-4c81-82b3-7313d0743f8d'),('3b77eacb-2a87-4d19-9a9c-b7f9ec042e8d','16e91f91-7638-4e19-bd07-bd4f1e6e7644','8e80c0c1-6b9c-447c-8db7-6c75259b3d29'),('6c616fe6-5205-4847-9bbf-6e24429fa06e','1d025af2-3f3c-45a6-9a10-e07c6b36be6b','3fb3e731-34d3-44f1-9da1-7730fa0b2c7f'),('4a6a1a7e-6bf4-4d68-98cf-8d7dab6d24f6','22a9f0e3-7f63-45a1-9377-2d2f98f7fc68','6803c0b8-df75-47e1-8cc4-697b1c4d2875'),('7a2b46dc-e1f4-4a9d-9d12-cfb8814dfbb1','234d1e25-96d2-4d7f-b86e-956b9a0d2aa8','2b73a216-d26f-4613-8a9d-cf9c1a6d36d7'),('2a1c1579-6f95-4d2b-a579-82c99b129c57','234d1e25-96d2-4d7f-b86e-956b9a0d2aa8','6f6723e3-6b8b-48c3-bd7f-1aa2bf1b3056'),('6b29268a-f874-4325-bc7d-07102b20e496','5c41e5d7-90a9-41d8-b1d9-9880f82c0bfb','54f1515d-d11a-43d3-88a8-25af3e8893f1'),('4d4c1604-7f9a-45c2-a2e6-5547776e7b6f','73042e3c-24e9-4a9d-aeb2-72a29a2a83a1','3abfeee8-00a3-49a9-b157-5832e44063b4'),('83e31b17-1a89-4c63-a019-b2f7a61ca01d','ba58b749-ecf3-4b6a-a5c1-5b94f5b1af04','4b24cb4b-4c4b-4c81-82b3-7313d0743f8d'),('a203be7e-67c2-4d9d-b1d2-97a470af2f10','e64a8b3d-0e5a-4a85-8d8d-0d9ebcb86e65','2b73a216-d26f-4613-8a9d-cf9c1a6d36d7');
 /*!40000 ALTER TABLE `specimen_publication` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -213,9 +213,9 @@ DROP TABLE IF EXISTS `storage`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `storage` (
   `storage_id` varchar(50) NOT NULL,
+  `box` varchar(100) NOT NULL,
   `room` varchar(20) DEFAULT NULL,
   `shelf` varchar(20) DEFAULT NULL,
-  `box` varchar(100) NOT NULL,
   PRIMARY KEY (`storage_id`),
   UNIQUE KEY `box` (`box`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -227,8 +227,40 @@ CREATE TABLE `storage` (
 
 LOCK TABLES `storage` WRITE;
 /*!40000 ALTER TABLE `storage` DISABLE KEYS */;
-INSERT INTO `storage` VALUES ('0a3562ae-8b5a-47e8-9a47-51d84dc6adde','112','3','13B'),('53095394-1ae2-428d-a4c2-f3b52751877a','112','1','12A'),('e833413c-a68e-44e4-b380-fb0e81048ab9','112','2','14C');
+INSERT INTO `storage` VALUES ('3df3b1d2-92cf-463a-9c1d-b7d8950ecfae','Box 1','Room A','Shelf 1'),('7b46c2f9-d7a7-47c8-bc84-2b85a60f41d8','Box 2','Room A','Shelf 2'),('9f2ef7b1-0ee8-4f31-b69c-b98380a75f02','Box 5','Room C','Shelf 5'),('adee6a95-6dab-4bcb-8b04-c6b3af7524c4','Box 3','Room B','Shelf 3'),('f37c2a25-963c-40ce-983e-28fc39c690d7','Box 4','Room B','Shelf 4');
 /*!40000 ALTER TABLE `storage` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `taxonomy`
+--
+
+DROP TABLE IF EXISTS `taxonomy`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `taxonomy` (
+  `taxon_id` varchar(50) NOT NULL,
+  `taxon_name` varchar(100) NOT NULL,
+  `gbif_key` varchar(20) NOT NULL,
+  `taxon_rank` enum('FORM','VARIETY','SUBSPECIES','SPECIES','GENUS','FAMILY','ORDER','CLASS','PHYLUM','KINGDOM') NOT NULL,
+  `parent_taxon_key` varchar(50) DEFAULT NULL,
+  `common_name` varchar(50) DEFAULT NULL,
+  `authority` varchar(30) DEFAULT NULL,
+  PRIMARY KEY (`taxon_id`),
+  UNIQUE KEY `gbif_key` (`gbif_key`),
+  KEY `parent_taxon_key` (`parent_taxon_key`),
+  CONSTRAINT `taxonomy_ibfk_1` FOREIGN KEY (`parent_taxon_key`) REFERENCES `taxonomy` (`taxon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `taxonomy`
+--
+
+LOCK TABLES `taxonomy` WRITE;
+/*!40000 ALTER TABLE `taxonomy` DISABLE KEYS */;
+INSERT INTO `taxonomy` VALUES ('0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Magnoliopsida','220','CLASS','f7a6aefe-4cb4-4d0c-8587-6c506d6fa73f','Dicots',NULL),('0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','3188109','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Strawberry clover','L.'),('41fcf6a5-b864-47b7-9eb6-c8c7f21e9d3a','Trifolium hybridum','3188173','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Alsike clover','L.'),('4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','3188176','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Crimson clover','L.'),('5de0a4df-4d4c-4c7a-952d-0d4232f37ba3','Trifolium pratense','3085361','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Red Clover','L.'),('69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Plantae','6','KINGDOM',NULL,'Plants',NULL),('aa49f0d5-53ed-44c2-9942-e89b5e5b9c5d','Trifolium repens','3188545','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','White clover','L.'),('b511a520-7a47-4491-af97-45f2b04f9640','Trifolium pratense','3188471','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Red clover','L.'),('ce5d6f5b-4f1b-4ea7-b35d-8c8af42b1bb9','Trifolium arvense','3188048','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Rabbitfoot clover','L.'),('ec345049-d81e-4649-82c2-e7b2e292ce8d','Trifolium repens','3068948','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','White Clover','L.'),('ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','Fabaceae','5018','FAMILY','f6a4691f-dc1d-4a2b-a8e3-3c5b5dc5b5d5','Pea Family',NULL),('f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Trifolium','5342','GENUS','ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','Clovers',NULL),('f6a4691f-dc1d-4a2b-a8e3-3c5b5dc5b5d5','Rosales','3858','ORDER','0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Rosids',NULL),('f7a6aefe-4cb4-4d0c-8587-6c506d6fa73f','Embryophyta','58003','PHYLUM','69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Land Plants',NULL);
+/*!40000 ALTER TABLE `taxonomy` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -257,8 +289,39 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES ('181488bc-722b-4ad0-9d21-83ef569720e1','Pam','Beesly','pam@example.com','473287f8298dba7163a897908958f7c0eae733e25d2e027992ea2edc9bed2fa8',1,0),('6f756ee3-0fb0-45f3-a905-a9a910f33ce6','John','Smith','john@example.com','473287f8298dba7163a897908958f7c0eae733e25d2e027992ea2edc9bed2fa8',1,1),('a6cf9caf-e2d6-4a6c-b725-e4cd92df5b0c','Aca','Lukas','aca@example.com','473287f8298dba7163a897908958f7c0eae733e25d2e027992ea2edc9bed2fa8',1,0);
+INSERT INTO `users` VALUES ('6931e6d9-aa67-4d06-9a39-42af8b7756cf','Kelly','Kapoor','kelly.kapoor@example.com','$2y$12$zS6pIvEegNUlFk1ivdx77ur4yNp5f05X5Nso1z/sZG5r/UaLqMB1W',1,0),('9d1cb3db-3c90-4b62-b6b4-684ad57a4124','Ryan','Howard','ryan.howard@example.com','$2y$12$8L1FYt3vCtBxswcn7KT.LObRRiWAmnYAJQZ1nV/vQPMGViurWV7vK',1,0),('a3b8d514-37f5-4c75-9d67-9f9319e8aaf5','Jim','Halpert','jim.halpert@example.com','$2y$12$xZsWKLg8WWvzDuxKJFQ05OsEG6gsxUQNdffLrLbK.w0AV3DCcXzIm',1,1),('a41c0dd2-1d96-4c2c-bf1c-59a3d7dec813','Kevin','Malone','user@example.com','473287f8298dba7163a897908958f7c0eae733e25d2e027992ea2edc9bed2fa8',1,1),('c38a25e5-fa80-4a2a-94d1-0b14d9feadf4','Dwight','Schrute','dwight.schrute@example.com','$2y$12$7.Fg43N8W/u7Gssd/0uOFOPoNpXEpUI5iqzVkPXdZXrZG5C1cJW0G',1,0),('e56fa2c3-3fb3-4b90-b7b6-ec8ba84dbaa4','Angela','Martin','angela.martin@example.com','$2y$12$C.AZJknlU6CnU6d2y6xgJOpT9sG02imM1ylN.NZ6f54pN8Oa6U/2W',1,0),('e95a99c7-2da2-40c7-bf6e-69e8b11ec89e','Pam','Beesly','pam.beesly@example.com','$2y$12$MUoA6XkzMzgLyDEONsw/e.y2jK/PigJxg.mtjJG7cFQH/fMqr9OjK',1,0),('f4310dc7-43cc-4d5e-a424-0b78d7b2f4ad','Michael','Scott','michael.scott@example.com','$2y$12$CllrIRvM/cPDrWkXy6KjVO6JFv0f28MZ6lAUCZsJAJpCY0vzB0FnW',1,0);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `weather`
+--
+
+DROP TABLE IF EXISTS `weather`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `weather` (
+  `weather_id` varchar(50) NOT NULL,
+  `specimen_id` varchar(50) DEFAULT NULL,
+  `mean_temperature` float DEFAULT NULL,
+  `humidity` float DEFAULT NULL,
+  `precipitation` float DEFAULT NULL,
+  `wind_speed` float DEFAULT NULL,
+  `wind_direction` float DEFAULT NULL,
+  PRIMARY KEY (`weather_id`),
+  UNIQUE KEY `specimen_id` (`specimen_id`),
+  CONSTRAINT `weather_ibfk_1` FOREIGN KEY (`specimen_id`) REFERENCES `specimen` (`specimen_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `weather`
+--
+
+LOCK TABLES `weather` WRITE;
+/*!40000 ALTER TABLE `weather` DISABLE KEYS */;
+INSERT INTO `weather` VALUES ('9d30deeb-3d6e-4e31-9fa8-7beb173185bf','16e91f91-7638-4e19-bd07-bd4f1e6e7644',15.6,49,2.5,2.34,232);
+/*!40000 ALTER TABLE `weather` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -270,4 +333,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-02-22 16:36:45
+-- Dump completed on 2023-04-29 18:32:50
