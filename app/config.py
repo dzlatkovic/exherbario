@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     :param TOKEN_DURATION: The expiration time of the JWT token
     :param LATITUDE: The latitude value used in distance calculations.
     :param LONGITUDE: The longitude value used in distance calculations.
+    :param PLANTNET_API_KEY: Private key for Pl@ntNet API.
     """
     DB_HOST: str
     DB_HOSTNAME: str
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     TOKEN_DURATION: int
     LATITUDE: float
     LONGITUDE: float
+    PLANTNET_API_KEY: str
 
     class Config:
         """

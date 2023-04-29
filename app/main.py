@@ -22,7 +22,7 @@ from app.specimen.routes import specimen_router, specimen_publication_router
 from app.storage.routes import storage_router
 from app.users.routes import user_router
 from app.weather.routes import weather_router
-from app.image.routes import image_router
+from app.image.routes import image_router, plantnet_router
 from app.taxonomy.routes import taxonomy_router
 
 Base.metadata.create_all(bind=engine)
@@ -40,6 +40,7 @@ def init_app():
     fastapi_app = FastAPI()
     fastapi_app.include_router(field_loc_router)
     fastapi_app.include_router(image_router)
+    fastapi_app.include_router(plantnet_router)
     fastapi_app.include_router(publication_authors_router)
     fastapi_app.include_router(publication_router)
     fastapi_app.include_router(specimen_publication_router)

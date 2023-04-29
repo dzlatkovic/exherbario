@@ -9,8 +9,8 @@ from typing import List
 
 from fastapi import APIRouter, UploadFile, File
 
-from app.image.controller import ImageController
-from app.image.schemas import ImageSchema
+from app.image.controller import ImageController, PlantNetController
+from app.image.schemas import ImageSchema, PlantNetResultSchema, Organs
 from app.image.schemas import ImageType
 
 image_router = APIRouter(prefix="/api/image", tags=["Image"])
@@ -61,3 +61,12 @@ def delete_weather_data(image_id: str):
     :return: A response indicating success or failure.
     """
     return ImageController.delete_image(image_id)
+
+
+plantnet_router = APIRouter(prefix="/api/plantnet", tags=["PlantNet"])
+
+
+@plantnet_router.post("/save_plantnet_identification", response_model=PlantNetResultSchema)
+def upload_image(image_id: str, organs: Organs):
+    return PlantNetController.save_plantnet_identification(image_id, organs)
+
