@@ -81,10 +81,10 @@ class PlantNetRepository:
                 "reg_no": row[0],
                 "subnomen": row[1],
                 "gbif_key": row[2],
-                "best_match": row[3],
-                "gbif_id": row[4],
-                "score": row[5],
-                "name": row[6],
-                "surname": row[7]
+                "best_match_from_plantnet": row[3],
+                "gbif_id_plantnet": row[4],
+                "plantnet_score": row[5],
+                "verified_by_name": row[6],
+                "verified_by_surname": row[7]
             })
         return results
