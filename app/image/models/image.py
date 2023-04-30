@@ -1,6 +1,8 @@
 from datetime import datetime, date
 from uuid import uuid4
 from sqlalchemy import Column, String, ForeignKey, Date, Integer, Enum
+from sqlalchemy.orm import relationship
+
 from app.image.schemas import ImageType
 from app.db import Base
 
@@ -14,6 +16,8 @@ class Image(Base):
     width = Column(Integer)
     height = Column(Integer)
     upload_date = Column(Date, default=datetime.utcnow)
+
+    plantnet_results = relationship("PlantNetResult", backref="image")
 
     def __init__(self,
                  specimen_id: str,

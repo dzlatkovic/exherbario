@@ -1,8 +1,10 @@
 import json
+from typing import List, Dict
 
 from app.db import SessionLocal
-from app.image.exceptions.plantnet_exceptions import PlantNetRequestFailedException
-from app.image.repository import PlantNetRepository
+from app.image.exceptions.plantnet_exceptions import PlantNetRequestFailedException, \
+    MissingPlantNetIdentificationException
+from app.image.repository import PlantNetRepository, ImageRepository
 import requests
 from app.config import settings
 from app.image.schemas import Organs, PlantNetResultSchemaIn
@@ -54,4 +56,64 @@ class PlantNetService:
         except Exception as error:
             raise error
 
+    @staticmethod
+    def get_id_result_by_id(result_id: str):
+        try:
+            with SessionLocal() as db:
+                repository = PlantNetRepository(db)
+                return repository.get_id_result_by_id(result_id)
+        except Exception as error:
+            raise error
 
+    @staticmethod
+    def delete_plantnet_identification(result_id: str):
+        try:
+            with SessionLocal() as db:
+                repository = PlantNetRepository(db)
+                return repository.delete_plantnet_identification(result_id)
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_plantnet_result_for_image(image_id: str):
+        try:
+            with SessionLocal() as db:
+                repository = PlantNetRepository(db)
+                plantnet_results = repository.get_plantnet_result_for_image(image_id)
+                if not plantnet_results:
+                    raise MissingPlantNetIdentificationException(code=400,
+                                                                 message="No results found.")
+                return plantnet_results
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_plantnet_result_for_specimen(specimen_id: str):
+        try:
+            with SessionLocal() as db:
+                repository = PlantNetRepository(db)
+                plantnet_results = repository.get_plantnet_result_for_specimen(specimen_id)
+                if not plantnet_results:
+                    raise MissingPlantNetIdentificationException(code=400,
+                                                                 message="No results found.")
+                return plantnet_results
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_plantnet_results_with_mismatched_taxonomy() -> List[Dict[str, str]]:
+        """
+        Retrieves all PlantNet results for specimens whose GBIF key in the taxonomy table
+        does not match the GBIF ID in the PlantNet results, and joins the results with
+        other relevant tables.
+
+        :return: A list of dictionaries containing the relevant fields from the database.
+        """
+        try:
+            with SessionLocal() as db:
+                repository = PlantNetRepository(db)
+                results = repository.get_plantnet_results_with_mismatched_taxonomy()
+                return results
+
+        except Exception as error:
+            raise error
