@@ -17,6 +17,20 @@ class TaxonRank(Enum):
     KINGDOM = "kingdom"
 
 
+TAXON_DICT = {
+    "FORM": TaxonRank.FORM,
+    "VARIETY": TaxonRank.VARIETY,
+    "SUBSPECIES": TaxonRank.SUBSPECIES,
+    "SPECIES": TaxonRank.SPECIES,
+    "GENUS": TaxonRank.GENUS,
+    "FAMILY": TaxonRank.FAMILY,
+    "ORDER": TaxonRank.ORDER,
+    "CLASS": TaxonRank.CLASS,
+    "PHYLUM": TaxonRank.PHYLUM,
+    "KINGDOM": TaxonRank.KINGDOM
+}
+
+
 class TaxonomySchema(BaseModel):
     taxon_id: UUID4
     taxon_name: str

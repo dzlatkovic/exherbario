@@ -30,3 +30,4 @@ class TaxonomyRepository:
     def read_taxon_by_taxon_id(self, taxon_id: str):
         return self.db.query(Taxonomy).filter(Taxonomy.taxon_id
                                               == taxon_id).first()
+

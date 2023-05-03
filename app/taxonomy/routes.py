@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter
 
 from app.taxonomy.controller import TaxonomyController
@@ -19,3 +21,13 @@ def get_taxon_by_gbif(gbif_key: str):
 @taxonomy_router.get("/get-taxon-by-id", response_model=TaxonomySchema)
 def get_taxon_by_id(taxon_id: str):
     return TaxonomyController.get_taxon_by_taxon_id(taxon_id)
+
+
+@taxonomy_router.post("/create-taxon-from-gbif-data", response_model=TaxonomySchema)
+def create_taxon_from_gbif_data(gbif_key: str):
+    return TaxonomyController.create_taxon_from_gbif_data(gbif_key)
+
+
+@taxonomy_router.post("/build-taxonomic-tree", response_model=List[TaxonomySchema])
+def build_taxonomic_tree(gbif_key: str):
+    return TaxonomyController.build_taxonomic_tree(gbif_key)

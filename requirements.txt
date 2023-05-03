@@ -17,3 +17,4 @@ qrcode~=7.4.2
 folium~=0.14.0
 requests~=2.28.2
 Pillow~=9.5.0
+pygbif~=0.6.2
