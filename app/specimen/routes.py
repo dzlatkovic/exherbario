@@ -4,6 +4,7 @@ This module contains the API routers related to the Specimen and SpecimenPublica
 """
 
 from fastapi import APIRouter, Depends
+from fastapi_pagination import paginate, Page, Params
 from starlette.responses import HTMLResponse
 
 from app.specimen.controller import SpecimenController, SpecimenPublicationController, RevisionController
@@ -193,15 +194,19 @@ def generate_qr_code(reg_no: str):
     return SpecimenController.generate_qrcode(reg_no)
 
 
-@specimen_router.get("/search-specimens-by-keyword", response_model=list[SpecimenSchema])
-def search_specimens_by_keyword(keyword: str):
+@specimen_router.get("/search-specimens-by-keyword", response_model=Page[SpecimenSchema])
+def search_specimens_by_keyword(keyword: str, params: Params = Depends()):
     """
-    Search for specimens by keyword
-    :param keyword: str
+    Searches for specimens by keyword and returns a paginated result.
+
+    :param keyword: The keyword to search for in specimen records.
     :type keyword: str
-    :return: A list of Specimen objects
+    :param params: The pagination parameters to use.
+    :type params: Params, optional
+    :return: A page of specimen objects matching the search keyword.
     """
-    return SpecimenController.search_specimens_by_keyword(keyword)
+    specimens = SpecimenController.search_specimens_by_keyword(keyword)
+    return paginate(specimens, params)
 
 
 specimen_publication_router = APIRouter(prefix="/api/specimen_publication",
