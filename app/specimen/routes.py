@@ -3,12 +3,12 @@
 This module contains the API routers related to the Specimen and SpecimenPublication entity.
 """
 
-
 from fastapi import APIRouter, Depends
 from starlette.responses import HTMLResponse
 
-from app.specimen.controller import SpecimenController, SpecimenPublicationController
-from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn, SpecimenSchemaUpdate
+from app.specimen.controller import SpecimenController, SpecimenPublicationController, RevisionController
+from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn, SpecimenSchemaUpdate, RevisionSchema, \
+    RevisionSchemaIn
 from app.specimen.schemas import SpecimenPublicationSchema, SpecimenPublicationSchemaIn
 from app.users.controller import JWTBearer
 
@@ -237,3 +237,13 @@ def delete_specimen_publication_by_id(specimen_publication_id: str):
     :param specimen_publication_id: str
     """
     return SpecimenPublicationController.delete_specimen_publication_by_id(specimen_publication_id)
+
+
+revision_router = APIRouter(prefix="/api/revision",
+                            tags=["Revision"])
+
+
+@revision_router.post("/create-revision",
+                      response_model=RevisionSchema)
+def create_revision(revision_data: RevisionSchemaIn):
+    return RevisionController.create_new_revision(revision_data)

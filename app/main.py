@@ -18,7 +18,7 @@ from app.db.database import engine
 
 from app.field_loc.routes import field_loc_router
 from app.publication.routes import publication_router, publication_authors_router
-from app.specimen.routes import specimen_router, specimen_publication_router
+from app.specimen.routes import specimen_router, specimen_publication_router, revision_router
 from app.storage.routes import storage_router
 from app.users.routes import user_router
 from app.weather.routes import weather_router
@@ -43,6 +43,7 @@ def init_app():
     fastapi_app.include_router(plantnet_router)
     fastapi_app.include_router(publication_authors_router)
     fastapi_app.include_router(publication_router)
+    fastapi_app.include_router(revision_router)
     fastapi_app.include_router(specimen_publication_router)
     fastapi_app.include_router(specimen_router)
     fastapi_app.include_router(storage_router)
