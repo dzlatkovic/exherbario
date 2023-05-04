@@ -1,4 +1,5 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
+from sqlalchemy.exc import IntegrityError
 
 from app.taxonomy.exceptions import (TaxonDoesNotExistException,
                                      TaxonAlreadyExistException,
@@ -58,6 +59,27 @@ class TaxonomyController:
                 TaxonAlreadyExistException,
                 GBIFServiceException,
                 TaxonomyServiceException) as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def delete_taxon(taxon_id: str):
+        try:
+            TaxonomyService.delete_taxon(taxon_id)
+            return Response(content=f"Taxon with ID: {taxon_id} deleted.", status_code=200)
+        except TaxonDoesNotExistException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        except IntegrityError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except Exception as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+
+    @staticmethod
+    def get_specimens_by_taxon(taxon_name: str):
+        try:
+            return TaxonomyService.get_specimens_by_taxon(taxon_name)
+        except TaxonDoesNotExistException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import Column, String, Enum, ForeignKey
+from sqlalchemy.orm import relationship, backref
 
 from app.db import Base
 from app.taxonomy.schemas.taxonomy_schemas import TaxonRank

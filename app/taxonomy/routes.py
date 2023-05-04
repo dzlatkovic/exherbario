@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter
 
+from app.specimen.schemas import SpecimenSchema
 from app.taxonomy.controller import TaxonomyController
 from app.taxonomy.schemas import TaxonomySchemaIn, TaxonomySchema, TaxonRank
 
@@ -31,3 +32,13 @@ def create_taxon_from_gbif_data(gbif_key: str):
 @taxonomy_router.post("/build-taxonomic-tree", response_model=List[TaxonomySchema])
 def build_taxonomic_tree(gbif_key: str):
     return TaxonomyController.build_taxonomic_tree(gbif_key)
+
+
+@taxonomy_router.delete("/delete-taxon")
+def delete_taxon(taxon_id: str):
+    return TaxonomyController.delete_taxon(taxon_id)
+
+
+@taxonomy_router.get("/get-specimens-for-taxon", response_model=List[SpecimenSchema])
+def get_specimens_by_taxon(taxon_name: str):
+    return TaxonomyController.get_specimens_by_taxon(taxon_name)

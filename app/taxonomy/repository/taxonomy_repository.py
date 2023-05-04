@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+
+from app.specimen.models import Specimen
 from app.taxonomy.models import Taxonomy
 from app.taxonomy.schemas import TaxonomySchemaIn, TaxonRank
 
@@ -31,3 +33,20 @@ class TaxonomyRepository:
         return self.db.query(Taxonomy).filter(Taxonomy.taxon_id
                                               == taxon_id).first()
 
+    def delete_taxon(self, taxon_id: str):
+        try:
+            taxon = self.read_taxon_by_taxon_id(taxon_id)
+            self.db.delete(taxon)
+            self.db.commit()
+            return True
+        except Exception as error:
+            raise error
+
+    def get_taxon_by_name(self, taxon_name: str):
+        return self.db.query(Taxonomy).filter(Taxonomy.taxon_name == taxon_name).first()
+
+    def get_all_child_taxa_by_parent_taxon_key(self, parent_taxon_key):
+        return self.db.query(Taxonomy).filter_by(parent_taxon_key=parent_taxon_key).all()
+
+    def get_specimens_by_taxon_id(self, taxon_id):
+        return self.db.query(Specimen).filter_by(taxon_id=taxon_id).all()

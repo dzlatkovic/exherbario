@@ -1,10 +1,14 @@
+from typing import List
+
 from requests import HTTPError
+from sqlalchemy.exc import IntegrityError
 
 from app.db import SessionLocal
 from app.taxonomy.exceptions import (TaxonDoesNotExistException,
                                      TaxonAlreadyExistException,
                                      TaxonomyServiceException,
                                      GBIFServiceException)
+from app.taxonomy.models import Taxonomy
 from app.taxonomy.repository import TaxonomyRepository
 from app.taxonomy.schemas import TaxonomySchemaIn, TaxonRank, TAXON_DICT
 from pygbif import species
@@ -102,7 +106,6 @@ class TaxonomyService:
                 return True
             return False
 
-
     @staticmethod
     def create_taxon_from_gbif_data(gbif_key):
         try:
@@ -144,3 +147,56 @@ class TaxonomyService:
             return new_taxa
         except Exception as error:
             raise error
+
+    @staticmethod
+    def delete_taxon(taxon_id):
+        try:
+            with SessionLocal() as db:
+                repository = TaxonomyRepository(db)
+                taxon = repository.read_taxon_by_taxon_id(taxon_id)
+                if not taxon:
+                    raise TaxonDoesNotExistException(
+                        code=404,
+                        message=f"Taxon with id: {taxon_id} does not exist in the database."
+                    )
+                return repository.delete_taxon(taxon_id)
+        except IntegrityError as error:
+            raise error
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_specimens_by_taxon(taxon_name: str):
+        try:
+            with SessionLocal() as db:
+                repository = TaxonomyRepository(db)
+                taxon = repository.get_taxon_by_name(taxon_name)
+                if not taxon:
+                    raise TaxonDoesNotExistException(
+                        code=404,
+                        message=f"No taxon with name {taxon_name} was found."
+                    )
+                child_taxa = TaxonomyService.get_all_child_taxa(taxon, repository)
+                taxon_ids = [taxon.taxon_id for taxon in child_taxa] + [taxon.taxon_id]
+                specimens = []
+                for taxon_id in taxon_ids:
+                    specimens += repository.get_specimens_by_taxon_id(taxon_id)
+                return specimens
+        except Exception as error:
+            raise error
+
+    @staticmethod
+    def get_all_child_taxa(taxon: Taxonomy, repository: TaxonomyRepository) -> List[Taxonomy]:
+        """
+        Recursively get all child taxa for a given taxon.
+        """
+        children = []
+        child_taxa = repository.get_all_child_taxa_by_parent_taxon_key(taxon.taxon_id)
+        if not child_taxa:
+            return []
+        for child in child_taxa:
+            children.append(child)
+            children += TaxonomyService.get_all_child_taxa(child, repository)
+        return children
+
+
