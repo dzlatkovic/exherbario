@@ -164,6 +164,40 @@ INSERT INTO `publication_authors` VALUES ('0472f144-d0f3-44c7-946f-c8ecdf0d1661'
 UNLOCK TABLES;
 
 --
+-- Table structure for table `revision`
+--
+
+DROP TABLE IF EXISTS `revision`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `revision` (
+  `revision_id` varchar(50) NOT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `revised_by` varchar(50) DEFAULT NULL,
+  `specimen_id` varchar(50) DEFAULT NULL,
+  `prev_taxon_id` varchar(50) DEFAULT NULL,
+  `prev_subnomen` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`revision_id`),
+  KEY `revised_by` (`revised_by`),
+  KEY `specimen_id` (`specimen_id`),
+  KEY `prev_taxon_id` (`prev_taxon_id`),
+  CONSTRAINT `revision_ibfk_1` FOREIGN KEY (`revised_by`) REFERENCES `users` (`user_id`),
+  CONSTRAINT `revision_ibfk_2` FOREIGN KEY (`specimen_id`) REFERENCES `specimen` (`specimen_id`),
+  CONSTRAINT `revision_ibfk_3` FOREIGN KEY (`prev_taxon_id`) REFERENCES `taxonomy` (`taxon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `revision`
+--
+
+LOCK TABLES `revision` WRITE;
+/*!40000 ALTER TABLE `revision` DISABLE KEYS */;
+INSERT INTO `revision` VALUES ('3451e32e-95ef-4ff6-b7e0-4dc7f4cdf4a9','2023-05-04 18:33:06','6931e6d9-aa67-4d06-9a39-42af8b7756cf','ffb37f52-406a-4d4f-a1f8-5c37a5e5faaa','0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum');
+/*!40000 ALTER TABLE `revision` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `specimen`
 --
 
@@ -290,7 +324,7 @@ CREATE TABLE `taxonomy` (
 
 LOCK TABLES `taxonomy` WRITE;
 /*!40000 ALTER TABLE `taxonomy` DISABLE KEYS */;
-INSERT INTO `taxonomy` VALUES ('0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Magnoliopsida','220','CLASS','f7a6aefe-4cb4-4d0c-8587-6c506d6fa73f','Dicots',NULL),('0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','5358935','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Strawberry clover','L.'),('41fcf6a5-b864-47b7-9eb6-c8c7f21e9d3a','Trifolium hybridum','6109535','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Alsike clover','L.'),('4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','5359378','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Crimson clover','L.'),('5de0a4df-4d4c-4c7a-952d-0d4232f37ba3','Trifolium pratense','8324121','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Red Clover','L.'),('69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Plantae','6','KINGDOM',NULL,'Plants',NULL),('aa49f0d5-53ed-44c2-9942-e89b5e5b9c5d','Trifolium repens','5358748','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','White clover','L.'),('ce5d6f5b-4f1b-4ea7-b35d-8c8af42b1bb9','Trifolium arvense','5359246','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Rabbitfoot clover','L.'),('ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','Fabaceae','5018','FAMILY','f6a4691f-dc1d-4a2b-a8e3-3c5b5dc5b5d5','Pea Family',NULL),('f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Trifolium','5342','GENUS','ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','Clovers',NULL),('f6a4691f-dc1d-4a2b-a8e3-3c5b5dc5b5d5','Rosales','3858','ORDER','0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Rosids',NULL),('f7a6aefe-4cb4-4d0c-8587-6c506d6fa73f','Embryophyta','58003','PHYLUM','69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Land Plants',NULL);
+INSERT INTO `taxonomy` VALUES ('03ee375f-d4b1-4910-914c-c648a09b0dde','Brassicales','7225535','ORDER','0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Mustards, Capers, And Allies',''),('0bff9cc6-fd5c-429f-8ce9-57b8c31595ce','Reseda lutea L.','3040252','SPECIES','1dbbe4b9-f0c3-41df-ae7a-5916e2df88ae','Cut-Leaf Mignonette','L.'),('0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Magnoliopsida','220','CLASS','f7a6aefe-4cb4-4d0c-8587-6c506d6fa73f','Dicots',NULL),('0f8c53df-9d9a-41c1-bbe8-33c45ec03b48','Trifolium fragiferum','5358935','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Strawberry clover','L.'),('1dbbe4b9-f0c3-41df-ae7a-5916e2df88ae','Reseda L.','3040250','GENUS','3e60bf59-a3f6-4293-8c7c-f90165be2ba5','Mignonette','L.'),('3e60bf59-a3f6-4293-8c7c-f90165be2ba5','Resedaceae','3110','FAMILY','03ee375f-d4b1-4910-914c-c648a09b0dde','Mignonettes',''),('41fcf6a5-b864-47b7-9eb6-c8c7f21e9d3a','Trifolium hybridum','6109535','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Alsike clover','L.'),('4e1a29db-1e8e-4fa6-b34b-25c9371a0298','Trifolium incarnatum','5359378','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Crimson clover','L.'),('53c78219-bcf0-40c9-8f99-19e7f1dcd30e','Achillea L.','3119995','GENUS','fc8ad244-0162-47d5-86f2-ab6c6fcd6194','Yarrow','L.'),('581003a1-4b71-4302-8e5c-0b564823aff5','Trifolium bivonae Guss.','5359523','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Bivona clover','Guss.'),('5de0a4df-4d4c-4c7a-952d-0d4232f37ba3','Trifolium pratense','8324121','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Red Clover','L.'),('606c81f8-6595-4365-bd1d-47a7c3694f1e','Astragalus L.','2933951','GENUS','ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','milkvetch','L.'),('69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Plantae','6','KINGDOM',NULL,'Plants',NULL),('6d88a9d3-09e9-4bb5-9149-2e39c922ed30','Apiales','1351','ORDER','0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Carrots, Ivies, And Allies',''),('aa49f0d5-53ed-44c2-9942-e89b5e5b9c5d','Trifolium repens','5358748','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','White clover','L.'),('b9c8cca0-ce38-4fd3-8431-0ecc119024b2','Asterales','414','ORDER','0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Sunflowers, Bellflowers, Fanflowers, And Allies',''),('bcdd9d95-7bfe-4566-9fce-a41eef1f6776','Apiaceae','6720','FAMILY','6d88a9d3-09e9-4bb5-9149-2e39c922ed30','Carrot Family',''),('c63fdd09-bea0-486b-968e-d0220cb39e78','Tracheophyta','7707728','PHYLUM','69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Tracheophytes',''),('ce5d6f5b-4f1b-4ea7-b35d-8c8af42b1bb9','Trifolium arvense','5359246','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Rabbitfoot clover','L.'),('d21ff500-7d3b-438c-bc3b-7bdd6106e04c','Trifolium absadami Post','5626563','SPECIES','f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3',NULL,'Post'),('d9407fdc-1a53-4f93-af40-eabe9cd57e5a','Bryophyta','35','PHYLUM','69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Hornworts',''),('ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','Fabaceae','5386','FAMILY','f6a4691f-dc1d-4a2b-a8e3-3c5b5dc5b5d5','Pea Family',NULL),('f4a4d4fb-7604-4f7a-8d8f-82eae55cc3c3','Trifolium','2973363','GENUS','ee8baf51-f20c-40f1-91da-7a38a4ec4d4c','Clovers',NULL),('f6a4691f-dc1d-4a2b-a8e3-3c5b5dc5b5d5','Rosales','3858','ORDER','0f2b5e5e-59a1-4db2-a2e9-6d31b0111ea5','Rosids',NULL),('f7a6aefe-4cb4-4d0c-8587-6c506d6fa73f','Embryophyta','58003','PHYLUM','69b711d6-87ea-4c8e-a58a-5e0c46e5715e','Land Plants',NULL),('fc8ad244-0162-47d5-86f2-ab6c6fcd6194','Asteraceae','3065','FAMILY','b9c8cca0-ce38-4fd3-8431-0ecc119024b2','Sunflowers','');
 /*!40000 ALTER TABLE `taxonomy` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -364,4 +398,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-04-30 20:29:43
+-- Dump completed on 2023-05-04 21:46:35
