@@ -10,7 +10,7 @@ These classes are used to validate input data and serialize/deserialize JSON dat
 """
 from typing import Optional
 
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, Field, UUID4
 
 
 class FieldLocSchema(BaseModel):
@@ -50,8 +50,8 @@ class FieldLocSchemaIn(BaseModel):
     locality: str
     altitude: Optional[int] = None
     habitat: Optional[str] = None
-    gps_lat: Optional[float] = None
-    gps_long: Optional[float] = None
+    gps_lat: Optional[float] = Field(None, ge=-90, le=90)
+    gps_long: Optional[float] = Field(None, ge=-180, le=180)
 
     class Config:
         """
@@ -69,8 +69,8 @@ class FieldLocSchemaUpdate(BaseModel):
     locality: Optional[str]
     altitude: Optional[int]
     habitat: Optional[str]
-    gps_lat: Optional[float]
-    gps_long: Optional[float]
+    gps_lat: Optional[float] = Field(None, ge=-90, le=90)
+    gps_long: Optional[float] = Field(None, ge=-180, le=180)
 
     class Config:
         """

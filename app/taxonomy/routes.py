@@ -1,15 +1,17 @@
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.specimen.schemas import SpecimenSchema
 from app.taxonomy.controller import TaxonomyController
 from app.taxonomy.schemas import TaxonomySchemaIn, TaxonomySchema, TaxonRank
+from app.users.controller import JWTBearer
 
 taxonomy_router = APIRouter(prefix="/api/taxonomy", tags=["Taxonomy"])
 
 
-@taxonomy_router.post("/create-taxon", response_model=TaxonomySchema)
+@taxonomy_router.post("/create-taxon", response_model=TaxonomySchema,
+                      dependencies=[Depends(JWTBearer("super_user"))])
 def create_taxon(taxon_data: TaxonomySchemaIn, taxon_rank: TaxonRank):
     """Manually create a new taxon in the database.
 
@@ -41,7 +43,8 @@ def get_taxon_by_id(taxon_id: str):
     return TaxonomyController.get_taxon_by_taxon_id(taxon_id)
 
 
-@taxonomy_router.post("/create-taxon-from-gbif-data", response_model=TaxonomySchema)
+@taxonomy_router.post("/create-taxon-from-gbif-data", response_model=TaxonomySchema,
+                      dependencies=[Depends(JWTBearer("super_user"))])
 def create_taxon_from_gbif_data(gbif_key: str):
     """Create a new taxon in the database from GBIF data using pygbif service.
 
@@ -51,7 +54,8 @@ def create_taxon_from_gbif_data(gbif_key: str):
     return TaxonomyController.create_taxon_from_gbif_data(gbif_key)
 
 
-@taxonomy_router.post("/build-taxonomic-tree", response_model=List[TaxonomySchema])
+@taxonomy_router.post("/build-taxonomic-tree", response_model=List[TaxonomySchema],
+                      dependencies=[Depends(JWTBearer("super_user"))])
 def build_taxonomic_tree(gbif_key: str):
     """Build a taxonomic tree starting from the given GBIF key.
     This function creates taxonomic entries in the database, all the way up to the Kingdom rank.
@@ -62,7 +66,8 @@ def build_taxonomic_tree(gbif_key: str):
     return TaxonomyController.build_taxonomic_tree(gbif_key)
 
 
-@taxonomy_router.delete("/delete-taxon")
+@taxonomy_router.delete("/delete-taxon",
+                        dependencies=[Depends(JWTBearer("super_user"))])
 def delete_taxon(taxon_id: str):
     """Delete a taxon by its ID.
 

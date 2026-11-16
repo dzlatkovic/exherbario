@@ -1,8 +1,7 @@
 from datetime import datetime
-from uuid import uuid4
 from sqlalchemy import Column, String, ForeignKey, Float, DateTime
 
-from app.db import Base
+from app.db import Base, new_id
 
 
 class PlantNetResult(Base):
@@ -11,7 +10,7 @@ class PlantNetResult(Base):
     """
 
     __tablename__ = "plantnet_result"
-    result_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    result_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     image_id = Column(String(50), ForeignKey("image.image_id"))
     best_match = Column(String(150))
     gbif_id = Column(String(20))

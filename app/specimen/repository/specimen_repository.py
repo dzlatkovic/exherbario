@@ -7,12 +7,16 @@ from datetime import date
 from geopy.distance import geodesic
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct
+from sqlalchemy import func, select
 from app.config import settings
+from app.db import lock_for_update
 from app.field_loc.models import FieldLoc
-from app.specimen.models import Specimen
-from app.specimen.exceptions import SpecimenNotFoundException, SearchResultsNotFoundException
+from app.specimen.models import Revision, Specimen
+from app.specimen.exceptions import (
+    SearchResultsNotFoundException, SpecimenInUseException, SpecimenNotFoundException,
+)
 from app.specimen.schemas import SpecimenSchemaUpdate
+from fastapi_pagination.ext.sqlalchemy import paginate
 from app.storage.models import Storage
 from app.taxonomy.models import Taxonomy
 from app.users.models import User
@@ -113,15 +117,20 @@ class SpecimenRepository:
         :return: True
         """
         try:
-            specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()
+            query = self.db.query(Specimen).filter_by(specimen_id=specimen_id)
+            specimen = lock_for_update(self.db, query).first()
             if specimen is None:
                 raise SpecimenNotFoundException(f"Specimen with provided ID: "
                                                 f"{specimen_id} not found.", 400)
             self.db.delete(specimen)
             self.db.commit()
             return True
-        except Exception as error:
-            raise error
+        except IntegrityError as error:
+            self.db.rollback()
+            raise SpecimenInUseException(
+                "Remove linked images and publications before deleting this specimen. "
+                "Specimens with revision history or linked lab samples must be retained."
+            ) from error
 
     def read_specimen_by_reg_num(self, reg_no: str):
         """
@@ -240,44 +249,44 @@ class SpecimenRepository:
         user = self.db.query(User).filter_by(user_id=user_id).first()
         return f"{user.name} {user.surname}"
 
-    def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate):
-        """
-        It updates the specimen with the given specimen_id with the given specimen
-        :param specimen_id: str
-        :type specimen_id: str
-        :param specimen: SpecimenSchemaUpdate
-        :type specimen: SpecimenSchemaUpdate
-        :return: The updated specimen.
-        """
-        self.validate_foreign_keys(
-            specimen.taxon_id,
-            specimen.field_loc_id,
-            specimen.storage_id,
-            specimen.collected_by,
-            specimen.verified_by
-        )
-        db_specimen = self.db.query(Specimen).filter(Specimen.specimen_id == specimen_id).first()
-        if db_specimen:
-            if specimen.reg_no:
-                db_specimen.reg_no = specimen.reg_no
-            if specimen.collection_date:
-                db_specimen.collection_date = specimen.collection_date
-            if specimen.taxon_id:
-                db_specimen.taxon_id = specimen.taxon_id
-            if specimen.subnomen:
-                db_specimen.subnomen = specimen.subnomen
-            if specimen.field_loc_id:
-                db_specimen.field_loc_id = specimen.field_loc_id
-            if specimen.storage_id:
-                db_specimen.storage_id = specimen.storage_id
-            if specimen.collected_by:
-                db_specimen.collected_by = specimen.collected_by
-            if specimen.verified_by:
-                db_specimen.verified_by = specimen.verified_by
+    def _apply_update(self, specimen_id, changes, revised_by):
+        query = self.db.query(Specimen).filter_by(specimen_id=specimen_id)
+        specimen = lock_for_update(self.db, query).first()
+        if specimen is None:
+            return None, None
+        self.validate_foreign_keys(*(changes.get(key) for key in (
+            "taxon_id", "field_loc_id", "storage_id", "collected_by", "verified_by"
+        )))
+        revision = None
+        if any(key in changes and changes[key] != getattr(specimen, key)
+               for key in ("taxon_id", "subnomen")):
+            if not revised_by:
+                raise ValueError("An authenticated curator is required to change identification.")
+            revision = Revision(revised_by, specimen_id, specimen.taxon_id, specimen.subnomen)
+            self.db.add(revision)
+        for field, value in changes.items():
+            setattr(specimen, field, value)
+        return specimen, revision
+
+    def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
+        changes = {field: value for field, value in specimen.dict(exclude_none=True).items()
+                   if value != ""}
+        updated, _ = self._apply_update(specimen_id, changes, revised_by)
+        if updated is not None:
             self.db.commit()
-            self.db.refresh(db_specimen)
-            return db_specimen
-        return None
+            if self.db.expire_on_commit:
+                self.db.refresh(updated)
+        return updated
+
+    def revise_identification(self, specimen_id: str, changes: dict, revised_by: str):
+        specimen, revision = self._apply_update(specimen_id, changes, revised_by)
+        if specimen is None:
+            raise SpecimenNotFoundException("Specimen not found.", 404)
+        if revision is None:
+            raise ValueError("The requested identification is already recorded.")
+        self.db.commit()
+        self.db.refresh(revision)
+        return revision
 
     def get_specimens_by_date_range(self, start_date: date, end_date: date):
         """
@@ -305,9 +314,8 @@ class SpecimenRepository:
             Specimen.field_loc_id == FieldLoc.field_loc_id).all()
         results = []
         for specimen, field_loc in specimens:
-            distance = geodesic((lat, long), (field_loc.gps_lat, field_loc.gps_long)).kilometers
-            if not field_loc.gps_lat or not field_loc.gps_long:
-                distance = -1
+            coordinates = field_loc.gps_lat, field_loc.gps_long
+            distance = -1 if None in coordinates else geodesic((lat, long), coordinates).kilometers
             results.append({
                 "reg_no": specimen.reg_no,
                 "subnomen": specimen.subnomen,
@@ -315,12 +323,6 @@ class SpecimenRepository:
             })
         return sorted(results, key=lambda x: x["distance"])
 
-    def search_specimens_by_keyword(self, keyword: str):
-        """
-        This function searches the database for specimens that
-        have a subnomen that contains the keyword
-        :param keyword: str
-        :type keyword: str
-        :return: A list of Specimen objects.
-        """
-        return self.db.query(Specimen).filter(Specimen.subnomen.like(f'%{keyword}%')).all()
+    def search_specimens_by_keyword(self, keyword: str, params):
+        query = select(Specimen).where(Specimen.subnomen.like(f'%{keyword}%'))
+        return paginate(self.db, query.order_by(Specimen.reg_no, Specimen.specimen_id), params=params)

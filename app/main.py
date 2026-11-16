@@ -13,8 +13,11 @@ please refer to the documentation.
 import uvicorn
 from fastapi import FastAPI
 
-from app.db import Base
-from app.db.database import engine
+from app.catalog_routes import router as catalog_router
+from app.chemistry.controller import chemistry_error_response
+from app.chemistry.exceptions import ChemistryError
+from app.chemistry.routes import chemistry_router
+from app.config import settings
 
 from app.field_loc.routes import field_loc_router
 from app.publication.routes import publication_router, publication_authors_router
@@ -24,9 +27,6 @@ from app.users.routes import user_router
 from app.weather.routes import weather_router
 from app.image.routes import image_router, plantnet_router
 from app.taxonomy.routes import taxonomy_router
-
-Base.metadata.create_all(bind=engine)
-
 
 def init_app():
     """
@@ -38,6 +38,13 @@ def init_app():
     :return: FastAPI app instance with all the routers included.
     """
     fastapi_app = FastAPI()
+    fastapi_app.add_exception_handler(ChemistryError, chemistry_error_response)
+
+    @fastapi_app.on_event("startup")
+    def validate_auth_config():
+        if len(settings.USER_SECRET.encode()) < 32:
+            raise RuntimeError("Set USER_SECRET to a random value of at least 32 bytes.")
+
     fastapi_app.include_router(field_loc_router)
     fastapi_app.include_router(image_router)
     fastapi_app.include_router(plantnet_router)
@@ -50,6 +57,8 @@ def init_app():
     fastapi_app.include_router(taxonomy_router)
     fastapi_app.include_router(user_router)
     fastapi_app.include_router(weather_router)
+    fastapi_app.include_router(chemistry_router)
+    fastapi_app.include_router(catalog_router)
     return fastapi_app
 
 
@@ -58,10 +67,6 @@ app = init_app()
 
 @app.get("/", include_in_schema=False)
 def hello_world():
-    """
-    `hello_world` returns a dictionary with a key of `message` and a value of `In Progress`
-    :return: A dictionary with a key of message and a value of In Progress
-    """
     return {"message": "In Progress"}
 
 

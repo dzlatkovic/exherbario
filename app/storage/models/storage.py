@@ -2,11 +2,10 @@
 This module defines the `Storage` class, which represents a storage box.
 """
 from typing import Optional
-from uuid import uuid4
 
 from sqlalchemy import Column, String
 
-from app.db import Base
+from app.db import Base, new_id
 
 
 class Storage(Base):
@@ -20,7 +19,7 @@ class Storage(Base):
     :type box: str
     """
     __tablename__ = "storage"
-    storage_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    storage_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     box = Column(String(100), nullable=False, unique=True)
     room = Column(String(20), nullable=True)
     shelf = Column(String(20), nullable=True)

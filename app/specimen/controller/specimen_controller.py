@@ -8,6 +8,7 @@ from fastapi import HTTPException, Response
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.exceptions import (SpecimenExceptionRegNo,
+                                     SpecimenInUseException,
                                      SpecimenNotFoundException,
                                      InvalidDateRangeException,
                                      SearchResultsNotFoundException)
@@ -53,6 +54,8 @@ class SpecimenController:
         try:
             SpecimenService.delete_specimen_by_id(specimen_id)
             return Response(content=f"Specimen with ID: {specimen_id} deleted.", status_code=200)
+        except SpecimenInUseException as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
         except SpecimenNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
@@ -155,7 +158,7 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
+    def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
         """
         It updates a specimen in the database
         :param specimen_id: str - the id of the specimen to update
@@ -165,7 +168,7 @@ class SpecimenController:
         :return: The updated specimen
         """
         try:
-            return SpecimenService.update_specimen(specimen_id, specimen)
+            return SpecimenService.update_specimen(specimen_id, specimen, revised_by)
         except SpecimenNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except ValueError as error:
@@ -223,7 +226,7 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def search_specimens_by_keyword(keyword: str):
+    def search_specimens_by_keyword(keyword: str, params):
         """
         It takes a string as an argument, and returns a list of Specimen objects
         :param keyword: str
@@ -231,7 +234,7 @@ class SpecimenController:
         :return: A list of specimens that match the keyword.
         """
         try:
-            return SpecimenService.search_specimens_by_keyword(keyword)
+            return SpecimenService.search_specimens_by_keyword(keyword, params)
         except SearchResultsNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

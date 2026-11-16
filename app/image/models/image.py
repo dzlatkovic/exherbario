@@ -1,15 +1,14 @@
 from datetime import datetime, date
-from uuid import uuid4
 from sqlalchemy import Column, String, ForeignKey, Date, Integer, Enum
 from sqlalchemy.orm import relationship
 
 from app.image.schemas import ImageType
-from app.db import Base
+from app.db import Base, new_id
 
 
 class Image(Base):
     __tablename__ = "image"
-    image_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    image_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     specimen_id = Column(String(50), ForeignKey("specimen.specimen_id"))
     image_type = Column(Enum(ImageType))
     file_path = Column(String(150))

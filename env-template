@@ -1,12 +1,6 @@
-DB_HOST=mysql+pymysql
-DB_HOSTNAME=localhost
-DB_PORT=3306
+DATABASE_URL=sqlite:///./herbar.db
 
-DB_USER=fastapi
-DB_PASSWORD=fastapi_pass
-DB_NAME=herbarium
-
-USER_SECRET=secret_123
+USER_SECRET=
 ALGORITHM=HS256
 
 TOKEN_DURATION=36000
@@ -15,6 +9,3 @@ LATITUDE=43.3097167
 LONGITUDE=21.9231889
 
 PLANTNET_API_KEY=your_private_api_key
-
-DB_NAME_TEST=test_herbarium
-USE_TEST_DB=False

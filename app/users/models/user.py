@@ -4,15 +4,14 @@ a user in the database.
 """
 
 
-from uuid import uuid4
 from sqlalchemy import Column, String, Boolean
-from app.db.database import Base
+from app.db import Base, new_id
 
 
 class User(Base):
     """The User model represents a user in the database."""
     __tablename__ = "users"
-    user_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    user_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     name = Column(String(50))
     surname = Column(String(50))
     email = Column(String(100), unique=True)

@@ -2,7 +2,7 @@ from fastapi import HTTPException, UploadFile, Response
 from app.image.exceptions import (InvalidImageFileException,
                                   InvalidImageFormatException,
                                   MaximumDimensionsExceededException,
-                                  ImageNotFoundException, MissingFileException)
+                                  ImageInUseException, ImageNotFoundException)
 from app.image.schemas import ImageType
 
 from app.image.services import ImageService
@@ -16,7 +16,7 @@ class ImageController:
             return ImageService.create_image(specimen_id, image_type, file)
         except (InvalidImageFileException,
                 InvalidImageFormatException,
-                MaximumDimensionsExceededException) as error:
+                MaximumDimensionsExceededException, SpecimenNotFoundException) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
@@ -43,9 +43,9 @@ class ImageController:
     def delete_image(image_id: str):
         try:
             ImageService.delete_image(image_id)
-            return Response(content=f"Image file was deleted from both server and the database",
+            return Response(content="Image record deleted.",
                             status_code=200)
-        except (MissingFileException, ImageNotFoundException) as error:
+        except (ImageInUseException, ImageNotFoundException, InvalidImageFileException) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error

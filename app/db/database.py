@@ -1,48 +1,54 @@
+"""Database configuration shared by the API, migrations, and tests."""
 
-"""
-This module provides a database connection using SQLAlchemy and the `SessionLocal` object.
-It also defines the `Base` object, which is used to define database models. The `get_db()`
-function creates a database connection and then closes it when the function is done.
+import sqlite3
+from uuid import uuid4
 
-Variables:
-- MYSQL_URL: The MySQL URL used to connect to the database.
-- engine: The SQLAlchemy engine used to connect to the database.
-- SessionLocal: The SQLAlchemy session maker used to create database sessions.
-- Base: The SQLAlchemy declarative base used to define database models.
-
-Functions:
-- get_db(): The function used to create a database connection and close it when the function
-  is done.
-
-"""
-
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, event, make_url
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
 
-if settings.USE_TEST_DB:
-    db_name = settings.DB_NAME_TEST
-else:
-    db_name = settings.DB_NAME
 
-MYSQL_URL = f"{settings.DB_HOST}://{settings.DB_USER}:{settings.DB_PASSWORD}" \
-            f"@{settings.DB_HOSTNAME}:{settings.DB_PORT}/{db_name}"
+def create_database_engine(url, **options):
+    database_url = make_url(url)
+    if database_url.get_backend_name() == "sqlite":
+        database_engine = create_engine(
+            database_url,
+            connect_args={"check_same_thread": False, "timeout": 10,
+                          "autocommit": sqlite3.LEGACY_TRANSACTION_CONTROL},
+            hide_parameters=True,
+            **options,
+        )
 
-engine = create_engine(MYSQL_URL, echo=True)
+        @event.listens_for(database_engine, "connect")
+        def enforce_foreign_keys(connection, _):
+            connection.execute("PRAGMA foreign_keys=ON").close()
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=True, bind=engine)
+        return database_engine
 
+    return create_engine(database_url, pool_pre_ping=True, hide_parameters=True, **options)
+
+
+DATABASE_URL = make_url(settings.DATABASE_URL)
+engine = create_database_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
 
+def new_id():
+    return str(uuid4())
+
+
 def get_db():
-    """
-    It creates a database connection and then closes it when the function is done
-    """
-    database = SessionLocal()
-    try:
+    with SessionLocal() as database:
         yield database
-    finally:
-        database.close()
+
+
+def lock_for_update(session, query):
+    """Serialize SQLite writes before reading a row that is about to change."""
+    if session.get_bind().dialect.name == "sqlite":
+        connection = session.connection()
+        if not connection.connection.driver_connection.in_transaction:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+        return query.populate_existing()
+    return query.populate_existing().with_for_update()

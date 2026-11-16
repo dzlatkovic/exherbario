@@ -1,111 +1,111 @@
-import os
-from datetime import datetime
+"""Validate and store specimen photographs."""
+
+from datetime import date
+from io import BytesIO
+from logging import getLogger
+from pathlib import Path
+from uuid import uuid4
 
 from fastapi import UploadFile
-from app.db import SessionLocal
-from app.image.repository import ImageRepository
-from app.image.schemas import ImageSchemaIn, ImageType
 from PIL import Image
-from app.image.exceptions import (InvalidImageFileException,
-                                  InvalidImageFormatException,
-                                  MaximumDimensionsExceededException,
-                                  ImageNotFoundException,
-                                  MissingFileException)
+
+from app.db import SessionLocal
+from app.image.exceptions import (
+    ImageInUseException,
+    ImageNotFoundException,
+    InvalidImageFileException,
+    InvalidImageFormatException,
+    MaximumDimensionsExceededException,
+)
+from app.image.repository import ImageRepository
+from app.image.schemas import ImageSchema, ImageSchemaIn, ImageType
+from app.specimen.exceptions import SpecimenNotFoundException
+from app.specimen.models import Specimen
+
+IMAGE_ROOT = Path("images")
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+logger = getLogger(__name__)
 
 
 class ImageService:
     @staticmethod
-    def get_image_data(file: UploadFile):
-        try:
-            img = Image.open(file.file)
-        except Exception:
-            raise InvalidImageFileException(code=400,
-                                            message="Invalid image file.")
-        if img.format not in ['JPEG', 'JPG']:
-            raise InvalidImageFormatException(
-                code=400,
-                message="Invalid image format. Only JPEG and JPG are supported.")
-        width, height = img.size
-        if max(width, height) > 2048:
-            raise MaximumDimensionsExceededException(
-                code=400,
-                message="Image dimensions should not exceed 2048 pixels."
-            )
-        return file.filename, width, height
+    def storage_path(stored_path: str) -> Path:
+        path = Path(stored_path).resolve()
+        if IMAGE_ROOT.resolve() not in path.parents:
+            raise InvalidImageFileException("Image path is outside the storage directory.", 400)
+        return path
 
     @staticmethod
     def create_image(specimen_id: str, image_type: ImageType, file: UploadFile):
-        # Read the image data from the upload file
-        image_data = file.file.read()
+        image_data = file.file.read(MAX_IMAGE_BYTES + 1)
+        if len(image_data) > MAX_IMAGE_BYTES:
+            raise InvalidImageFileException("Image exceeds the 10 MiB limit.", 413)
 
-        # Get the filename, file path, and metadata for the image
-        file_name, width, height = ImageService.get_image_data(file)
-        # Create a Pydantic model for the image
-        image = ImageSchemaIn(
-            specimen_id=specimen_id,
-            image_type=image_type,
-            file_path=f"images/{specimen_id}/{file_name}",
-            width=width,
-            height=height,
-            upload_date=datetime.now()
-        )
-        # Use the ImageRepository to save the image data to the database
+        try:
+            with Image.open(BytesIO(image_data)) as image:
+                if image.format != "JPEG":
+                    raise InvalidImageFormatException("Only JPEG images are supported.", 400)
+                width, height = image.size
+                if max(width, height) > 2048:
+                    raise MaximumDimensionsExceededException(
+                        "Image dimensions must not exceed 2048 pixels.", 400
+                    )
+                image.load()
+        except (OSError, Image.DecompressionBombError) as error:
+            raise InvalidImageFileException("Invalid JPEG image.", 400) from error
+
+        stored_path = IMAGE_ROOT / f"{uuid4().hex}.jpg"
+        path = ImageService.storage_path(str(stored_path))
         with SessionLocal() as db:
-            repository = ImageRepository(db)
-            db_image = repository.create_image(image)
-
-            # Write the image data to disk
-            if not os.path.exists(f'images/{specimen_id}'):
-                os.makedirs(f'images/{specimen_id}')
-            with open(f"images/{specimen_id}/{file.filename}", "wb") as f:
-                f.write(image_data)
-
-            # Return the database model for the saved image
-            return db_image
+            if db.get(Specimen, specimen_id) is None:
+                raise SpecimenNotFoundException("Specimen was not found.", 404)
+            image_input = ImageSchemaIn(
+                specimen_id=specimen_id, image_type=image_type, file_path=stored_path.as_posix(),
+                width=width, height=height, upload_date=date.today(),
+            )
+            record = ImageRepository(db).create_image(image_input)
+            response = ImageSchema.from_orm(record)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            created = False
+            try:
+                with path.open("xb") as output:
+                    created = True
+                    output.write(image_data)
+                db.commit()
+            except Exception:
+                if created:
+                    path.unlink(missing_ok=True)
+                raise
+            return response
 
     @staticmethod
     def get_image_by_id(image_id):
-        try:
-            with SessionLocal() as db:
-                repository = ImageRepository(db)
-                return repository.get_image_by_id(image_id)
-        except Exception as error:
-            raise error
+        with SessionLocal() as db:
+            return ImageRepository(db).get_image_by_id(image_id)
 
     @staticmethod
     def get_all_images_for_specimen(specimen_id: str):
-        try:
-            with SessionLocal() as db:
-                repository = ImageRepository(db)
-                images = repository.get_all_images_for_specimen(specimen_id)
-                if not images:
-                    raise ImageNotFoundException(
-                        code=404,
-                        message=f"No images were found for specimen with ID: {specimen_id}"
-                    )
-                return images
-        except Exception as error:
-            raise error
-
-    @staticmethod
-    def delete_image_file(image_path: str) -> None:
-        if not os.path.exists(image_path):
-            raise MissingFileException(
-                code=400,
-                message="The image file is missing. Database entry is successfully deleted."
-            )
-        os.remove(image_path)
+        with SessionLocal() as db:
+            images = ImageRepository(db).get_all_images_for_specimen(specimen_id)
+            if not images:
+                raise ImageNotFoundException("No images were found for this specimen.", 404)
+            return images
 
     @staticmethod
     def delete_image(image_id: str):
-        try:
-            with SessionLocal() as db:
-                repository = ImageRepository(db)
-                image = ImageService.get_image_by_id(image_id)
-                is_deleted = repository.delete_image_data(image_id)
-                ImageService.delete_image_file(image.file_path)
-                return is_deleted
-        except MissingFileException as error:
-            raise error
-        except Exception as error:
-            raise error
+        with SessionLocal() as db:
+            repository = ImageRepository(db)
+            image = repository.get_image_by_id(image_id, for_update=True)
+            if image.plantnet_results:
+                raise ImageInUseException("Remove linked identification results before deleting this image.", 409)
+            path = ImageService.storage_path(image.file_path)
+            shared = repository.images_sharing_path(image)
+            db.delete(image)
+            db.commit()
+
+        if not shared:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                logger.exception("Could not remove unreferenced image %s", path)
+        return True

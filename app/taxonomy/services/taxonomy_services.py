@@ -1,6 +1,4 @@
-from typing import List
-
-from requests import HTTPError
+from requests import RequestException
 from sqlalchemy.exc import IntegrityError
 
 from app.db import SessionLocal
@@ -8,9 +6,8 @@ from app.taxonomy.exceptions import (TaxonDoesNotExistException,
                                      TaxonAlreadyExistException,
                                      TaxonomyServiceException,
                                      GBIFServiceException)
-from app.taxonomy.models import Taxonomy
 from app.taxonomy.repository import TaxonomyRepository
-from app.taxonomy.schemas import TaxonomySchemaIn, TaxonRank, TAXON_DICT
+from app.taxonomy.schemas import TaxonomySchemaIn, TAXON_DICT, TaxonRank
 from pygbif import species
 
 
@@ -63,90 +60,91 @@ class TaxonomyService:
             raise error
 
     @staticmethod
-    def get_taxon_id(gbif_key):
+    def _fetch_taxon(gbif_key: str):
         try:
-            taxon = TaxonomyService.read_taxon_by_gbif_key(gbif_key)
-            return taxon.taxon_id
-        except Exception as error:
-            raise error
+            data = species.name_usage(key=gbif_key, timeout=(5, 20))
+        except RequestException as error:
+            raise GBIFServiceException(message="Unable to retrieve this taxon from GBIF.", code=502) from error
+        if (not isinstance(data, dict) or str(data.get("key")) != gbif_key
+                or not isinstance(data.get("scientificName"), str)):
+            raise GBIFServiceException(message="GBIF returned an unexpected taxon.", code=502)
+        return data
 
     @staticmethod
-    def create_input_schema_from_gbif_data(taxon_gbif_data):
-        taxon_name = taxon_gbif_data.get("scientificName")
-        gbif_key = str(taxon_gbif_data.get("key"))
-        try:
-            parent_taxon_key = TaxonomyService.get_taxon_id(str(taxon_gbif_data["parentKey"]))
-        except TaxonDoesNotExistException:
-            raise TaxonDoesNotExistException(
-                code=404,
-                message=f"Parent taxon with gbif key "
-                        f"{taxon_gbif_data['parentKey']} does not exist in the database.")
-        common_name = taxon_gbif_data.get("vernacularName")
-        authority = taxon_gbif_data.get("authorship")
-        return TaxonomySchemaIn(
-            taxon_name=taxon_name,
-            gbif_key=gbif_key,
-            parent_taxon_key=parent_taxon_key,
-            common_name=common_name,
-            authority=authority
+    def _add_taxon(repository, data, rank, parent_id):
+        details = TaxonomySchemaIn(
+            taxon_name=data.get("scientificName"),
+            gbif_key=str(data["key"]),
+            parent_taxon_key=parent_id,
+            common_name=data.get("vernacularName"),
+            authority=data.get("authorship"),
         )
+        return repository.add_taxon(details, rank)
 
     @staticmethod
-    def is_taxon_present(gbif_key: str) -> bool:
-        """
-        Returns True if a taxon with the given GBIF key
-        exists in the database, and False otherwise.
-        :param gbif_key: A string representing the GBIF key for the taxon.
-        :return: A boolean value indicating whether the taxon exists in the database.
-        """
-        with SessionLocal() as db:
-            repository = TaxonomyRepository(db)
-            taxon = repository.read_taxon_by_gbif_key(gbif_key)
-            if taxon:
-                return True
-            return False
-
-    @staticmethod
-    def create_taxon_from_gbif_data(gbif_key):
+    def create_taxon_from_gbif_data(gbif_key: str):
+        gbif_key = str(gbif_key)
+        data = TaxonomyService._fetch_taxon(gbif_key)
+        rank = TAXON_DICT.get(data.get("rank"))
+        if rank is None:
+            raise TaxonomyServiceException(message="This GBIF rank is unsupported.", code=422)
         try:
-            if TaxonomyService.is_taxon_present(gbif_key):
-                raise TaxonAlreadyExistException(
-                    code=400,
-                    message=f"Taxon with gbif key: {gbif_key} already exists in the database."
-                )
-            taxon_gbif_data = species.name_usage(key=gbif_key)
-            taxon_input_schema = TaxonomyService.create_input_schema_from_gbif_data(taxon_gbif_data)
-            taxon_rank = TAXON_DICT[taxon_gbif_data["rank"]]
-            return TaxonomyService.create_taxon(taxon_input_schema, taxon_rank)
-        except (TaxonDoesNotExistException, TaxonAlreadyExistException) as error:
-            raise error
-        except HTTPError as error:
-            raise GBIFServiceException(message="Error downloading data from GBIF.", code=400) from error
-        except Exception as error:
-            raise TaxonomyServiceException(message="Error creating taxon", code=400) from error
+            with SessionLocal(expire_on_commit=False) as db, db.begin():
+                repo = TaxonomyRepository(db)
+                if repo.read_taxon_by_gbif_key(gbif_key):
+                    raise TaxonAlreadyExistException(message="This GBIF taxon already exists.", code=409)
+                parent_id = None
+                if rank != TaxonRank.KINGDOM:
+                    parent = repo.read_taxon_by_gbif_key(str(data.get("parentKey")))
+                    if parent is None:
+                        raise TaxonDoesNotExistException(
+                            message="The GBIF parent is missing. Import the hierarchy first.", code=404
+                        )
+                    parent_id = parent.taxon_id
+                return TaxonomyService._add_taxon(repo, data, rank, parent_id)
+        except IntegrityError as error:
+            raise TaxonomyServiceException(message="The GBIF taxon could not be stored.", code=409) from error
 
     @staticmethod
-    def build_taxonomic_tree(gbif_key):
+    def build_taxonomic_tree(gbif_key: str):
+        key = str(gbif_key)
+        ancestors = []
+        seen = set()
         try:
-            if TaxonomyService.is_taxon_present(gbif_key):
-                raise TaxonAlreadyExistException(
-                    code=400,
-                    message=f"Taxon with gbif key: {gbif_key} already exists in the database."
-                )
-            rank_keys = ["kingdomKey", "phylumKey", "orderKey", "familyKey", "genusKey", "speciesKey"]
-            taxon_gbif_data = species.name_usage(key=gbif_key)
-            new_taxa = []
-            for rank in rank_keys:
-                try:
-                    new_taxon = TaxonomyService.create_taxon_from_gbif_data(taxon_gbif_data[rank])
-                    new_taxa.append(new_taxon)
-                except TaxonAlreadyExistException:
-                    continue
-                except KeyError:
-                    break
-            return new_taxa
-        except Exception as error:
-            raise error
+            with SessionLocal(expire_on_commit=False) as db, db.begin():
+                repository = TaxonomyRepository(db)
+                parent_id = None
+                while key:
+                    if key in seen:
+                        raise GBIFServiceException(message="GBIF returned a cyclic taxonomy.", code=502)
+                    seen.add(key)
+                    existing = repository.read_taxon_by_gbif_key(key)
+                    if existing is not None:
+                        parent_id = existing.taxon_id
+                        break
+                    data = TaxonomyService._fetch_taxon(key)
+                    rank = TAXON_DICT.get(data.get("rank"))
+                    if rank is None and len(seen) == 1:
+                        raise TaxonomyServiceException(message="This GBIF rank is unsupported.", code=422)
+                    if rank is not None:
+                        ancestors.append((data, rank))
+                    if rank == TaxonRank.KINGDOM:
+                        break
+                    parent_key = data.get("parentKey")
+                    if parent_key is None:
+                        raise TaxonomyServiceException(message="GBIF taxonomy has no supported root.", code=422)
+                    key = str(parent_key)
+
+                created = []
+                for data, rank in reversed(ancestors):
+                    taxon = TaxonomyService._add_taxon(repository, data, rank, parent_id)
+                    created.append(taxon)
+                    parent_id = taxon.taxon_id
+                return created
+        except IntegrityError as error:
+            raise TaxonomyServiceException(
+                message="The GBIF hierarchy could not be stored. Retry if another import is in progress.", code=409
+            ) from error
 
     @staticmethod
     def delete_taxon(taxon_id):
@@ -167,36 +165,8 @@ class TaxonomyService:
 
     @staticmethod
     def get_specimens_by_taxon(taxon_name: str):
-        try:
-            with SessionLocal() as db:
-                repository = TaxonomyRepository(db)
-                taxon = repository.get_taxon_by_name(taxon_name)
-                if not taxon:
-                    raise TaxonDoesNotExistException(
-                        code=404,
-                        message=f"No taxon with name {taxon_name} was found."
-                    )
-                child_taxa = TaxonomyService.get_all_child_taxa(taxon, repository)
-                taxon_ids = [taxon.taxon_id for taxon in child_taxa] + [taxon.taxon_id]
-                specimens = []
-                for taxon_id in taxon_ids:
-                    specimens += repository.get_specimens_by_taxon_id(taxon_id)
-                return specimens
-        except Exception as error:
-            raise error
-
-    @staticmethod
-    def get_all_child_taxa(taxon: Taxonomy, repository: TaxonomyRepository) -> List[Taxonomy]:
-        """
-        Recursively get all child taxa for a given taxon.
-        """
-        children = []
-        child_taxa = repository.get_all_child_taxa_by_parent_taxon_key(taxon.taxon_id)
-        if not child_taxa:
-            return []
-        for child in child_taxa:
-            children.append(child)
-            children += TaxonomyService.get_all_child_taxa(child, repository)
-        return children
-
-
+        with SessionLocal() as db:
+            specimens = TaxonomyRepository(db).get_specimens_by_taxon_name(taxon_name)
+            if specimens is None:
+                raise TaxonDoesNotExistException(message=f"No taxon with name {taxon_name} was found.", code=404)
+            return specimens

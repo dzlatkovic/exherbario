@@ -1,7 +1,5 @@
-CREATE USER 'fastapi'@'localhost' IDENTIFIED BY 'fastapi_pass';
-GRANT CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, SELECT, REFERENCES, RELOAD
-on *.* TO 'fastapi'@'localhost' WITH GRANT OPTION;
+CREATE DATABASE IF NOT EXISTS herbarium CHARACTER SET utf8mb4;
 
-FLUSH PRIVILEGES;
-
-CREATE DATABASE IF NOT EXISTS herbarium;
+-- Save the generated password for the runtime DB_PASSWORD setting.
+CREATE USER 'fastapi'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
+GRANT SELECT, INSERT, UPDATE, DELETE ON herbarium.* TO 'fastapi'@'localhost';

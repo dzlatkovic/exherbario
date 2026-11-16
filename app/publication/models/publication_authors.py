@@ -4,9 +4,8 @@ a mapping between publications and authors in the database.
 """
 
 
-from uuid import uuid4
 from sqlalchemy import Column, ForeignKey, String, UniqueConstraint
-from app.db import Base
+from app.db import Base, new_id
 
 
 class PublicationAuthors(Base):
@@ -19,7 +18,7 @@ class PublicationAuthors(Base):
         publication_id (str): Unique identifier for the publication associated with the user.
     """
     __tablename__ = "publication_authors"
-    publication_authors_id = Column(String(50), primary_key=True, default=uuid4,
+    publication_authors_id = Column(String(50), primary_key=True, default=new_id,
                                     autoincrement=False)
     user_id = Column(String(50), ForeignKey("users.user_id"))
     publication_id = Column(String(50), ForeignKey("publication.pub_id"))

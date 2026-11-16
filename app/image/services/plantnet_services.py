@@ -4,7 +4,7 @@ from typing import List, Dict
 from app.db import SessionLocal
 from app.image.exceptions.plantnet_exceptions import PlantNetRequestFailedException, \
     MissingPlantNetIdentificationException
-from app.image.repository import PlantNetRepository, ImageRepository
+from app.image.repository import PlantNetRepository
 import requests
 from app.config import settings
 from app.image.schemas import Organs, PlantNetResultSchemaIn
@@ -21,7 +21,7 @@ class PlantNetService:
         try:
             image = ImageService.get_image_by_id(image_id)
             image_path = image.file_path
-            with open(image_path, 'rb') as f:
+            with ImageService.storage_path(image_path).open('rb') as f:
                 image_data = f.read()
             data = {
                 'organs': [organs.value]
@@ -31,8 +31,8 @@ class PlantNetService:
             ]
             req = requests.Request('POST', url=PLANT_NET_API_ENDPOINT, files=files, data=data)
             prepared = req.prepare()
-            s = requests.Session()
-            response = s.send(prepared)
+            with requests.Session() as session:
+                response = session.send(prepared, timeout=(5, 30))
             if response.status_code != 200:
                 raise PlantNetRequestFailedException(code=response.status_code, message=response.text)
             json_result = json.loads(response.text)

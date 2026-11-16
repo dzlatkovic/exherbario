@@ -34,6 +34,30 @@ class TestUserRoutes(TestClass):
         user = response.json()
         assert user["email"] == "michael@gmail.com"
         assert user["is_superuser"] is True
+        assert "password" not in user
+
+    def test_administrator_creation_requires_authentication(self):
+        response = client.post(
+            "/api/users/add-new-super-user",
+            json={"name": "Michael", "surname": "Scott",
+                  "email": "michael@gmail.com", "password": "password"},
+        )
+        assert response.status_code == 403
+
+    def test_deactivation_disables_login_and_existing_admin_token(self):
+        admin = UserServices.create_super_user("John", "Smith", "john@gmail.com", "password")
+        login = {"email": admin.email, "password": "password"}
+        token = client.post("/api/users/login", json=login).json()["access_token"]
+        UserServices.update_user_is_active(admin.user_id, False)
+
+        assert client.post("/api/users/login", json=login).status_code == 401
+        response = client.post(
+            "/api/users/add-new-user",
+            json={"name": "Michael", "surname": "Scott",
+                  "email": "michael@gmail.com", "password": "password"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
 
     def test_create_user(self):
         """

@@ -15,7 +15,6 @@ class UserSchema(BaseModel):
     name: str
     surname: str
     email: str
-    password: str
     is_active: bool
     is_superuser: bool
 

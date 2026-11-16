@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, UUID4
+from typing import Optional
+
+from pydantic import BaseModel, Field, UUID4
 
 
 class RevisionSchema(BaseModel):
@@ -8,8 +10,8 @@ class RevisionSchema(BaseModel):
     timestamp: datetime
     revised_by: str
     specimen_id: str
-    prev_taxon_id: str
-    prev_subnomen: str
+    prev_taxon_id: Optional[str]
+    prev_subnomen: Optional[str]
 
     class Config:
         """
@@ -19,13 +21,9 @@ class RevisionSchema(BaseModel):
 
 
 class RevisionSchemaIn(BaseModel):
-    revised_by: str
     specimen_id: str
-    prev_taxon_id: str
-    prev_subnomen: str
+    taxon_id: str = Field(min_length=1)
+    subnomen: Optional[str] = Field(default=None, min_length=1)
 
     class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+        extra = "forbid"

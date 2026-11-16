@@ -6,11 +6,10 @@ the application. The `FieldLoc` model is used in the database layer to store fie
 and to interact with the database.
 """
 from typing import Optional
-from uuid import uuid4
 from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.orm import relationship
 
-from app.db import Base
+from app.db import Base, new_id
 
 
 class FieldLoc(Base):
@@ -22,7 +21,7 @@ class FieldLoc(Base):
     layer of the application.
     """
     __tablename__ = "field_loc"
-    field_loc_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    field_loc_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     country = Column(String(20))
     region = Column(String(20))
     locality = Column(String(40))

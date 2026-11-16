@@ -7,16 +7,18 @@ with specimens in the herbarium.
 
 from typing import List, Dict
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 
 from app.image.controller import ImageController, PlantNetController
 from app.image.schemas import ImageSchema, PlantNetResultSchema, Organs
 from app.image.schemas import ImageType
+from app.users.controller import JWTBearer
 
 image_router = APIRouter(prefix="/api/image", tags=["Image"])
 
 
-@image_router.post("/upload-image", response_model=ImageSchema)
+@image_router.post("/upload-image", response_model=ImageSchema,
+                   dependencies=[Depends(JWTBearer("super_user"))])
 def upload_image(specimen_id: str, image_type: ImageType, file: UploadFile = File(...)):
     """
     Uploads a new image file for the specified specimen.
@@ -51,7 +53,8 @@ def get_all_images(specimen_id: str):
     return ImageController.get_all_images_for_specimen(specimen_id)
 
 
-@image_router.delete("/delete-image")
+@image_router.delete("/delete-image",
+                     dependencies=[Depends(JWTBearer("super_user"))])
 def delete_weather_data(image_id: str):
     """
     Deletes an image by its ID, removes the associated file from storage,
@@ -66,7 +69,8 @@ def delete_weather_data(image_id: str):
 plantnet_router = APIRouter(prefix="/api/plantnet", tags=["PlantNet"])
 
 
-@plantnet_router.post("/save-plantnet-identification", response_model=PlantNetResultSchema)
+@plantnet_router.post("/save-plantnet-identification", response_model=PlantNetResultSchema,
+                      dependencies=[Depends(JWTBearer("super_user"))])
 def save_plantnet_identification(image_id: str, organs: Organs):
     """
     Saves the results of a PlantNet identification to the database.
@@ -89,7 +93,8 @@ def get_image_by_id(result_id: str):
     return PlantNetController.get_id_result_by_id(result_id)
 
 
-@plantnet_router.delete("/delete-id-result")
+@plantnet_router.delete("/delete-id-result",
+                        dependencies=[Depends(JWTBearer("super_user"))])
 def delete_weather_data(result_id: str):
     """
     Deletes a PlantNet identification result from the database by its ID.

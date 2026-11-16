@@ -24,7 +24,7 @@ def signJWT(user_id: str, role: str) -> Dict[str, str]:
     :rtype: dict
     """
     payload = {
-        "user_id": user_id,
+        "user_id": str(user_id),
         "role": role,
         "expires": time.time() + TOKEN_DURATION
     }
@@ -45,5 +45,5 @@ def decodeJWT(token: str) -> dict:
     try:
         decoded_token = jwt.decode(token, USER_SECRET, algorithms=[JWT_ALGORITHM])
         return decoded_token if decoded_token["expires"] >= time.time() else None
-    except:
+    except (jwt.InvalidTokenError, KeyError, TypeError):
         return {}

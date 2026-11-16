@@ -29,6 +29,10 @@ class InvalidDateRangeException(Exception):
         self.code = code
 
 
+class SpecimenInUseException(Exception):
+    """A protected record prevents specimen deletion."""
+
+
 class SearchResultsNotFoundException(Exception):
     """
     Exception raised when no search results are found.

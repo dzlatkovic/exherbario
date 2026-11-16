@@ -1,58 +1,28 @@
-"""
-This module provides a FastAPI dependency to authenticate
-and verify a JSON Web Token (JWT).
-This is done by extending the `HTTPBearer` class and
-verifying the JWT in the `__call__` method.
-"""
+"""Bearer authentication backed by the current user record."""
 
+from fastapi import HTTPException, Request
+from fastapi.security import HTTPBearer
+from starlette.concurrency import run_in_threadpool
 
-from fastapi import Request, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.users.services import decodeJWT
+from app.users.models import User
+from app.users.services import UserServices, decodeJWT
 
 
 class JWTBearer(HTTPBearer):
-    """
-    A FastAPI dependency for authenticating and verifying a JSON Web Token (JWT).
-    :param role: The role required to access the resource protected by the JWT
-    :param auto_error: Whether to raise an HTTPException if the verification fails
-    """
-    def __init__(self, role: str, auto_error: bool = True):
-        super(JWTBearer, self).__init__(auto_error=auto_error)
+    def __init__(self, role: str | None = None, auto_error: bool = True):
+        super().__init__(auto_error=auto_error)
         self.role = role
 
-    async def __call__(self, request: Request):
-        """
-        Verify the JSON Web Token (JWT) included in the request header
-        If the verification succeeds, the method returns the token
-        If the verification fails, an HTTPException is raised
-        :param request: The request to be verified
-        :return: The JSON Web Token included in the request header
-        """
-        credentials: HTTPAuthorizationCredentials = await super(JWTBearer, self).__call__(request)
-        if credentials:
-            if not credentials.scheme == "Bearer":
-                raise HTTPException(status_code=403, detail="Invalid authentication scheme.")
-            payload = self.verify_jwt(credentials.credentials)
-            if not payload.get("valid"):
-                raise HTTPException(status_code=403, detail="Invalid token or expired token.")
-            if payload.get("role") != self.role:
-                raise HTTPException(status_code=403, detail="User with provided role is not "
-                                                            "permitted to access this route.")
-            return credentials.credentials
-        raise HTTPException(status_code=403, detail="Invalid authorization code.")
+    async def __call__(self, request: Request) -> User:
+        credentials = await super().__call__(request)
+        payload = decodeJWT(credentials.credentials) if credentials else None
+        if not payload or not isinstance(payload.get("user_id"), str):
+            raise HTTPException(status_code=403, detail="Invalid or expired token.")
 
-    def verify_jwt(self, jwtoken: str) -> dict:
-        """
-        Verify the JSON Web Token (JWT)
-        This method calls the `decodeJWT` method to verify and decode the token
-        :param jwtoken: The JSON Web Token to be verified.
-        :return: A dictionary containing a boolean value indicating whether
-        the verification was successful
-        and the role associated with the token.
-        """
-        try:
-            payload = decodeJWT(jwtoken)
-        except Exception:
-            payload = None
-        return {"valid": bool(payload), "role": payload["role"] if payload else None}
+        user = await run_in_threadpool(UserServices.get_user_by_id, payload["user_id"])
+        if not user or not user.is_active:
+            raise HTTPException(status_code=403, detail="Account is unavailable.")
+        current_role = "super_user" if user.is_superuser else "classic_user"
+        if payload.get("role") != current_role or (self.role and current_role != self.role):
+            raise HTTPException(status_code=403, detail="Account lacks the required role.")
+        return user

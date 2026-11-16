@@ -1,13 +1,12 @@
-from uuid import uuid4
 from sqlalchemy import Column, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 
-from app.db import Base
+from app.db import Base, new_id
 
 
 class Weather(Base):
     __tablename__ = "weather"
-    weather_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    weather_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     specimen_id = Column(String(50), ForeignKey("specimen.specimen_id"), unique=True)
     mean_temperature = Column(Float)
     humidity = Column(Float)

@@ -145,7 +145,7 @@ class SpecimenService:
             content = SpecimenService.get_gps_for_search_results(keyword)
             m = folium.Map(location=[43.31, 21.92], zoom_start=8, tiles='OpenStreetMap')
             for specimen in content:
-                if content[specimen]['gps'][0] and content[specimen]['gps'][1]:
+                if all(coordinate is not None for coordinate in content[specimen]['gps']):
                     folium.Marker(
                         location=[content[specimen]['gps'][0], content[specimen]['gps'][1]],
                         popup=f"No. {specimen}, {content[specimen]['subnomen']}",
@@ -189,7 +189,7 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
+    def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
         """
         This function updates a specimen in the database
         :param specimen_id: str - the id of the specimen to be updated
@@ -199,11 +199,9 @@ class SpecimenService:
         :return: The updated specimen.
         """
         try:
-            with SessionLocal() as db:
+            with SessionLocal(expire_on_commit=False) as db:
                 repository = SpecimenRepository(db)
-                repository.validate_foreign_keys(specimen.taxon_id, specimen.field_loc_id, specimen.storage_id,
-                                                 specimen.collected_by, specimen.verified_by)
-                db_specimen = repository.update_specimen(specimen_id, specimen)
+                db_specimen = repository.update_specimen(specimen_id, specimen, revised_by)
             if db_specimen is None:
                 raise SpecimenNotFoundException(message="Specimen not found.", code=400)
             return db_specimen
@@ -281,7 +279,7 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def search_specimens_by_keyword(keyword: str):
+    def search_specimens_by_keyword(keyword: str, params):
         """
         It takes a keyword as a parameter, and returns a
         list of specimens that match the keyword
@@ -292,8 +290,8 @@ class SpecimenService:
         try:
             with SessionLocal() as db:
                 repository = SpecimenRepository(db)
-                search_results = repository.search_specimens_by_keyword(keyword)
-                if not search_results:
+                search_results = repository.search_specimens_by_keyword(keyword, params)
+                if not search_results.total:
                     raise SearchResultsNotFoundException(message="No search results were found.",
                                                          code=404)
                 return search_results

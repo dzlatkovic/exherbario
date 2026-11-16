@@ -42,7 +42,7 @@ class WeatherService:
                 "daily": "temperature_2m_mean,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant",
                 "timezone": "Europe/Berlin",
                 "windspeed_unit": "ms"
-            })
+            }, timeout=(5, 20))
 
             if response.status_code == 200:
                 weather_data = response.json()
@@ -68,7 +68,7 @@ class WeatherService:
                 if not specimen:
                     raise SpecimenNotFoundException(code=404, message="Specimen was not found.")
                 field_loc = specimen.field_loc
-                if field_loc.gps_lat and field_loc.gps_long:
+                if field_loc and field_loc.gps_lat is not None and field_loc.gps_long is not None:
                     return field_loc.gps_lat, field_loc.gps_long
                 else:
                     raise MissingGPSException(code=400, message="GPS data was not found.")

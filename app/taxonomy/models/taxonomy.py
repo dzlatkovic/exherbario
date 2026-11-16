@@ -3,18 +3,17 @@ This module defines the `Storage` class, which represents a storage box.
 """
 
 from typing import Optional
-from uuid import uuid4
 
 from sqlalchemy import Column, String, Enum, ForeignKey
 from sqlalchemy.orm import relationship, backref
 
-from app.db import Base
+from app.db import Base, new_id
 from app.taxonomy.schemas.taxonomy_schemas import TaxonRank
 
 
 class Taxonomy(Base):
     __tablename__ = "taxonomy"
-    taxon_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    taxon_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     taxon_name = Column(String(100), nullable=False)
     gbif_key = Column(String(20), nullable=False, unique=True)
     taxon_rank = Column(Enum(TaxonRank), nullable=False)

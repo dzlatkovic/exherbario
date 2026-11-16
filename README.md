@@ -1,65 +1,53 @@
 # Herbarium Research and Botanical Archive Resource (HERBAR)
 
-A [herbarium](https://en.wikipedia.org/wiki/Herbarium) is a collection of dried, documented plant specimens that provides information on the diversity, evolution, and distribution of plant species in a specific region. Herbariums are important resources for fields such as botany, ecology, and conservation. HERBAR is an online platform that offers significant advantages over non-digital herbariums, including faster and easier access to the data, automated statistical analysis, increased [public accessibility](https://en.wikipedia.org/wiki/Virtual_herbarium) to the collection, and the ability for researchers to access the Herbarium from the field through their mobile devices
+HERBAR is a FastAPI backend for a university herbarium. It links specimen records to taxonomy, collection sites, storage, photos, publications, and identification history. Researchers can also link lab samples and chemical profiles to voucher specimens.
 
-## Usage
+## Quick start
 
-This application is built using [FastAPI](https://fastapi.tiangolo.com/), a modern and fast Python web framework. It also uses a [MySQL](https://www.mysql.com/) database and follows the [controller-service-model](https://en.wikipedia.org/wiki/Multitier_architecture#Three-tier_architecture) architecture pattern.
+Use Python 3.12 and run these commands from the project root with your virtual environment active.
 
-### Prerequisites
+```powershell
+python -m pip install -r requirements.txt
+```
 
-Before you start, make sure you have the following installed:
+Copy `env-template` to `.env`. Set `USER_SECRET` to the output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`. The file also configures the origin for distance searches and the Pl@ntNet key for image identification.
 
-- Python 3.6 or later
-- Pip (for installing Python packages)
-- MySQL (for the database)
+```powershell
+python -m alembic upgrade head
+python -m app.users.bootstrap admin@example.org Firstname Lastname
+python -m uvicorn app.main:app --reload
+```
 
-### Setup
+The bootstrap command creates the first administrator and prompts for a password. In Swagger, log in with `POST /api/users/login` and paste the returned `access_token` into **Authorize**. [Open Swagger](http://127.0.0.1:8000/docs)
 
-1. Clone the repository and navigate to the project directory
+## Explore the API
 
-2. Create a virtual environment with `python -m venv venv` and activate it with `source venv/bin/activate` on Linux/macOS or `.\venv\Scripts\activate` on Windows.
+- `GET /api/specimen` supports filtered search and pagination. Use `/api/specimen/export` for CSV.
+- `GET /api/specimen/{specimen_id}` returns specimen details and links to photos. The `/revisions` and `/publications` subpaths show its history and references.
+- In the locally seeded demo database, try `reg_no=DEMO-001` for a yarrow voucher with a photo and two revisions, or search for `wild thyme` to find vouchers with synthetic chemistry profiles. A fresh database starts empty.
 
-3. Install the required packages with `pip install -r requirements.txt`
+## Phytochemistry
 
-4. Environment Variables
+Profiles are optional for each specimen. To add one, link a lab sample to a voucher, add a preparation batch, and import one UTF-8 CSV per run. Use `feature,value,confidence` with an optional `status` column. Leave the value blank for `not_detected` or `not_measured`.
 
-   The following environment variables are required to run the application:
+An administrator can release a study and selected profiles. `GET /api/chemistry/public/specimens/{specimen_id}/profiles` lists the released profiles for a voucher. For PCA, select 3–50 comparable profiles from distinct lab samples. HERBAR saves the selected profiles, preprocessing settings, and results.
 
-   - `DB_HOST`: the host URL of the database server.
-   - `DB_HOSTNAME`: the hostname of the database server.
-   - `DB_PORT`: the port number of the database server.
-   - `DB_USER`: the username used to access the database.
-   - `DB_PASSWORD`: the password used to access the database.
-   - `DB_NAME`: the name of the main database.
-   - `USER_SECRET`: the secret key used for JSON Web Token (JWT) encoding.
-   - `ALGORITHM`: the algorithm used for JWT encoding.
-   - `TOKEN_DURATION`: the expiration time of the JWT token.
-   - `LATITUDE` and `LONGITUDE`: GPS coordinates used in distance calculations (e.g. University building).
-   - `PLANTNET_API_KEY`: Private key for Pl@ntNet API [(plantnet.org)](https://my.plantnet.org/)
+## Database and backups
 
-   The following environment variables have been added to support running tests on a separate test database:
+The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db` and `images/` on persistent local storage. MySQL deployments can set an explicit `mysql+pymysql://…` URL and use a separate account for migrations.
 
-   - `DB_NAME_TEST`: the name of the test database.
-   - `USE_TEST_DB`: set to `True` to use the test database, `False` otherwise.
+Stop the API and other writers before backing up the database and photos together.
 
-   You can set these environment variables in a `.env` file in the root directory of the project. An example `.env` file is provided in the repository as `.env-template`.
+```powershell
+python -m app.db.backup backup backups/collection-snapshot
+python -m app.db.backup restore backups/collection-snapshot backups/restore-check
+```
 
-5. Start MySQL server and execute all commands in `init_db/init_db.sql`
+Both commands create a new directory containing `herbar.db` and `images/`. With the API stopped, move the current pair aside and put the restored pair in its place.
 
-6. Run the application with 
+## Tests
 
-   ```
-   python -m uvicorn app.main:app --reload --reload-delay 5 --host localhost --port 8000
-   ```
-
-7. The API will be available at http://localhost:8000/
-
-8. To test the app, set the `USE_TEST_DB` parameter in the `.env` file to `True`, run `pytest` in the terminal to execute any test files in the `tests/` directories, then set `USE_TEST_DB` back to `False` to use the main database again. This ensures that tests don't modify the main database.
-
-### Documentation
-
-The `docs/` folder contains a project proposal, an EER scheme image, and a sample MySQL database that can be used to test the app. Simply import the database into your local MySQL server and update the `.env` file to use the correct database name, username, and password. Note that the sample database contains a superuser with email "user@example.com" and password "string". You can use this superuser to access the protected routes in the app.
+Run `python -m pytest`. The suite covers the SQLite API, migrations, concurrent specimen revisions, and backup restoration. CI also checks MySQL.
 
 ## Meta
 

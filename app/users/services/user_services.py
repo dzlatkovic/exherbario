@@ -2,9 +2,34 @@
 
 
 import hashlib
+from hmac import compare_digest
+from secrets import token_bytes
 from app.users.repository.user_repository import UserRepository
 from app.db.database import SessionLocal
 from app.users.exceptions import UserInvalidPassword, UserDoesNotExist
+
+
+PASSWORD_ITERATIONS = 600_000
+
+
+def hash_password(password: str) -> str:
+    salt = token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PASSWORD_ITERATIONS)
+    return f"pbkdf2-sha256${PASSWORD_ITERATIONS}${salt.hex()}${digest.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    if not stored:
+        return False
+    if stored.startswith("pbkdf2-sha256$"):
+        try:
+            _, iterations, salt, expected = stored.split("$")
+            digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt),
+                                         int(iterations))
+            return compare_digest(digest, bytes.fromhex(expected))
+        except (ValueError, OverflowError):
+            return False
+    return compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored)
 
 
 class UserServices:
@@ -29,7 +54,7 @@ class UserServices:
         with SessionLocal() as db:
             try:
                 user_repository = UserRepository(db)
-                hashed_password = hashlib.sha256(bytes(password, "utf-8")).hexdigest()
+                hashed_password = hash_password(password)
                 return user_repository.create_user(name, surname, email, hashed_password)
             except Exception as error:
                 raise error
@@ -52,7 +77,7 @@ class UserServices:
         with SessionLocal() as db:
             try:
                 user_repository = UserRepository(db)
-                hashed_password = hashlib.sha256(bytes(password, "utf-8")).hexdigest()
+                hashed_password = hash_password(password)
                 return user_repository.create_super_user(name, surname, email, hashed_password)
             except Exception as error:
                 raise error
@@ -133,8 +158,12 @@ class UserServices:
                 user = user_repository.read_user_by_email(email)
                 if not user:
                     raise UserDoesNotExist(message="User does not exist.", code=400)
-                if hashlib.sha256(bytes(password, "utf-8")).hexdigest() != user.password:
+                if not user.is_active or not verify_password(password, user.password):
                     raise UserInvalidPassword(message="Invalid password for user", code=401)
+                if not user.password.startswith("pbkdf2-sha256$"):
+                    user.password = hash_password(password)
+                    db.commit()
+                    db.refresh(user)
                 return user
             except Exception as error:
                 raise error

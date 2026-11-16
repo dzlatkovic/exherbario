@@ -1,9 +1,8 @@
 """This module contains the SpecimenPublication class."""
 
 
-from uuid import uuid4
 from sqlalchemy import Column, ForeignKey, String, UniqueConstraint
-from app.db import Base
+from app.db import Base, new_id
 
 
 class SpecimenPublication(Base):
@@ -11,7 +10,7 @@ class SpecimenPublication(Base):
     A class that represents the many-to-many relationship between specimens and publications.
     """
     __tablename__ = "specimen_publication"
-    specimen_publication_id = Column(String(50), primary_key=True, default=uuid4,
+    specimen_publication_id = Column(String(50), primary_key=True, default=new_id,
                                      autoincrement=False)
     specimen_id = Column(String(50), ForeignKey("specimen.specimen_id"))
     publication_id = Column(String(50), ForeignKey("publication.pub_id"))

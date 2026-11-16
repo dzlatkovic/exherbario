@@ -4,7 +4,7 @@ This module contains the API routers related to the Specimen and SpecimenPublica
 """
 
 from fastapi import APIRouter, Depends
-from fastapi_pagination import paginate, Page, Params
+from fastapi_pagination import Page, Params
 from starlette.responses import HTMLResponse
 
 from app.specimen.controller import SpecimenController, SpecimenPublicationController, RevisionController
@@ -12,6 +12,7 @@ from app.specimen.schemas import SpecimenSchema, SpecimenSchemaIn, SpecimenSchem
     RevisionSchemaIn
 from app.specimen.schemas import SpecimenPublicationSchema, SpecimenPublicationSchemaIn
 from app.users.controller import JWTBearer
+from app.users.models import User
 
 specimen_router = APIRouter(prefix="/api/specimen", tags=["Specimen"])
 
@@ -140,9 +141,9 @@ def get_herbarium_label(reg_no):
     return SpecimenController.get_herbarium_label(reg_no)
 
 
-@specimen_router.put("/update-specimen", response_model=SpecimenSchema,
-                     dependencies=[Depends(JWTBearer("super_user"))])
-def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
+@specimen_router.put("/update-specimen", response_model=SpecimenSchema)
+def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate,
+                    actor: User = Depends(JWTBearer("super_user"))):
     """
     `Update a specimen.`
     :param specimen_id: str
@@ -151,7 +152,7 @@ def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate):
     :type specimen: SpecimenSchemaUpdate
     :return: The updated specimen
     """
-    return SpecimenController.update_specimen(specimen_id, specimen)
+    return SpecimenController.update_specimen(specimen_id, specimen, actor.user_id)
 
 
 @specimen_router.get("/filter-by-date")
@@ -205,8 +206,7 @@ def search_specimens_by_keyword(keyword: str, params: Params = Depends()):
     :type params: Params, optional
     :return: A page of specimen objects matching the search keyword.
     """
-    specimens = SpecimenController.search_specimens_by_keyword(keyword)
-    return paginate(specimens, params)
+    return SpecimenController.search_specimens_by_keyword(keyword, params)
 
 
 specimen_publication_router = APIRouter(prefix="/api/specimen_publication",
@@ -250,5 +250,6 @@ revision_router = APIRouter(prefix="/api/revision",
 
 @revision_router.post("/create-revision",
                       response_model=RevisionSchema)
-def create_revision(revision_data: RevisionSchemaIn):
-    return RevisionController.create_new_revision(revision_data)
+def create_revision(revision_data: RevisionSchemaIn,
+                    actor: User = Depends(JWTBearer("super_user"))):
+    return RevisionController.create_new_revision(revision_data, actor.user_id)

@@ -2,6 +2,8 @@
 This module defines the PublicationAuthorsRepository class,
 which provides methods for managing publication author mappings in the database.
 """
+from sqlite3 import SQLITE_CONSTRAINT_UNIQUE
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -42,7 +44,8 @@ class PublicationAuthorsRepository:
             self.db.refresh(publication_authors)
             return publication_authors
         except IntegrityError as error:
-            if "Duplicate entry" in str(error):
+            if (error.orig.args[0] == 1062
+                    or getattr(error.orig, "sqlite_errorcode", None) == SQLITE_CONSTRAINT_UNIQUE):
                 raise EntryAlreadyExistsException(
                     code=400,
                     message="Entry already exists in the database") from error

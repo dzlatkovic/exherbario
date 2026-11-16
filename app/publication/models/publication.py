@@ -5,10 +5,9 @@ publication in the database.
 
 
 from datetime import datetime
-from uuid import uuid4
 from sqlalchemy import Column, String, Date, Text
 
-from app.db import Base
+from app.db import Base, new_id
 
 
 class Publication(Base):
@@ -22,7 +21,7 @@ class Publication(Base):
         title (str): Title of the publication.
     """
     __tablename__ = "publication"
-    pub_id = Column(String(50), primary_key=True, default=uuid4, autoincrement=False)
+    pub_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     doi = Column(String(200), nullable=False)
     year = Column(Date)
     journal = Column(String(100))

@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.specimen.models import Specimen
@@ -10,20 +11,18 @@ class TaxonomyRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def add_taxon(self, taxon_data: TaxonomySchemaIn, taxon_rank: TaxonRank):
+        taxon = Taxonomy(**taxon_data.dict(), taxon_rank=taxon_rank)
+        self.db.add(taxon)
+        self.db.flush()
+        self.db.refresh(taxon)
+        return taxon
+
     def create_taxon(self, taxon_data: TaxonomySchemaIn, taxon_rank: TaxonRank):
-        try:
-            taxon = Taxonomy(taxon_name=taxon_data.taxon_name,
-                             gbif_key=taxon_data.gbif_key,
-                             taxon_rank=taxon_rank,
-                             parent_taxon_key=taxon_data.parent_taxon_key,
-                             common_name=taxon_data.common_name,
-                             authority=taxon_data.authority)
-            self.db.add(taxon)
-            self.db.commit()
-            self.db.refresh(taxon)
-            return taxon
-        except Exception as error:
-            raise error
+        taxon = self.add_taxon(taxon_data, taxon_rank)
+        self.db.commit()
+        self.db.refresh(taxon)
+        return taxon
 
     def read_taxon_by_gbif_key(self, gbif_key: str):
         return self.db.query(Taxonomy).filter(Taxonomy.gbif_key
@@ -42,11 +41,15 @@ class TaxonomyRepository:
         except Exception as error:
             raise error
 
-    def get_taxon_by_name(self, taxon_name: str):
-        return self.db.query(Taxonomy).filter(Taxonomy.taxon_name == taxon_name).first()
-
-    def get_all_child_taxa_by_parent_taxon_key(self, parent_taxon_key):
-        return self.db.query(Taxonomy).filter_by(parent_taxon_key=parent_taxon_key).all()
-
-    def get_specimens_by_taxon_id(self, taxon_id):
-        return self.db.query(Specimen).filter_by(taxon_id=taxon_id).all()
+    def get_specimens_by_taxon_name(self, taxon_name: str):
+        descendants = select(Taxonomy.taxon_id).where(
+            Taxonomy.taxon_name == taxon_name
+        ).cte(name="descendants", recursive=True)
+        descendants = descendants.union(select(Taxonomy.taxon_id).join(
+            descendants, Taxonomy.parent_taxon_key == descendants.c.taxon_id
+        ))
+        if not self.db.query(Taxonomy.taxon_id).filter_by(taxon_name=taxon_name).first():
+            return None
+        return self.db.query(Specimen).filter(
+            Specimen.taxon_id.in_(select(descendants.c.taxon_id))
+        ).order_by(Specimen.reg_no).all()
