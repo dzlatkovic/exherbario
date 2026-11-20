@@ -4,18 +4,20 @@ This class is a repository for specimens, and provides methods to interact with 
 for storing and retrieving specimen records.
 """
 from datetime import date
+from sqlite3 import SQLITE_CONSTRAINT_UNIQUE
 from geopy.distance import geodesic
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from app.config import settings
 from app.db import lock_for_update
 from app.field_loc.models import FieldLoc
 from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.specimen.exceptions import (
-    SearchResultsNotFoundException, SpecimenInUseException, SpecimenNotFoundException,
+    SearchResultsNotFoundException, SpecimenExceptionRegNo, SpecimenInUseException, SpecimenNotFoundException,
 )
 from app.specimen.schemas import SpecimenSchemaUpdate
+from app.specimen.schemas.specimen_schemas import VoucherMetadata
 from fastapi_pagination.ext.sqlalchemy import paginate
 from app.storage.models import Storage
 from app.taxonomy.models import Taxonomy
@@ -69,32 +71,28 @@ class SpecimenRepository:
 
     def create_specimen(self, specimen):
         """Create a new specimen record in the database."""
+        self.validate_foreign_keys(
+            specimen.taxon_id, specimen.field_loc_id, specimen.storage_id,
+            specimen.collected_by, specimen.verified_by,
+        )
+        record = Specimen(**specimen.dict())
+        self.db.add(record)
+        self._commit_specimen()
+        self.db.refresh(record)
+        return record
+
+    def _commit_specimen(self):
+        """Translate duplicate accession or legacy registration numbers."""
         try:
-            self.validate_foreign_keys(
-                specimen.taxon_id,
-                specimen.field_loc_id,
-                specimen.storage_id,
-                specimen.collected_by,
-                specimen.verified_by
-            )
-            specimen = Specimen(
-                reg_no=specimen.reg_no,
-                collection_date=specimen.collection_date,
-                reg_date=specimen.reg_date,
-                taxon_id=specimen.taxon_id,
-                subnomen=specimen.subnomen,
-                field_loc_id=specimen.field_loc_id,
-                storage_id=specimen.storage_id,
-                collected_by=specimen.collected_by,
-                verified_by=specimen.verified_by)
-            self.db.add(specimen)
             self.db.commit()
-            self.db.refresh(specimen)
-            return specimen
         except IntegrityError as error:
-            raise error
-        except Exception as error:
-            raise error
+            self.db.rollback()
+            if (getattr(error.orig, "sqlite_errorcode", None) == SQLITE_CONSTRAINT_UNIQUE
+                    or (error.orig.args and error.orig.args[0] == 1062)):
+                raise SpecimenExceptionRegNo(
+                    "This collection already has that accession, or the legacy registration number is in use.", 409
+                ) from error
+            raise
 
     def read_specimen_by_id(self, specimen_id: str):
         """
@@ -197,7 +195,7 @@ class SpecimenRepository:
         specimens = self.db.query(Specimen, FieldLoc).join(FieldLoc).filter(
             Specimen.subnomen.like(f'%{keyword}%')).all()
         for specimen, field_loc in specimens:
-            gps_locations[specimen.reg_no] \
+            gps_locations[specimen.reg_no or specimen.specimen_id] \
                 = {"subnomen": specimen.subnomen, "gps": (field_loc.gps_lat, field_loc.gps_long)}
         if not gps_locations:
             raise SearchResultsNotFoundException(message="Search query returned empty results.",
@@ -212,7 +210,7 @@ class SpecimenRepository:
         return self.db.query(Specimen).order_by(
             Specimen.reg_date.desc()).limit(10).all()
 
-    def get_herbarium_label(self, reg_no: str):
+    def get_herbarium_label(self, reg_no: str | None = None, *, specimen_id: str | None = None):
         """
         It takes a registration number as an argument, and returns a dictionary
         containing the details of the specimen with
@@ -225,18 +223,31 @@ class SpecimenRepository:
         collected the specimen, and the name of the person who verified
         the specimen.
         """
-        specimen = self.db.query(Specimen).filter_by(reg_no=reg_no).first()
+        if bool(reg_no) == bool(specimen_id):
+            raise ValueError("Provide either specimen_id or reg_no.")
+        specimen = self.db.get(Specimen, specimen_id) if specimen_id else self.read_specimen_by_reg_num(reg_no)
+        if specimen is None:
+            raise SpecimenExceptionRegNo(message="No such specimen in the database.", code=404)
+        location = specimen.field_loc
         label = {
+            "specimen_id": specimen.specimen_id,
             "reg_no": specimen.reg_no,
-            "subnomen": f"{specimen.subnomen}",
-            "country": specimen.field_loc.country,
-            "region": specimen.field_loc.region,
-            "altitude": specimen.field_loc.altitude,
-            "gps": (specimen.field_loc.gps_lat, specimen.field_loc.gps_long),
-            "habitat": specimen.field_loc.habitat,
+            "subnomen": specimen.subnomen,
+            "country": location.country if location else None,
+            "region": location.region if location else None,
+            "altitude": location.altitude if location else None,
+            "gps": (location.gps_lat, location.gps_long) if location else None,
+            "habitat": location.habitat if location else None,
             "collection_date": specimen.collection_date,
-            "collected_by": self.get_user_name(specimen.collected_by),
-            "verified_by": self.get_user_name(specimen.verified_by)
+            "collected_by": specimen.collector_name or self.get_user_name(specimen.collected_by),
+            "verified_by": specimen.verifier_name or self.get_user_name(specimen.verified_by),
+            "holding_type": specimen.holding_type,
+            "holding_institution": specimen.holding_institution,
+            "collection": specimen.collection,
+            "accession": specimen.accession,
+            "verbatim_label": specimen.verbatim_label,
+            "determiner_name": specimen.determiner_name,
+            "determination_date": specimen.determination_date,
         }
         return label
 
@@ -247,10 +258,10 @@ class SpecimenRepository:
         :type user_id: str
         :return: The name and surname of the user with the given user_id.
         """
-        user = self.db.query(User).filter_by(user_id=user_id).first()
-        return f"{user.name} {user.surname}"
+        user = self.db.get(User, user_id) if user_id else None
+        return f"{user.name} {user.surname}" if user else None
 
-    def _apply_update(self, specimen_id, changes, revised_by, correction_reason=None):
+    def _apply_update(self, specimen_id, changes, revised_by, correction_reason=None, *, new_determination=False):
         query = self.db.query(Specimen).filter_by(specimen_id=specimen_id)
         specimen = lock_for_update(self.db, query).first()
         if specimen is None:
@@ -258,9 +269,14 @@ class SpecimenRepository:
         self.validate_foreign_keys(*(changes.get(key) for key in (
             "taxon_id", "field_loc_id", "storage_id", "collected_by", "verified_by"
         )))
+        names = {"taxon_id", "subnomen"}
+        if not correction_reason and any(key in changes and getattr(specimen, key) != changes[key] for key in names):
+            changes.setdefault("determiner_name", None)
+            changes.setdefault("determination_date", None)
         changes = {key: value for key, value in changes.items() if getattr(specimen, key) != value}
-        determination_fields = {"taxon_id", "subnomen"}
-        if changes and (correction_reason is not None or changes.keys() - determination_fields):
+        determination_fields = names | {"determiner_name", "determination_date"}
+        if changes and (correction_reason is not None or changes.keys() - determination_fields
+                        or not (new_determination or names.intersection(changes))):
             self.db.add(ScientificCorrection(
                 specimen_id=specimen_id, actor_id=revised_by, reason=correction_reason,
                 old_values={key: getattr(specimen, key) for key in changes}, new_values=changes,
@@ -269,25 +285,27 @@ class SpecimenRepository:
         if determination_fields.intersection(changes):
             if not revised_by:
                 raise ValueError("An authenticated curator is required to change identification.")
-            revision = Revision(revised_by, specimen_id, specimen.taxon_id, specimen.subnomen)
+            revision = Revision(revised_by, specimen_id, specimen.taxon_id, specimen.subnomen,
+                                specimen.determiner_name, specimen.determination_date)
             self.db.add(revision)
         for field, value in changes.items():
             setattr(specimen, field, value)
         return specimen, revision
 
     def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
-        changes = {field: value for field, value in specimen.dict(
-            exclude={"correction_reason"}, exclude_none=True).items()
-                   if value != ""}
+        changes = {
+            field: value for field, value in specimen.dict(exclude={"correction_reason"}, exclude_unset=True).items()
+            if field in VoucherMetadata.__fields__ or value not in (None, "")
+        }
         updated, _ = self._apply_update(specimen_id, changes, revised_by, specimen.correction_reason)
         if updated is not None:
-            self.db.commit()
+            self._commit_specimen()
             if self.db.expire_on_commit:
                 self.db.refresh(updated)
         return updated
 
     def revise_identification(self, specimen_id: str, changes: dict, revised_by: str):
-        specimen, revision = self._apply_update(specimen_id, changes, revised_by)
+        specimen, revision = self._apply_update(specimen_id, changes, revised_by, new_determination=True)
         if specimen is None:
             raise SpecimenNotFoundException("Specimen not found.", 404)
         if revision is None:
@@ -326,11 +344,18 @@ class SpecimenRepository:
             distance = -1 if None in coordinates else geodesic((lat, long), coordinates).kilometers
             results.append({
                 "reg_no": specimen.reg_no,
+                "specimen_id": specimen.specimen_id,
                 "subnomen": specimen.subnomen,
                 "distance": round(distance)
             })
         return sorted(results, key=lambda x: x["distance"])
 
     def search_specimens_by_keyword(self, keyword: str, params):
-        query = select(Specimen).where(Specimen.subnomen.like(f'%{keyword}%'))
+        query = select(Specimen)
+        if keyword:
+            query = query.where(or_(
+                Specimen.subnomen.icontains(keyword, autoescape=True),
+                Specimen.accession.icontains(keyword, autoescape=True),
+                Specimen.reg_no.icontains(keyword, autoescape=True),
+            ))
         return paginate(self.db, query.order_by(Specimen.reg_no, Specimen.specimen_id), params=params)

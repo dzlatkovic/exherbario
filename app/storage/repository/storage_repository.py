@@ -97,11 +97,11 @@ class StorageRepository:
             results = []
             for storage, specimen in query:
                 data = {
-                    "reg_date": specimen.reg_date.strftime("%Y-%m-%d"),
+                    "reg_date": specimen.reg_date.isoformat() if specimen.reg_date else None,
                     "reg_no": specimen.reg_no,
                     "subnomen": specimen.subnomen,
-                    "collection date": specimen.collection_date.strftime("%Y-%m-%d"),
-                    "region": specimen.field_loc.region
+                    "collection date": specimen.collection_date.isoformat() if specimen.collection_date else None,
+                    "region": specimen.field_loc.region if specimen.field_loc else None,
                 }
                 results.append(data)
             return results

@@ -79,6 +79,8 @@ class WeatherService:
     def fetch_and_save_weather_data(specimen_id: str):
         try:
             specimen = SpecimenService.read_specimen_by_id(specimen_id)
+            if specimen.collection_date is None:
+                raise MissingWeatherDataException(code=400, message="Collection date is required to download weather.")
             latitude, longitude = WeatherService.get_lat_long_from_specimen(specimen_id)
             weather_object_in = WeatherService.fetch_weather_data_from_api(specimen_id,
                                                                            longitude,

@@ -26,6 +26,28 @@ The bootstrap command creates the first administrator and prompts for a password
 - `GET /api/specimen/{specimen_id}` returns specimen details and links to photos. The `/revisions` and `/publications` subpaths show its history and references.
 - A fresh database starts empty. Curators can follow the release workflow below to make selected synthetic vouchers visible in a local demo.
 
+## Register one voucher
+
+In Swagger, authenticate as a curator and call `POST /api/specimen/create-new-specimen`. For a voucher held locally, the minimum JSON body is `{"holding_type": "local"}`. Use `external` for a voucher held elsewhere.
+
+```json
+{
+  "holding_type": "external",
+  "holding_institution": "Example University",
+  "collection": "Herbarium A",
+  "accession": "BOT-2024-000001",
+  "verbatim_label": "Text as written on the original label",
+  "collector_name": "F. Collector",
+  "determiner_name": "D. Botanist",
+  "determination_date": "2024-05-02",
+  "subnomen": "Achillea cf. millefolium"
+}
+```
+
+Omit unknown fields or send `null`. HERBAR supplies a specimen UUID and registration date. A linked taxon, collection site, storage slot, and login accounts for the collector or determiner are optional. The scientific names are independent of accounts. You can add a `verifier_name` if known. Accession numbers are unique within a holding institution and collection when all three values are known. Legacy `reg_no` remains a separate global lookup key.
+
+Use the returned `specimen_id` to link images and lab samples, and as the query parameter for label and QR reads when a legacy registration number is unavailable. The full label and scientific attribution names are available on authenticated routes. After curator release, the public catalog supports accession, institution, and collection filters.
+
 ## Public visibility
 
 | Role | Access |
@@ -68,6 +90,8 @@ Both commands create a new directory containing `herbar.db`, `images/`, `files/`
 For a trusted older snapshot without a manifest, use `python -m app.db.backup restore OLD_SNAPSHOT NEW_DIRECTORY --allow-legacy`. Restore still verifies references and any recorded digests, then creates a manifest. A missing historical digest limits verification to the bytes available now. With the API stopped, move the current database and both file directories aside and put the verified restored copies in their place.
 
 Migration `0005` adds nullable source and digest fields without modifying existing records or files. Its downgrade removes the original CSV links and upload digests from the database. Keep a verified snapshot of all three components to recover their associations.
+
+Migration `0006` adds holding and scientific attribution fields and makes the legacy registration number optional. Existing UUIDs, registration numbers, account links, and dependent records are preserved. SQLite rebuilds the voucher table within a transaction and checks foreign keys before committing. Use a verified pre-upgrade snapshot for rollback. Downgrade removes the new metadata and is blocked once a voucher has been saved without a legacy registration number.
 
 ### Preview migration 0004
 

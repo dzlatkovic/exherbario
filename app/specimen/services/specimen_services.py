@@ -20,20 +20,16 @@ class SpecimenService:
     @staticmethod
     def create_new_specimen(specimen):
         """Create a new specimen record in the database."""
-        try:
-            with SessionLocal() as db:
-                if specimen.collection_date > specimen.reg_date:
-                    raise InvalidDateRangeException(
-                        message="Collection date cannot be after registration date",
-                        code=400)
-                repository = SpecimenRepository(db)
-                publication = repository.read_specimen_by_reg_num(specimen.reg_no)
-                if publication is None:
-                    return repository.create_specimen(specimen)
+        if specimen.collection_date is not None and specimen.collection_date > specimen.reg_date:
+            raise InvalidDateRangeException(
+                message="Collection date cannot be after registration date", code=400,
+            )
+        with SessionLocal() as db:
+            repository = SpecimenRepository(db)
+            if specimen.reg_no and repository.read_specimen_by_reg_num(specimen.reg_no) is not None:
                 raise SpecimenExceptionRegNo(message="Specimen already exists in the database.",
                                              code=400)
-        except Exception as error:
-            raise error
+            return repository.create_specimen(specimen)
 
     @staticmethod
     def read_specimen_by_id(specimen_id: str):
@@ -170,23 +166,10 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def get_herbarium_label(reg_no: str):
-        """
-        It takes a registration number as a string, checks if the specimen
-        exists in the database, and if it does, returns the herbarium label
-        :param reg_no: str
-        :type reg_no: str
-        :return: The herbarium label of the specimen
-        """
-        try:
-            with SessionLocal() as db:
-                repository = SpecimenRepository(db)
-                if not repository.read_specimen_by_reg_num(reg_no):
-                    raise SpecimenExceptionRegNo(message="No such specimen in the database",
-                                                 code=404)
-                return repository.get_herbarium_label(reg_no)
-        except Exception as error:
-            raise error
+    def get_herbarium_label(reg_no: str | None = None, *, specimen_id: str | None = None):
+        """Read a label by stable voucher ID or legacy registration number."""
+        with SessionLocal() as db:
+            return SpecimenRepository(db).get_herbarium_label(reg_no, specimen_id=specimen_id)
 
     @staticmethod
     def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
@@ -249,7 +232,7 @@ class SpecimenService:
             raise error
 
     @staticmethod
-    def generate_qr_code(reg_no: str):
+    def generate_qr_code(reg_no: str | None = None, *, specimen_id: str | None = None):
         """
         `generate_qr_code` takes a registration number of the specimen
         as a string and returns a QR code image containing the
@@ -258,9 +241,13 @@ class SpecimenService:
         :type reg_no: str
         :return: A QR code image
         """
-        data = SpecimenService.get_herbarium_label(reg_no)
-        string_to_add = "\n".join(f"{key}: {value}"
-                                  for key, value in data.items())
+        data = SpecimenService.get_herbarium_label(reg_no, specimen_id=specimen_id)
+        if specimen_id:
+            string_to_add = f"specimen_id: {data['specimen_id']}"
+        else:
+            fields = ("reg_no", "subnomen", "country", "region", "altitude", "gps", "habitat",
+                      "collection_date", "collected_by", "verified_by")
+            string_to_add = "\n".join(f"{key}: {data[key]}" for key in fields)
         try:
             qr_code = qrcode.QRCode(
                 version=None,

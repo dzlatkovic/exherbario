@@ -28,6 +28,7 @@ class WeatherController:
             return WeatherService.fetch_and_save_weather_data(specimen_id)
         except (UnsuccessfulAPIRequestException,
                 MissingGPSException,
+                MissingWeatherDataException,
                 SpecimenNotFoundException,
                 DataAlreadyExistException,
                 SpecimenDoesNotExistException) as error:

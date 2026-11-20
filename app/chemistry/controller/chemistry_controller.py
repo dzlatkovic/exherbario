@@ -74,10 +74,11 @@ class ChemistryController:
             **_study_summary(study),
             "samples": [
                 {"id": sample.id, "code": sample.code, "specimen_id": sample.specimen_id,
-                 "reg_no": reg_no, "plant_part": sample.plant_part,
+                 "reg_no": reg_no, "holding_institution": institution, "collection": collection,
+                 "accession": accession, "plant_part": sample.plant_part,
                  "collection_event": sample.collection_event,
                  "voucher_relationship": sample.voucher_relationship}
-                for sample, reg_no in samples
+                for sample, reg_no, institution, collection, accession in samples
             ],
             "preparations": [
                 {"id": preparation.id, "sample_id": preparation.sample_id,

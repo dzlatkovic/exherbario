@@ -24,7 +24,8 @@ def public_location(specimen, location):
     return {"region": location.region, "country": location.country}
 
 
-def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="",
+def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", accession="",
+                   holding_institution="", collection="",
                    start_date: date | None = None, end_date: date | None = None,
                    page=1, size=12):
     query = (
@@ -36,12 +37,19 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="",
     if q:
         query = query.where(or_(
             Specimen.reg_no.icontains(q, autoescape=True),
+            Specimen.accession.icontains(q, autoescape=True),
             Specimen.subnomen.icontains(q, autoescape=True),
             Taxonomy.taxon_name.icontains(q, autoescape=True),
             Taxonomy.common_name.icontains(q, autoescape=True),
         ))
     if reg_no:
         query = query.where(Specimen.reg_no == reg_no)
+    if accession:
+        query = query.where(Specimen.accession == accession)
+    if holding_institution:
+        query = query.where(Specimen.holding_institution == holding_institution)
+    if collection:
+        query = query.where(Specimen.collection == collection)
     if taxon:
         query = query.where(Taxonomy.taxon_name.icontains(taxon, autoescape=True))
     if region:
@@ -60,6 +68,9 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="",
         entries.append({
             "specimen_id": specimen.specimen_id,
             "reg_no": specimen.reg_no,
+            "accession": specimen.accession,
+            "holding_institution": specimen.holding_institution,
+            "collection": specimen.collection,
             "name": taxon_name or specimen.subnomen or "Unidentified specimen",
             "common_name": common_name,
             "subnomen": specimen.subnomen,
@@ -83,7 +94,7 @@ def specimen_details(db: Session, specimen_id: str):
     specimen, taxon, location = record
     return {
         "specimen": specimen, "taxon": taxon, "location": public_location(specimen, location),
-        "name": (taxon.taxon_name if taxon else specimen.subnomen) or "Unidentified specimen",
+        "name": (taxon.taxon_name if taxon else None) or specimen.subnomen or "Unidentified specimen",
     }
 
 
@@ -97,7 +108,7 @@ def specimen_photos(db: Session, specimen_id: str):
 
 def specimen_revisions(db: Session, specimen_id: str):
     query = (
-        select(Revision.revision_id, Revision.timestamp, Revision.prev_subnomen,
+        select(Revision.revision_id, Revision.timestamp, Revision.prev_subnomen, Revision.prev_determination_date,
                Taxonomy.taxon_name)
         .join(Specimen, Specimen.specimen_id == Revision.specimen_id)
         .outerjoin(Taxonomy, Taxonomy.taxon_id == Revision.prev_taxon_id)
@@ -106,8 +117,8 @@ def specimen_revisions(db: Session, specimen_id: str):
     )
     return [
         {"revision_id": revision_id, "timestamp": timestamp, "previous_name": taxon_name,
-         "previous_subnomen": subnomen}
-        for revision_id, timestamp, subnomen, taxon_name in db.execute(query)
+         "previous_subnomen": subnomen, "previous_determination_date": determination_date}
+        for revision_id, timestamp, subnomen, determination_date, taxon_name in db.execute(query)
     ]
 
 

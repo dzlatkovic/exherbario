@@ -44,7 +44,8 @@ class ChemistryRepository:
         )) is not None
 
     def list_study_samples(self, study_id: str):
-        query = (select(LabSample, Specimen.reg_no).join(Specimen)
+        query = (select(LabSample, Specimen.reg_no, Specimen.holding_institution, Specimen.collection, Specimen.accession)
+                 .join(Specimen)
                  .where(LabSample.study_id == study_id).order_by(LabSample.code))
         return self.db.execute(query).all()
 

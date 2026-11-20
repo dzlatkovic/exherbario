@@ -24,6 +24,8 @@ router = APIRouter()
 class Filters:
     def __init__(self, q: str = Query("", max_length=150), reg_no: str = Query("", max_length=10),
                  taxon: str = Query("", max_length=100), region: str = Query("", max_length=80),
+                 accession: str = Query("", max_length=100),
+                 holding_institution: str = Query("", max_length=120), collection: str = Query("", max_length=120),
                  box: str = Query("", max_length=100), start_date: date | None = None,
                  end_date: date | None = None):
         if start_date and end_date and start_date > end_date:
@@ -31,6 +33,8 @@ class Filters:
         if box.strip():
             raise HTTPException(422, "Use the authenticated storage routes to search by box.")
         self.values = {"q": q.strip(), "reg_no": reg_no.strip(), "taxon": taxon.strip(),
+                       "accession": accession.strip(), "holding_institution": holding_institution.strip(),
+                       "collection": collection.strip(),
                        "region": region.strip(), "start_date": start_date,
                        "end_date": end_date}
 
@@ -46,7 +50,8 @@ def export_specimens(filters: Filters = Depends(), db: Session = Depends(get_db)
     results = catalog.find_specimens(db, size=10_000, **filters.values)
     if results["total"] > 10_000:
         raise HTTPException(422, "Narrow the filters to export at most 10,000 specimens.")
-    fields = ("reg_no", "name", "common_name", "subnomen", "collection_date", "locality", "region", "country")
+    fields = ("reg_no", "name", "common_name", "subnomen", "collection_date", "locality", "region", "country",
+              "holding_institution", "collection", "accession")
     output = StringIO(newline="")
     writer = DictWriter(output, fieldnames=fields)
     writer.writeheader()
@@ -78,9 +83,13 @@ def get_specimen_details(specimen_id: str, db: Session = Depends(get_db)):
     return {
         "specimen_id": specimen.specimen_id,
         "reg_no": specimen.reg_no,
+        "holding_institution": specimen.holding_institution,
+        "collection": specimen.collection,
+        "accession": specimen.accession,
         "name": record["name"],
         "subnomen": specimen.subnomen,
         "collection_date": specimen.collection_date,
+        "determination_date": specimen.determination_date,
         "reg_date": specimen.reg_date,
         "taxon": {
             "taxon_id": taxon.taxon_id, "name": taxon.taxon_name,

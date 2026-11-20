@@ -1,6 +1,7 @@
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from hashlib import sha256
 from io import BytesIO
 from os import environ
@@ -221,17 +222,22 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             old_metadata = MetaData()
             specimens = Table("specimen", old_metadata, autoload_with=connection)
             images = Table("image", old_metadata, autoload_with=connection)
-            values = specimen_data.dict()
+            revisions = Table("revision", old_metadata, autoload_with=connection)
+            values = specimen_data.dict(exclude_none=True)
             values["subnomen"] = "Earlier redetermination"
             connection.execute(specimens.insert().values(specimen_id=specimen_id, **values))
             connection.execute(images.insert().values(
                 image_id=image_id, specimen_id=specimen_id, file_path="images/archived.jpg",
             ))
+            revision_id = str(uuid4())
+            connection.execute(revisions.insert().values(
+                revision_id=revision_id, specimen_id=specimen_id, revised_by=admin.user_id,
+                prev_taxon_id=specimen_data.taxon_id, prev_subnomen=specimen_data.subnomen,
+                timestamp=datetime(2025, 1, 1),
+            ))
         with SessionLocal() as db:
-            db.add(Revision(admin.user_id, specimen_id, specimen_data.taxon_id, specimen_data.subnomen))
             db.add(Weather(specimen_id, 20, 40, 0, 2, 90))
             db.commit()
-            revision_id = db.scalar(select(Revision.revision_id))
         study_id, sample_id, preparation_id, profile_id = [str(uuid4()) for _ in range(4)]
         with engine.begin() as connection:
             connection.execute(Study.__table__.insert().values(
@@ -261,12 +267,15 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             assert connection.execute(select(specimens.c.specimen_id)).scalar_one() == specimen_id
 
         upgrade("0004")
+        upgrade("0005")
         upgrade("head")
         with engine.connect() as connection:
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
         with SessionLocal() as db:
             specimen = db.get(Specimen, specimen_id)
             assert specimen.reg_no == specimen_data.reg_no
+            assert specimen.accession is None and specimen.holding_type is None
+            assert specimen.collector_name is None and specimen.collected_by == specimen_data.collected_by
             assert not specimen.is_public and specimen.public_location == "withheld"
             image = db.get(ImageRecord, image_id)
             assert not image.is_public and image.file_path == "images/archived.jpg" and image.sha256 is None
@@ -275,6 +284,7 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             assert db.get(Study, study_id).is_public
             legacy = db.get(Profile, profile_id)
             assert legacy.is_public and legacy.source_path is None and legacy.source_sha256 is None
+            assert db.get(LabSample, sample_id).specimen_id == specimen_id
             assert db.scalars(select(ScientificCorrection)).all() == []
         assert client.get(f"/api/specimen/{specimen_id}").status_code == 404
         assert client.get(f"/api/image/{image_id}/content").status_code == 404

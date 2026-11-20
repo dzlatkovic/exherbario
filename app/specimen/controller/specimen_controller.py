@@ -142,7 +142,7 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def get_herbarium_label(reg_no: str):
+    def get_herbarium_label(reg_no: str | None = None, *, specimen_id: str | None = None):
         """
         This function returns the herbarium label of a specimen given
         its registration number
@@ -151,7 +151,9 @@ class SpecimenController:
         :return: A list of all the herbarium labels
         """
         try:
-            return SpecimenService.get_herbarium_label(reg_no)
+            return SpecimenService.get_herbarium_label(reg_no, specimen_id=specimen_id)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except SpecimenExceptionRegNo as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
@@ -169,7 +171,7 @@ class SpecimenController:
         """
         try:
             return SpecimenService.update_specimen(specimen_id, specimen, revised_by)
-        except SpecimenNotFoundException as error:
+        except (SpecimenNotFoundException, SpecimenExceptionRegNo) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
@@ -209,7 +211,7 @@ class SpecimenController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def generate_qrcode(reg_no: str):
+    def generate_qrcode(reg_no: str | None = None, *, specimen_id: str | None = None):
         """
         `generate_qr_code` takes a registration number of a specimen
         as a string and returns a QR code image containing the
@@ -219,7 +221,9 @@ class SpecimenController:
         :return: A QR code image
         """
         try:
-            return SpecimenService.generate_qr_code(reg_no)
+            return SpecimenService.generate_qr_code(reg_no, specimen_id=specimen_id)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except SpecimenExceptionRegNo as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

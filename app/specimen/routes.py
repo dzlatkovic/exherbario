@@ -130,7 +130,7 @@ def get_last_specimens():
 
 
 @specimen_router.get("/get-herbarium-label", dependencies=[Depends(JWTBearer())])
-def get_herbarium_label(reg_no):
+def get_herbarium_label(reg_no: str | None = None, specimen_id: str | None = None):
     """
     Retrieve the herbarium label for a given specimen registration number.
 
@@ -138,7 +138,7 @@ def get_herbarium_label(reg_no):
     :type reg_no: str
     :return: A dictionary representing the herbarium label for the specimen
     """
-    return SpecimenController.get_herbarium_label(reg_no)
+    return SpecimenController.get_herbarium_label(reg_no, specimen_id=specimen_id)
 
 
 @specimen_router.put("/update-specimen", response_model=SpecimenSchema)
@@ -183,7 +183,7 @@ def get_specimens_by_distance(keyword: str):
 
 
 @specimen_router.get("/generate_qr_code", dependencies=[Depends(JWTBearer())])
-def generate_qr_code(reg_no: str):
+def generate_qr_code(reg_no: str | None = None, specimen_id: str | None = None):
     """
     `generate_qr_code` takes a registration number of the specimen
     as a string and returns a QR code image containing the
@@ -192,7 +192,7 @@ def generate_qr_code(reg_no: str):
     :type reg_no: str
     :return: A QR code image
     """
-    return SpecimenController.generate_qrcode(reg_no)
+    return SpecimenController.generate_qrcode(reg_no, specimen_id=specimen_id)
 
 
 @specimen_router.get("/search-specimens-by-keyword", dependencies=[Depends(JWTBearer())], response_model=Page[SpecimenSchema])
