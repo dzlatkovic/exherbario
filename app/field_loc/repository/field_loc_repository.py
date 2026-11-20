@@ -11,9 +11,11 @@ deleting field location data in the database.
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.db import lock_for_update
 from app.field_loc.models import FieldLoc
-from app.field_loc.exceptions import FieldLocNotFoundException
+from app.field_loc.exceptions import FieldLocExceptionCode, FieldLocNotFoundException
 from app.field_loc.schemas import FieldLocSchemaUpdate
+from app.specimen.models import ScientificCorrection
 
 
 class FieldLocRepository:
@@ -100,10 +102,13 @@ class FieldLocRepository:
             self.db.delete(field_loc)
             self.db.commit()
             return True
-        except Exception as error:
-            raise error
+        except IntegrityError as error:
+            self.db.rollback()
+            raise FieldLocExceptionCode(
+                "This collection site is referenced by a voucher or a scientific correction.", 409
+            ) from error
 
-    def update_field_loc(self, field_loc_id: str, field_loc_data: FieldLocSchemaUpdate):
+    def update_field_loc(self, field_loc_id: str, field_loc_data: FieldLocSchemaUpdate, actor_id: str):
         """
         It takes a field_loc_id and a field_loc_data object,
         finds the field_loc in the database with the matching
@@ -115,11 +120,24 @@ class FieldLocRepository:
         :type field_loc_data: FieldLocSchemaUpdate
         :return: The field_loc object is being returned.
         """
-        field_loc = self.db.query(FieldLoc).filter(FieldLoc.field_loc_id == field_loc_id).first()
+        query = self.db.query(FieldLoc).filter_by(field_loc_id=field_loc_id)
+        field_loc = lock_for_update(self.db, query).first()
         if field_loc:
-            for key, value in field_loc_data.dict(exclude_unset=True).items():
-                setattr(field_loc, key, value)
-            self.db.commit()
-            self.db.refresh(field_loc)
+            changes = {
+                key: value for key, value in field_loc_data.dict(
+                    exclude={"correction_reason"}, exclude_unset=True
+                ).items() if getattr(field_loc, key) != value
+            }
+            if changes:
+                if any(key in changes and changes[key] is None for key in ("country", "region", "locality")):
+                    raise ValueError("Country, region and locality cannot be cleared.")
+                self.db.add(ScientificCorrection(
+                    field_loc_id=field_loc_id, actor_id=actor_id, reason=field_loc_data.correction_reason,
+                    old_values={key: getattr(field_loc, key) for key in changes}, new_values=changes,
+                ))
+                for key, value in changes.items():
+                    setattr(field_loc, key, value)
+                self.db.commit()
+                self.db.refresh(field_loc)
             return field_loc
         return None

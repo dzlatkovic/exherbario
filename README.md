@@ -32,6 +32,12 @@ Profiles are optional for each specimen. To add one, link a lab sample to a vouc
 
 An administrator can release a study and selected profiles. `GET /api/chemistry/public/specimens/{specimen_id}/profiles` lists the released profiles for a voucher. For PCA, select 3–50 comparable profiles from distinct lab samples. HERBAR saves the selected profiles, preprocessing settings, and results.
 
+## Scientific corrections
+
+Send a nonblank `correction_reason` in the JSON body of `PUT /api/field-locations/update-field-loc` when correcting a collection site and of `PUT /api/specimen/update-specimen` when correcting voucher metadata. A determination-only update may omit the reason for a new determination. Include it for a correction. HERBAR records the authenticated curator, UTC timestamp and changed fields with their old and new values in the same transaction. Changes to identification also retain the existing determination history.
+
+Deleting a collection site referenced by a voucher returns HTTP 409. Weather records also prevent automatic deletion of their voucher. Migration `0003` adds the correction log and preserves prior records. Downgrading it drops the log. Back up the database and images together before upgrading and use a verified snapshot for recovery.
+
 ## Database and backups
 
 The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db` and `images/` on persistent local storage. MySQL deployments can set an explicit `mysql+pymysql://…` URL and use a separate account for migrations.

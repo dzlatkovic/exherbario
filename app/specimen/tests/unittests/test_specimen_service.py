@@ -103,6 +103,7 @@ class TestSpecimenService(TestClass):
         specimen = self.create_test_specimen()
         updated_specimen = SpecimenService.update_specimen(
             specimen.specimen_id,
-            SpecimenSchemaUpdate(reg_no="new_reg_no"))
+            SpecimenSchemaUpdate(reg_no="new_reg_no", correction_reason="Accession transcription"),
+            specimen.verified_by)
         assert updated_specimen is not None
         assert updated_specimen.reg_no == "new_reg_no"

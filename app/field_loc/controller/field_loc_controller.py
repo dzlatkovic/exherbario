@@ -92,13 +92,13 @@ class FieldLocController:
             FieldLocService.delete_field_loc_by_id(field_loc_id)
             return Response(content=f"Field location with provided ID: "
                                     f"{field_loc_id} deleted.", status_code=200)
-        except FieldLocNotFoundException as error:
+        except (FieldLocNotFoundException, FieldLocExceptionCode) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
-    def update_field_loc(field_loc_id: str, field_loc_data: FieldLocSchemaUpdate):
+    def update_field_loc(field_loc_id: str, field_loc_data: FieldLocSchemaUpdate, actor_id: str):
         """
         It updates the field_loc_data for a given field_loc_id
         :param field_loc_id: The ID of the field location to update
@@ -108,7 +108,9 @@ class FieldLocController:
         :return: The updated field_loc object
         """
         try:
-            return FieldLocService.update_field_loc(field_loc_id, field_loc_data)
+            return FieldLocService.update_field_loc(field_loc_id, field_loc_data, actor_id)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except FieldLocNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except Exception as error:

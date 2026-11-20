@@ -4,7 +4,7 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, constr
 
 
 class SpecimenSchema(BaseModel):
@@ -56,3 +56,4 @@ class SpecimenSchemaUpdate(BaseModel):
     storage_id: Optional[str]
     collected_by: Optional[str]
     verified_by: Optional[str]
+    correction_reason: Optional[constr(strip_whitespace=True, min_length=1, max_length=1000)] = None

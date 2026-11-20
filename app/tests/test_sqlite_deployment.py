@@ -7,17 +7,19 @@ from threading import Event, local
 
 import pytest
 from PIL import Image
-from sqlalchemy import URL
+from sqlalchemy import URL, select
 
 from app.db import SessionLocal
 from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
-from app.specimen.models import Revision
+from app.field_loc.models import FieldLoc
+from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
 from app.tests import TestingSessionLocal, client
 from app.users.services import UserServices
+from app.weather.models import Weather
 
 
 @pytest.fixture
@@ -135,3 +137,110 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         assert history.json()[0]["previous_subnomen"] == specimen.subnomen
     finally:
         restored_engine.dispose()
+
+
+def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
+    archive = tmp_path / "upgrade"
+    archive.mkdir()
+    url = URL.create("sqlite", database=str(archive / "herbar.db"))
+    monkeypatch.setenv("DATABASE_URL", url.render_as_string(hide_password=False))
+    project = Path(__file__).resolve().parents[2]
+
+    def upgrade(revision):
+        subprocess.run([sys.executable, "-m", "alembic", "upgrade", revision],
+                       cwd=project, check=True, timeout=30)
+
+    upgrade("0002")
+    engine = create_database_engine(url)
+    monkeypatch.setitem(SessionLocal.kw, "bind", engine)
+    monkeypatch.setitem(TestingSessionLocal.kw, "bind", engine)
+    try:
+        specimen = SpecimenFixtures.create_test_specimen()
+        admin = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
+        SpecimenService.update_specimen(
+            specimen.specimen_id, SpecimenSchemaUpdate(subnomen="Earlier redetermination"), admin.user_id,
+        )
+        with SessionLocal() as db:
+            revision_id = db.scalar(select(Revision.revision_id))
+            db.add(Weather(specimen.specimen_id, 20, 40, 0, 2, 90))
+            db.commit()
+
+        upgrade("head")
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+        with SessionLocal() as db:
+            assert db.get(Specimen, specimen.specimen_id).reg_no == specimen.reg_no
+            assert db.get(Revision, revision_id).prev_subnomen == specimen.subnomen
+            assert db.scalars(select(ScientificCorrection)).all() == []
+
+        login = client.post("/api/users/login", json={"email": admin.email, "password": "password"})
+        headers = {"Authorization": "Bearer " + login.json()["access_token"]}
+        site = {"field_loc_id": specimen.field_loc_id}
+        voucher = {"specimen_id": specimen.specimen_id}
+        assert client.delete("/api/field-locations/delete-field-loc", params=site, headers=headers).status_code == 409
+        assert client.delete("/api/specimen/delete-specimen", params=voucher, headers=headers).status_code == 409
+        site_update = "/api/field-locations/update-field-loc"
+        assert client.put(site_update, params=site, headers=headers, json={"gps_lat": 0}).status_code == 400
+        response = client.put(site_update, params=site, headers=headers,
+                              json={"gps_lat": 0, "correction_reason": "Checked field notebook"})
+        assert response.status_code == 200, response.text
+        specimen_update = "/api/specimen/update-specimen"
+        response = client.put(specimen_update, params=voucher, headers=headers, json={
+            "collection_date": "2010-01-02",
+            "subnomen": "Corrected determination",
+            "correction_reason": "Checked original voucher label",
+        })
+        assert response.status_code == 200, response.text
+
+        with SessionLocal() as db:
+            kept = db.get(Specimen, specimen.specimen_id)
+            assert kept.field_loc_id == specimen.field_loc_id
+            assert db.get(FieldLoc, specimen.field_loc_id).gps_lat == 0
+            assert db.scalar(select(Weather.specimen_id)) == specimen.specimen_id
+            correction = db.scalar(select(ScientificCorrection).filter_by(specimen_id=specimen.specimen_id))
+            assert correction.actor_id == admin.user_id
+            assert correction.timestamp is not None
+            assert correction.reason == "Checked original voucher label"
+            assert correction.old_values == {
+                "collection_date": "2010-01-01", "subnomen": "Earlier redetermination",
+            }
+            assert correction.new_values == {
+                "collection_date": "2010-01-02", "subnomen": "Corrected determination",
+            }
+            site_correction = db.scalar(select(ScientificCorrection).filter_by(field_loc_id=specimen.field_loc_id))
+            assert site_correction.actor_id == admin.user_id
+            assert site_correction.old_values == {"gps_lat": 43}
+            assert site_correction.new_values == {"gps_lat": 0}
+            assert {row.prev_subnomen for row in db.scalars(select(Revision))} == {
+                specimen.subnomen, "Earlier redetermination",
+            }
+    finally:
+        engine.dispose()
+
+
+def test_failed_correction_preserves_voucher_and_history(sqlite_archive):
+    _, engine = sqlite_archive
+    specimen = SpecimenFixtures.create_test_specimen()
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TRIGGER reject_correction BEFORE INSERT ON scientific_correction "
+            "BEGIN SELECT RAISE(ABORT, 'simulated correction write failure'); END"
+        )
+    admin = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
+    login = client.post("/api/users/login", json={"email": admin.email, "password": "password"})
+    headers = {"Authorization": "Bearer " + login.json()["access_token"]}
+    voucher = {"specimen_id": specimen.specimen_id}
+    response = client.put("/api/specimen/update-specimen", params=voucher, headers=headers, json={
+        "subnomen": "Corrected determination",
+        "correction_reason": "Checked original label",
+    })
+    assert response.status_code == 500
+    with SessionLocal() as db:
+        assert db.get(Specimen, specimen.specimen_id).subnomen == specimen.subnomen
+        assert db.scalars(select(Revision)).all() == []
+        assert db.scalars(select(ScientificCorrection)).all() == []
+        db.add(Weather(specimen.specimen_id, 20, 40, 0, 2, 90))
+        db.commit()
+    assert client.delete("/api/specimen/delete-specimen", params=voucher, headers=headers).status_code == 409
+    with SessionLocal() as db:
+        assert db.scalar(select(Weather.specimen_id)) == specimen.specimen_id

@@ -23,7 +23,7 @@ class Specimen(Base):
     verified_by = Column(String(50), ForeignKey("users.user_id"))
 
     field_loc = relationship("FieldLoc", back_populates="specimens")
-    weather = relationship("Weather", back_populates="specimen", uselist=False, cascade="all, delete")
+    weather = relationship("Weather", back_populates="specimen", uselist=False, passive_deletes="all")
 
     def __init__(self, reg_no: str, collection_date: date | str, reg_date: date | str, taxon_id: str,
                  subnomen: str, field_loc_id: str, storage_id: str,

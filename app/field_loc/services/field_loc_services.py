@@ -91,7 +91,7 @@ class FieldLocService:
             raise error
 
     @staticmethod
-    def update_field_loc(field_loc_id: str, field_loc_data: FieldLocSchemaUpdate):
+    def update_field_loc(field_loc_id: str, field_loc_data: FieldLocSchemaUpdate, actor_id: str):
         """
         It takes a field_loc_id and field_loc_data as input, and returns a field_loc object
         :param field_loc_id: The id of the field location to be updated
@@ -103,7 +103,7 @@ class FieldLocService:
         try:
             with SessionLocal() as db:
                 repository = FieldLocRepository(db)
-                field_loc = repository.update_field_loc(field_loc_id, field_loc_data)
+                field_loc = repository.update_field_loc(field_loc_id, field_loc_data, actor_id)
             if field_loc is None:
                 raise FieldLocNotFoundException(message="Field location not found.",
                                                 code=400)

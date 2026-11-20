@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from app.config import settings
 from app.db import lock_for_update
 from app.field_loc.models import FieldLoc
-from app.specimen.models import Revision, Specimen
+from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.specimen.exceptions import (
     SearchResultsNotFoundException, SpecimenInUseException, SpecimenNotFoundException,
 )
@@ -129,7 +129,8 @@ class SpecimenRepository:
             self.db.rollback()
             raise SpecimenInUseException(
                 "Remove linked images and publications before deleting this specimen. "
-                "Specimens with revision history or linked lab samples must be retained."
+                "Specimens with determination history, corrections, weather records "
+                "or linked lab samples must be retained."
             ) from error
 
     def read_specimen_by_reg_num(self, reg_no: str):
@@ -249,7 +250,7 @@ class SpecimenRepository:
         user = self.db.query(User).filter_by(user_id=user_id).first()
         return f"{user.name} {user.surname}"
 
-    def _apply_update(self, specimen_id, changes, revised_by):
+    def _apply_update(self, specimen_id, changes, revised_by, correction_reason=None):
         query = self.db.query(Specimen).filter_by(specimen_id=specimen_id)
         specimen = lock_for_update(self.db, query).first()
         if specimen is None:
@@ -257,9 +258,15 @@ class SpecimenRepository:
         self.validate_foreign_keys(*(changes.get(key) for key in (
             "taxon_id", "field_loc_id", "storage_id", "collected_by", "verified_by"
         )))
+        changes = {key: value for key, value in changes.items() if getattr(specimen, key) != value}
+        determination_fields = {"taxon_id", "subnomen"}
+        if changes and (correction_reason is not None or changes.keys() - determination_fields):
+            self.db.add(ScientificCorrection(
+                specimen_id=specimen_id, actor_id=revised_by, reason=correction_reason,
+                old_values={key: getattr(specimen, key) for key in changes}, new_values=changes,
+            ))
         revision = None
-        if any(key in changes and changes[key] != getattr(specimen, key)
-               for key in ("taxon_id", "subnomen")):
+        if determination_fields.intersection(changes):
             if not revised_by:
                 raise ValueError("An authenticated curator is required to change identification.")
             revision = Revision(revised_by, specimen_id, specimen.taxon_id, specimen.subnomen)
@@ -269,9 +276,10 @@ class SpecimenRepository:
         return specimen, revision
 
     def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
-        changes = {field: value for field, value in specimen.dict(exclude_none=True).items()
+        changes = {field: value for field, value in specimen.dict(
+            exclude={"correction_reason"}, exclude_none=True).items()
                    if value != ""}
-        updated, _ = self._apply_update(specimen_id, changes, revised_by)
+        updated, _ = self._apply_update(specimen_id, changes, revised_by, specimen.correction_reason)
         if updated is not None:
             self.db.commit()
             if self.db.expire_on_commit:

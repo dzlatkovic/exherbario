@@ -30,7 +30,7 @@ class FieldLoc(Base):
     gps_lat = Column(Float, nullable=True)
     gps_long = Column(Float, nullable=True)
 
-    specimens = relationship("Specimen", back_populates="field_loc")
+    specimens = relationship("Specimen", back_populates="field_loc", passive_deletes="all")
 
     def __init__(self, country: str, region: str, locality: str, altitude: Optional[int] = None,
                  habitat: Optional[str] = None, gps_lat: Optional[float] = None,
