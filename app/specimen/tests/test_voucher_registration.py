@@ -71,11 +71,13 @@ class TestVoucherRegistration(TestClass):
         study = client.post("/api/chemistry/studies", headers=headers, json={"title": "Voucher study"})
         study_url = f"/api/chemistry/studies/{study.json()['id']}"
         sample = client.post(f"{study_url}/samples", headers=headers, json={
-            "specimen_id": specimen_id, "code": "Voucher sample", "plant_part": "leaf",
-            "collection_event": "Synthetic", "voucher_relationship": "collected_alongside",
+            "vouchers": [{"specimen_id": specimen_id, "role": "collected_alongside"}],
+            "code": "Voucher sample", "plant_part": "leaf", "material_state": "fresh",
+            "collection_notes": "Synthetic",
         })
         assert sample.status_code == 201, sample.text
-        assert client.get(study_url, headers=headers).json()["samples"][0]["accession"] == external["accession"]
+        voucher = client.get(study_url, headers=headers).json()["samples"][0]["vouchers"][0]
+        assert voucher["accession"] == external["accession"]
 
         change = "/api/specimen/update-specimen"
         assert client.put(change, params=by_id, headers=headers,

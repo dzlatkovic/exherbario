@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import URL, select
 
 from app.chemistry.models import LabSample, Preparation, Profile, Study
+from app.chemistry.sample_links import new_link
 from app.db import SessionLocal
 from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
@@ -13,6 +14,7 @@ from app.deposition.models import Deposition, DepositionFile, DepositionVersion
 from app.deposition.verify_archive import verify_archive
 from app.config import settings
 from app.main import app
+from app.specimen.models import Specimen
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
 from app.tests import client
 from app.tests.test_sqlite_deployment import sqlite_archive
@@ -42,11 +44,11 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
         study = Study(owner_id=owner.user_id, title="Test study", description="Private study notes")
         db.add(study)
         db.flush()
-        sample = LabSample(study_id=study.id, specimen_id=specimen.specimen_id, code="V-1",
-                           plant_part="leaf", voucher_relationship="collected_alongside",
-                           collection_event="Private site details")
+        sample = LabSample(study_id=study.id, code="V-1", plant_part="leaf", material_state="air-dried",
+                           collection_notes="Private site details")
         db.add(sample)
         db.flush()
+        db.add(new_link(sample.id, db.get(Specimen, specimen.specimen_id), None, "collected_alongside"))
         batch = Preparation(sample_id=sample.id, batch_code="B-1", kind="essential_oil",
                             method_reference="Test method reference")
         db.add(batch)
@@ -90,7 +92,7 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     preview = first_preview.json()
     first_url = preview["snapshot"]["url"]
     assert first_url.startswith(BASE_URL + "/api/depositions/public/EXU/")
-    assert preview["snapshot"]["schema_version"] == 2
+    assert preview["snapshot"]["schema_version"] == 3
     assert preview["snapshot"]["identifier"] == first_url.replace("/api/depositions/public/", "/depositions/")
     assert [voucher["id"] for voucher in preview["snapshot"]["vouchers"]] == [specimen.specimen_id]
     assert client.get(first_url).status_code == 404
@@ -98,9 +100,12 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     assert client.get(first_page).status_code == 404
     selected = preview["snapshot"]["profiles"][0]
     assert selected["sample"]["id"] == sample_id
-    assert selected["sample"]["voucher_relationship"] == "collected_alongside"
+    assert [(link["id"], link["role"]) for link in selected["sample"]["vouchers"]] == [
+        (specimen.specimen_id, "collected_alongside")]
+    assert selected["sample"]["vouchers"][0]["redetermined_since_linking"] is False
+    assert selected["sample"]["material_state"] == "air-dried"
     assert selected["preparation"]["method_reference"] == "Test method reference"
-    assert selected["voucher"]["location"] is None
+    assert preview["snapshot"]["vouchers"][0]["location"] is None
     assert "Private site details" not in first_preview.text
     assert selected["file"]["sha256"] == sha256(source).hexdigest()
     file_url = selected["file"]["url"]
@@ -167,7 +172,7 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     original.write_bytes(source)
     assert client.put("/api/specimen/update-specimen", headers=admin, params={"specimen_id": specimen.specimen_id},
                       json={"subnomen": "Revised determination"}).status_code == 200
-    old_determination = client.get(first_url).json()["snapshot"]["profiles"][0]["voucher"]["determination"]
+    old_determination = client.get(first_url).json()["snapshot"]["vouchers"][0]["determination"]
     assert old_determination["name_as_recorded"] == "Approved determination"
 
     doi_url = f"{path}/versions/1/article-doi"
@@ -191,7 +196,8 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     second_page = second_url.replace("/api/depositions/public/", "/depositions/")
     second = client.get(second_url).json()["snapshot"]
     assert second["supersedes"] == first_url
-    assert second["profiles"][0]["voucher"]["determination"]["name_as_recorded"] == "Revised determination"
+    assert second["vouchers"][0]["determination"]["name_as_recorded"] == "Revised determination"
+    assert second["profiles"][0]["sample"]["vouchers"][0]["redetermined_since_linking"] is True
     superseded = client.get(first_url).json()
     assert superseded["status"] == "superseded" and superseded["snapshot"] == published["snapshot"]
     assert "A newer version is available" in client.get(first_page).text

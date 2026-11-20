@@ -1,13 +1,16 @@
 """Database operations for studies, profiles, and saved analyses."""
 
-from sqlalchemy import select
+from sqlalchemy import exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import LabSample, Measurement, PCAAnalysis, Preparation, Profile, Study
+from app.chemistry.models import LabSample, Measurement, PCAAnalysis, Preparation, Profile, SampleVoucher, Study
+from app.field_loc.models import FieldLoc
 from app.publication.models import Publication
 from app.specimen.models import Specimen
+from app.chemistry.schemas.chemistry_schemas import VOUCHER_ROLES as ROLE_ORDER
+from app.taxonomy.models import Taxonomy
 
 
 class ChemistryRepository:
@@ -35,8 +38,16 @@ class ChemistryRepository:
     def publication_exists(self, publication_id: str):
         return self.db.get(Publication, publication_id) is not None
 
-    def specimen_exists(self, specimen_id: str):
-        return self.db.get(Specimen, specimen_id) is not None
+    def get_specimens(self, specimen_ids: list[str]):
+        rows = self.db.execute(
+            select(Specimen, Taxonomy.taxon_name)
+            .outerjoin(Taxonomy, Taxonomy.taxon_id == Specimen.taxon_id)
+            .where(Specimen.specimen_id.in_(specimen_ids))
+        ).all()
+        return {specimen.specimen_id: (specimen, taxon_name) for specimen, taxon_name in rows}
+
+    def field_loc_exists(self, field_loc_id: str):
+        return self.db.get(FieldLoc, field_loc_id) is not None
 
     def public_specimen_exists(self, specimen_id: str):
         return self.db.scalar(select(Specimen.specimen_id).where(
@@ -44,10 +55,38 @@ class ChemistryRepository:
         )) is not None
 
     def list_study_samples(self, study_id: str):
-        query = (select(LabSample, Specimen.reg_no, Specimen.holding_institution, Specimen.collection, Specimen.accession)
-                 .join(Specimen)
-                 .where(LabSample.study_id == study_id).order_by(LabSample.code))
-        return self.db.execute(query).all()
+        query = select(LabSample).where(LabSample.study_id == study_id).order_by(LabSample.code)
+        return self.db.scalars(query).all()
+
+    def list_sample_links(self, sample_ids):
+        """Linked vouchers per sample as (link, voucher, current taxon name), in role order."""
+        links = {sample_id: [] for sample_id in sample_ids}
+        if not links:
+            return links
+        rows = self.db.execute(
+            select(SampleVoucher, Specimen, Taxonomy.taxon_name)
+            .join(Specimen, Specimen.specimen_id == SampleVoucher.specimen_id)
+            .outerjoin(Taxonomy, Taxonomy.taxon_id == Specimen.taxon_id)
+            .where(SampleVoucher.sample_id.in_(list(links)))
+            .order_by(SampleVoucher.sample_id, SampleVoucher.specimen_id)
+        ).all()
+        for link, specimen, taxon_name in rows:
+            links[link.sample_id].append((link, specimen, taxon_name))
+        for rows in links.values():
+            rows.sort(key=lambda row: (ROLE_ORDER.index(row[0].role), row[0].specimen_id))
+        return links
+
+    def get_link(self, sample_id: str, specimen_id: str):
+        return self.db.get(SampleVoucher, (sample_id, specimen_id))
+
+    def count_links(self, sample_id: str):
+        return self.db.scalar(select(func.count()).where(SampleVoucher.sample_id == sample_id))
+
+    def sample_has_public_profile(self, sample_id: str):
+        return self.db.scalar(
+            select(Profile.id).join(Preparation, Preparation.id == Profile.preparation_id)
+            .where(Preparation.sample_id == sample_id, Profile.is_public.is_(True)).limit(1)
+        ) is not None
 
     def list_study_preparations(self, study_id: str):
         query = (select(Preparation).join(LabSample)
@@ -72,10 +111,17 @@ class ChemistryRepository:
 
     @classmethod
     def _released_profiles(cls):
+        unreleased_voucher = (
+            select(SampleVoucher.sample_id)
+            .join(Specimen, Specimen.specimen_id == SampleVoucher.specimen_id)
+            .where(SampleVoucher.sample_id == LabSample.id, Specimen.is_public.is_not(True))
+        )
+        any_voucher = select(SampleVoucher.sample_id).where(SampleVoucher.sample_id == LabSample.id)
+        # Every linked voucher must be released, and a sample always has at least one.
         return (cls._profile_records()
                 .join(Study, Study.id == LabSample.study_id)
-                .join(Specimen, Specimen.specimen_id == LabSample.specimen_id)
-                .where(Study.is_public.is_(True), Profile.is_public.is_(True), Specimen.is_public.is_(True)))
+                .where(Study.is_public.is_(True), Profile.is_public.is_(True),
+                       exists(any_voucher), ~exists(unreleased_voucher)))
 
     def list_released_study_profiles(self, study_id: str):
         query = (self._released_profiles().where(LabSample.study_id == study_id)
@@ -83,7 +129,9 @@ class ChemistryRepository:
         return self.db.execute(query).all()
 
     def list_released_specimen_profiles(self, specimen_id: str):
-        query = (self._released_profiles().where(LabSample.specimen_id == specimen_id)
+        linked = select(SampleVoucher.sample_id).where(
+            SampleVoucher.sample_id == LabSample.id, SampleVoucher.specimen_id == specimen_id)
+        query = (self._released_profiles().where(exists(linked))
                  .order_by(Study.title, LabSample.code, Profile.run_code, Profile.id))
         return self.db.execute(query).all()
 
@@ -106,8 +154,12 @@ class ChemistryRepository:
         )
         return self.db.scalar(query)
 
-    def save(self, record):
-        self.db.add(record)
+    def save(self, *records):
+        self.db.add_all(records)
+        self._commit()
+
+    def delete(self, record):
+        self.db.delete(record)
         self._commit()
 
     def _commit(self):

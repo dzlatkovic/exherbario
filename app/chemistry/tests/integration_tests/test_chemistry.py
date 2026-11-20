@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.encoders import jsonable_encoder
 
-from app.chemistry.models import LabSample
+from app.chemistry.models import SampleVoucher
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
 from app.tests import TestClass, TestingSessionLocal, client
 from app.users.services import UserServices, signJWT
@@ -35,7 +35,7 @@ class TestChemistry(TestClass):
         assert profiles.status_code == 200, profiles.text
         assert profiles.json() == []
         with TestingSessionLocal() as db:
-            assert db.query(LabSample).filter_by(specimen_id=specimen_id).count() == 0
+            assert db.query(SampleVoucher).filter_by(specimen_id=specimen_id).count() == 0
 
     def test_drafts_release_and_reproducible_pca(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -61,9 +61,9 @@ class TestChemistry(TestClass):
         source_bytes = []
         for index, values in enumerate(((20, 35, 45), (25, 35, 40), (10, 45, 45))):
             sample = client.post(study_url + "/samples", headers=owner, json={
-                "specimen_id": specimen.specimen_id, "code": f"sample-{index}",
-                "plant_part": "leaf", "collection_event": f"collection-{index}",
-                "voucher_relationship": "collected_alongside",
+                "vouchers": [{"specimen_id": specimen.specimen_id, "role": "collected_alongside"}],
+                "code": f"sample-{index}", "plant_part": "leaf", "material_state": "air-dried",
+                "collection_notes": f"collection-{index}",
             })
             assert sample.status_code == 201, sample.text
             sample_id = sample.json()["id"]
@@ -113,10 +113,10 @@ class TestChemistry(TestClass):
         assert client.put(voucher_visibility, json=voucher_state, headers=curator).status_code == 200
         released = client.get(public_profile)
         assert released.status_code == 200, released.text
-        assert released.json()["specimen_id"] == specimen.specimen_id
+        assert [link["specimen_id"] for link in released.json()["vouchers"]] == [specimen.specimen_id]
         assert [row["value"] for row in released.json()["measurements"]] == [20, 35, 45]
         assert "source_name" not in released.json()
-        assert "collection_event" not in released.json()
+        assert "collection_notes" not in released.json() and "collection-0" not in released.text
         assert [row["id"] for row in client.get(voucher_profiles).json()] == [first]
         assert [row["id"] for row in client.get(public_study).json()["profiles"]] == [first]
         assert client.get(f"{base}/public/profiles/{profiles[1]}").status_code == 404

@@ -28,6 +28,19 @@ def researcher():
     return HTMLResponse(templates.get_template("researcher.html").render(), headers=PAGE_HEADERS)
 
 
+def profile_vouchers(snapshot):
+    """Pair each profile with its vouchers: one per profile up to schema 2, the sample's links from schema 3."""
+    by_id = {voucher["id"]: voucher for voucher in snapshot.get("vouchers") or []}
+    pairs = {}
+    for profile in snapshot["profiles"]:
+        if "voucher" in profile:
+            pairs[profile["id"]] = [(profile["voucher"], {"role": profile["sample"].get("voucher_relationship")})]
+        else:
+            pairs[profile["id"]] = [(by_id[link["id"]], link) for link in profile["sample"]["vouchers"]]
+    linked = {voucher["id"] for vouchers in pairs.values() for voucher, _ in vouchers}
+    return pairs, [voucher for voucher in snapshot.get("vouchers") or [] if voucher["id"] not in linked]
+
+
 @router.get("/depositions/{institution}/{accession}/versions/{number}", response_class=HTMLResponse)
 def public_deposition(institution: str, accession: str, number: int = RoutePath(ge=1, le=2_147_483_647),
                       db: Session = Depends(get_db)):
@@ -46,8 +59,9 @@ def public_deposition(institution: str, accession: str, number: int = RoutePath(
     link = record["dataset_doi"]["url"] if record.get("dataset_doi") else record.get("identifier")
     if link:
         citation += f" {link}"
+    linked, unprofiled = profile_vouchers(snapshot) if snapshot else ({}, [])
     page = templates.get_template("deposition.html").render(
-        record=record, snapshot=snapshot, citation=citation,
+        record=record, snapshot=snapshot, citation=citation, linked=linked, unprofiled=unprofiled,
         current_url=page_url(record["url"]), latest_url=page_url(record["latest_version_url"]),
         previous_url=page_url(snapshot["supersedes"]) if snapshot else None,
     )

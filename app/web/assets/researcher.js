@@ -12,7 +12,16 @@ const state = {
   draft: null,
   dirty: true,
   approval: null,
+  sampleVouchers: [],
 };
+const VOUCHER_ROLES = [
+  ["sampled_from_voucher", "Sampled from the voucher"],
+  ["same_individual", "Same individual"],
+  ["same_population", "Same population"],
+  ["collected_alongside", "Collected alongside"],
+  ["cultivated_from", "Cultivated from the voucher"],
+  ["reference_for_commercial_material", "Reference for commercial material"],
+];
 
 function node(tag, text = "", className = "") {
   const element = document.createElement(tag);
@@ -76,6 +85,52 @@ function requiredSelection(value, message) {
   return value;
 }
 
+function voucherLabel(voucher) {
+  return voucher.accession || voucher.reg_no || voucher.specimen_id;
+}
+
+function renderSampleVouchers() {
+  const rows = state.sampleVouchers.map((link, index) => {
+    const row = node("div", "", "credit-row");
+    const voucher = link.voucher;
+    row.append(node("p", [voucher.subnomen, voucherLabel(voucher)].filter(Boolean).join(" · ")));
+    const label = node("label", "Role");
+    const role = document.createElement("select");
+    for (const [value, text] of VOUCHER_ROLES) role.append(new Option(text, value));
+    role.value = link.role;
+    role.addEventListener("change", () => { link.role = role.value; });
+    label.append(role);
+    const remove = node("button", "Remove", "secondary");
+    remove.type = "button";
+    remove.addEventListener("click", () => { state.sampleVouchers.splice(index, 1); renderSampleVouchers(); });
+    row.append(label, remove);
+    return row;
+  });
+  find("sample-vouchers").replaceChildren(...rows);
+  const site = find("create-sample").elements.site_specimen_id;
+  selectOptions(site, state.sampleVouchers.map(({voucher}) => ({id: voucher.specimen_id, label: voucherLabel(voucher)})),
+    "Select a linked voucher", site.value);
+}
+
+function renderSiteFields() {
+  const site = find("sample-site").value;
+  find("site-voucher-field").hidden = site !== "voucher";
+  find("site-location-field").hidden = site !== "field_location";
+}
+
+function renderSampleNotice() {
+  const sample = (state.study?.samples ?? []).find((item) => item.id === find("choose-sample").value);
+  const changed = (sample?.vouchers ?? []).filter((link) => link.redetermined);
+  const notice = find("sample-notice");
+  notice.hidden = !changed.length;
+  notice.replaceChildren(...changed.map((link) => {
+    const before = link.determination_at_link, now = link.current_determination;
+    const name = (value) => value.name_as_recorded || value.taxon_name || "undetermined";
+    return node("p", `Voucher ${link.accession || link.reg_no || link.specimen_id} was redetermined after this sample `
+      + `was linked. Recorded then: ${name(before)}. Now: ${name(now)}`);
+  }));
+}
+
 function voucherSelected(voucher) {
   state.voucher = voucher;
   const number = voucher.accession || voucher.reg_no;
@@ -94,13 +149,15 @@ function renderStudy(sampleId = "", preparationId = "") {
   const samples = state.study?.samples ?? [];
   selectOptions(find("choose-sample"), samples.map((sample) => ({
     id: sample.id,
-    label: `${sample.code} · ${sample.accession || sample.reg_no || sample.specimen_id}`,
+    label: [sample.code, ...(sample.vouchers ?? []).map(voucherLabel)].join(" · ")
+      + (sample.redetermined ? " · voucher redetermined" : ""),
   })), "Select a sample", sampleId);
   renderPreparations(preparationId);
+  renderSampleNotice();
   const profiles = state.study?.profiles ?? [];
   selectOptions(find("choose-profile"), profiles.map((profile) => ({
     id: profile.id,
-    label: `${profile.run_code} · ${profile.source_name}`,
+    label: `${profile.run_code} · ${profile.source_name}` + (profile.redetermined ? " · voucher redetermined" : ""),
   })), "Select a profile");
   find("profile-picker").hidden = !profiles.length;
 }
@@ -361,16 +418,39 @@ bindForm("create-study", async (data, form) => {
   form.reset();
   return "Study created.";
 });
-find("choose-sample").addEventListener("change", () => renderPreparations());
+find("choose-sample").addEventListener("change", () => { renderPreparations(); renderSampleNotice(); });
+find("add-sample-voucher").addEventListener("click", () => {
+  const feedback = find("create-sample").querySelector(".feedback");
+  if (!state.voucher) return status(feedback, "Use a voucher in the Voucher section first.", true);
+  if (state.sampleVouchers.some(({voucher}) => voucher.specimen_id === state.voucher.specimen_id)) {
+    return status(feedback, "That voucher is already in the list.", true);
+  }
+  const role = state.sampleVouchers.length ? "same_population" : "sampled_from_voucher";
+  state.sampleVouchers.push({voucher: state.voucher, role});
+  renderSampleVouchers();
+  status(feedback);
+});
+find("sample-site").addEventListener("change", renderSiteFields);
 bindForm("create-sample", async (data, form) => {
-  const voucher = requiredSelection(state.voucher, "Select a voucher first.");
   const study = requiredSelection(state.study, "Select a study first.");
-  const payload = {...Object.fromEntries(data), specimen_id: voucher.specimen_id};
-  const sample = await request(`/api/chemistry/studies/${endpoint(study.id)}/samples`, {method: "POST", json: payload});
-  study.samples.push({...payload, ...sample, accession: voucher.accession, reg_no: voucher.reg_no});
-  if (state.study === study) renderStudy(sample.id);
+  if (!state.sampleVouchers.length) throw new Error("Add at least one voucher to the sample.");
+  const site = data.get("site");
+  const payload = Object.fromEntries([...data].filter(([name, value]) =>
+    !["site", "site_specimen_id", "field_loc_id"].includes(name) && value.trim()));
+  if (site === "voucher") payload.site_specimen_id = requiredSelection(data.get("site_specimen_id"), "Select the site voucher.");
+  if (site === "field_location") payload.field_loc_id = requiredSelection(data.get("field_loc_id").trim(), "Enter a field location ID.");
+  payload.vouchers = state.sampleVouchers.map(({voucher, role}) => ({specimen_id: voucher.specimen_id, role}));
+  await request(`/api/chemistry/studies/${endpoint(study.id)}/samples`, {method: "POST", json: payload});
+  const refreshed = await request(`/api/chemistry/studies/${endpoint(study.id)}`);
+  if (state.study === study) {
+    state.study = refreshed;
+    renderStudy(refreshed.samples.find((sample) => sample.code === payload.code.trim())?.id ?? "");
+  }
   form.reset();
-  return "Sample linked.";
+  state.sampleVouchers = [];
+  renderSampleVouchers();
+  renderSiteFields();
+  return "Sample added.";
 });
 bindForm("create-preparation", async (data, form) => {
   const study = requiredSelection(state.study, "Select a study first.");

@@ -5,10 +5,13 @@ from pathlib import PurePosixPath
 from typing import BinaryIO
 from uuid import uuid4
 
+from app.chemistry.sample_links import new_link
 from app.chemistry.exceptions import ChemistryError
 from app.chemistry.models import LabSample, PCAAnalysis, Preparation, Profile, Study
 from app.chemistry.repository import ChemistryRepository
-from app.chemistry.schemas import Basis, PCAIn, PreparationIn, SampleIn, StudyIn
+from app.chemistry.schemas import Basis, PCAIn, PreparationIn, SampleIn, StudyIn, VoucherLinkIn
+from app.chemistry.schemas.chemistry_schemas import MAX_SAMPLE_VOUCHERS
+from app.db import new_id
 from app.file_storage import FILES_ROOT, archive_member, store_upload
 from app.users.models import User
 
@@ -47,27 +50,66 @@ class ChemistryService:
 
     def get_study(self, study_id: str, actor: User):
         study = self._study_for_actor(study_id, actor)
+        samples = self.repository.list_study_samples(study_id)
         return (
             study,
-            self.repository.list_study_samples(study_id),
+            samples,
+            self.repository.list_sample_links([sample.id for sample in samples]),
             self.repository.list_study_preparations(study_id),
             self.repository.list_study_profiles(study_id),
             self.repository.list_study_analyses(study_id),
         )
 
+    def _vouchers(self, specimen_ids: list[str]):
+        found = self.repository.get_specimens(specimen_ids)
+        missing = [specimen_id for specimen_id in specimen_ids if specimen_id not in found]
+        if missing:
+            raise ChemistryError(404, "Voucher specimen not found: " + ", ".join(missing))
+        return found
+
     def create_sample(self, study_id: str, data: SampleIn, actor: User):
         self._study_for_actor(study_id, actor)
-        if not self.repository.specimen_exists(data.specimen_id):
-            raise ChemistryError(404, "Voucher specimen not found.")
-        sample = LabSample(study_id=study_id, **data.model_dump())
-        self.repository.save(sample)
+        vouchers = self._vouchers([link.specimen_id for link in data.vouchers])
+        if data.field_loc_id and not self.repository.field_loc_exists(data.field_loc_id):
+            raise ChemistryError(404, "Field location not found.")
+        sample = LabSample(id=new_id(), study_id=study_id, **data.model_dump(exclude={"vouchers"}))
+        links = [new_link(sample.id, *vouchers[link.specimen_id], link.role) for link in data.vouchers]
+        self.repository.save(sample, *links)
         return sample
 
-    def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
+    def _sample_for_actor(self, sample_id: str, actor: User):
         sample = self.repository.get_sample(sample_id)
         if not sample:
             raise ChemistryError(404, "Sample not found.")
         self._study_for_actor(sample.study_id, actor)
+        return sample
+
+    def add_sample_voucher(self, sample_id: str, data: VoucherLinkIn, actor: User):
+        sample = self._sample_for_actor(sample_id, actor)
+        if self.repository.get_link(sample_id, data.specimen_id):
+            raise ChemistryError(409, "This voucher is already linked to the sample.")
+        if self.repository.count_links(sample_id) >= MAX_SAMPLE_VOUCHERS:
+            raise ChemistryError(422, f"A sample can link at most {MAX_SAMPLE_VOUCHERS} vouchers.")
+        specimen, taxon_name = self._vouchers([data.specimen_id])[data.specimen_id]
+        link = new_link(sample.id, specimen, taxon_name, data.role)
+        self.repository.save(link)
+        return link
+
+    def remove_sample_voucher(self, sample_id: str, specimen_id: str, actor: User):
+        sample = self._sample_for_actor(sample_id, actor)
+        link = self.repository.get_link(sample_id, specimen_id)
+        if link is None:
+            raise ChemistryError(404, "This voucher is not linked to the sample.")
+        if self.repository.count_links(sample_id) == 1:
+            raise ChemistryError(409, "A sample must stay linked to at least one voucher.")
+        if sample.site_specimen_id == specimen_id:
+            raise ChemistryError(409, "This voucher gives the sample's collection site.")
+        if self.repository.sample_has_public_profile(sample_id):
+            raise ChemistryError(409, "Withdraw the sample's released profiles before removing a voucher.")
+        self.repository.delete(link)
+
+    def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
+        self._sample_for_actor(sample_id, actor)
         preparation = Preparation(sample_id=sample_id, **data.model_dump())
         self.repository.save(preparation)
         return preparation
@@ -188,15 +230,19 @@ class ChemistryService:
         profiles = self.repository.list_released_study_profiles(study_id)
         if not profiles:
             raise ChemistryError(404, "Study not found.")
-        return study, profiles
+        return study, profiles, self._links_for(profiles)
+
+    def _links_for(self, records):
+        return self.repository.list_sample_links(sorted({sample.id for _, _, sample in records}))
 
     def get_public_profile(self, profile_id: str):
         record = self.repository.get_released_profile(profile_id)
         if record is None:
             raise ChemistryError(404, "Profile not found.")
-        return record, self.repository.list_measurements([profile_id])
+        return record, self._links_for([record]), self.repository.list_measurements([profile_id])
 
     def get_public_specimen_profiles(self, specimen_id: str):
         if not self.repository.public_specimen_exists(specimen_id):
             raise ChemistryError(404, "Specimen not found.")
-        return self.repository.list_released_specimen_profiles(specimen_id)
+        profiles = self.repository.list_released_specimen_profiles(specimen_id)
+        return profiles, self._links_for(profiles)

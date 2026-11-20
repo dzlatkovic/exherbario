@@ -14,7 +14,8 @@ import pytest
 from PIL import Image
 from sqlalchemy import MetaData, Table, URL, select
 
-from app.chemistry.models import LabSample, Preparation, Profile, Study
+from app.chemistry.models import LabSample, Preparation, Profile, SampleVoucher, Study
+from app.chemistry.sample_links import new_link
 from app.db import SessionLocal
 from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
@@ -137,11 +138,11 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         study = Study(owner_id=admin.user_id, title="Synthetic study", description="")
         db.add(study)
         db.flush()
-        sample = LabSample(study_id=study.id, specimen_id=specimen.specimen_id, code="Sample",
-                           plant_part="leaf", collection_event="Synthetic site",
-                           voucher_relationship="collected_alongside")
+        sample = LabSample(study_id=study.id, code="Sample", plant_part="leaf", material_state="air-dried",
+                           collection_notes="Synthetic site")
         db.add(sample)
         db.flush()
+        db.add(new_link(sample.id, db.get(Specimen, specimen.specimen_id), None, "collected_alongside"))
         preparation = Preparation(sample_id=sample.id, batch_code="Batch",
                                   kind="essential_oil", method_reference="Synthetic reference")
         db.add(preparation)
@@ -260,9 +261,11 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
                 id=study_id, owner_id=admin.user_id, title="Synthetic study",
                 description="", is_public=True,
             ))
-            connection.execute(LabSample.__table__.insert().values(
+            # Revision 0003 still stores one voucher per sample on the sample row.
+            old_samples = Table("chemistry_sample", old_metadata, autoload_with=connection)
+            connection.execute(old_samples.insert().values(
                 id=sample_id, study_id=study_id, specimen_id=specimen_id, code="Sample",
-                plant_part="leaf", collection_event="Synthetic site", voucher_relationship="collected_alongside",
+                plant_part="Leaves", collection_event="Synthetic site", voucher_relationship="collected_alongside",
             ))
             connection.execute(Preparation.__table__.insert().values(
                 id=preparation_id, sample_id=sample_id, batch_code="Batch",
@@ -298,10 +301,14 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             assert not image.is_public and image.file_path == "images/archived.jpg" and image.sha256 is None
             assert image.specimen_id == specimen_id
             assert db.get(Revision, revision_id).prev_subnomen == specimen_data.subnomen
+            sample = db.get(LabSample, sample_id)
+            assert (sample.plant_part, sample.plant_part_note, sample.collection_notes) == ("leaf", None, "Synthetic site")
+            link = db.get(SampleVoucher, (sample_id, specimen_id))
+            assert link.role == "collected_alongside" and link.determination_recorded == "at_migration"
+            assert link.name_at_link == "Earlier redetermination"
             assert db.get(Study, study_id).is_public
             legacy = db.get(Profile, profile_id)
             assert legacy.is_public and legacy.source_path is None and legacy.source_sha256 is None
-            assert db.get(LabSample, sample_id).specimen_id == specimen_id
             assert db.scalars(select(Deposition)).all() == []
             assert db.scalars(select(ScientificCorrection)).all() == []
         assert client.get(f"/api/specimen/{specimen_id}").status_code == 404

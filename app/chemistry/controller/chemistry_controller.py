@@ -5,7 +5,9 @@ from fastapi.responses import JSONResponse, Response
 
 from app.chemistry.exceptions import ChemistryError
 from app.chemistry.models import LabSample, Measurement, PCAAnalysis, Preparation, Profile, Study
-from app.chemistry.schemas import Basis, PCAIn, PreparationIn, PublicState, SampleIn, StudyIn
+from app.chemistry.sample_links import (PROVENANCE, current_determination, determination_at_link, public_site,
+                                        redetermined)
+from app.chemistry.schemas import Basis, PCAIn, PreparationIn, PublicState, SampleIn, StudyIn, VoucherLinkIn
 from app.chemistry.services import ChemistryService
 from app.users.models import User
 
@@ -30,11 +32,40 @@ def _profile_summary(profile: Profile):
     }
 
 
-def _released_profile_summary(profile: Profile, preparation: Preparation, sample: LabSample):
+def _workspace_link(link, specimen, taxon_name):
     return {
-        "id": profile.id, "study_id": sample.study_id, "specimen_id": sample.specimen_id,
-        "sample_code": sample.code, "plant_part": sample.plant_part,
-        "voucher_relationship": sample.voucher_relationship,
+        "specimen_id": link.specimen_id, "role": link.role, "reg_no": specimen.reg_no,
+        "holding_institution": specimen.holding_institution, "collection": specimen.collection,
+        "accession": specimen.accession, "is_public": bool(specimen.is_public),
+        "determination_at_link": determination_at_link(link),
+        "current_determination": current_determination(specimen, taxon_name),
+        "redetermined": redetermined(link, specimen),
+    }
+
+
+def _public_link(link, specimen, _taxon_name):
+    return {
+        "specimen_id": link.specimen_id, "role": link.role,
+        "determination_at_link": determination_at_link(link), "redetermined": redetermined(link, specimen),
+    }
+
+
+def _workspace_sample(sample: LabSample, links):
+    return {
+        "id": sample.id, "code": sample.code, **{name: getattr(sample, name) for name in PROVENANCE},
+        "site_specimen_id": sample.site_specimen_id, "field_loc_id": sample.field_loc_id,
+        "collection_notes": sample.collection_notes,
+        "vouchers": [_workspace_link(*row) for row in links],
+        "redetermined": any(redetermined(link, specimen) for link, specimen, _ in links),
+    }
+
+
+def _released_profile_summary(profile: Profile, preparation: Preparation, sample: LabSample, links):
+    return {
+        "id": profile.id, "study_id": sample.study_id, "sample_code": sample.code,
+        **{name: getattr(sample, name) for name in PROVENANCE}, "site": public_site(sample, links),
+        "vouchers": [_public_link(*row) for row in links],
+        "redetermined": any(redetermined(link, specimen) for link, specimen, _ in links),
         "batch_code": preparation.batch_code, "preparation_kind": preparation.kind,
         "method_reference": preparation.method_reference, "run_code": profile.run_code,
         "analytical_method": profile.analytical_method, "measurement_basis": profile.measurement_basis,
@@ -69,17 +100,14 @@ class ChemistryController:
         return _study_summary(self.service.create_study(data, actor))
 
     def get_study(self, study_id: str, actor: User):
-        study, samples, preparations, profiles, analyses = self.service.get_study(study_id, actor)
+        study, samples, links, preparations, profiles, analyses = self.service.get_study(study_id, actor)
+        redetermined_samples = {
+            sample_id for sample_id, rows in links.items()
+            if any(redetermined(link, specimen) for link, specimen, _ in rows)
+        }
         return {
             **_study_summary(study),
-            "samples": [
-                {"id": sample.id, "code": sample.code, "specimen_id": sample.specimen_id,
-                 "reg_no": reg_no, "holding_institution": institution, "collection": collection,
-                 "accession": accession, "plant_part": sample.plant_part,
-                 "collection_event": sample.collection_event,
-                 "voucher_relationship": sample.voucher_relationship}
-                for sample, reg_no, institution, collection, accession in samples
-            ],
+            "samples": [_workspace_sample(sample, links[sample.id]) for sample in samples],
             "preparations": [
                 {"id": preparation.id, "sample_id": preparation.sample_id,
                  "batch_code": preparation.batch_code, "kind": preparation.kind,
@@ -87,7 +115,8 @@ class ChemistryController:
                 for preparation in preparations
             ],
             "profiles": [
-                {**_profile_summary(profile), "sample_code": sample.code, "batch_code": preparation.batch_code}
+                {**_profile_summary(profile), "sample_code": sample.code, "batch_code": preparation.batch_code,
+                 "redetermined": sample.id in redetermined_samples}
                 for profile, preparation, sample in profiles
             ],
             "analyses": [{"id": analysis_id, "created_at": created_at} for analysis_id, created_at in analyses],
@@ -95,6 +124,14 @@ class ChemistryController:
 
     def create_sample(self, study_id: str, data: SampleIn, actor: User):
         return {"id": self.service.create_sample(study_id, data, actor).id}
+
+    def add_sample_voucher(self, sample_id: str, data: VoucherLinkIn, actor: User):
+        link = self.service.add_sample_voucher(sample_id, data, actor)
+        return {"sample_id": link.sample_id, "specimen_id": link.specimen_id, "role": link.role,
+                "determination_at_link": determination_at_link(link)}
+
+    def remove_sample_voucher(self, sample_id: str, specimen_id: str, actor: User):
+        self.service.remove_sample_voucher(sample_id, specimen_id, actor)
 
     def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
         return {"id": self.service.create_preparation(sample_id, data, actor).id}
@@ -136,16 +173,16 @@ class ChemistryController:
         return _analysis_summary(self.service.get_pca(study_id, analysis_id, actor))
 
     def get_public_study(self, study_id: str):
-        study, profiles = self.service.get_public_study(study_id)
+        study, profiles, links = self.service.get_public_study(study_id)
         return {
             **_study_summary(study),
-            "profiles": [_released_profile_summary(*record) for record in profiles],
+            "profiles": [_released_profile_summary(*record, links[record[2].id]) for record in profiles],
         }
 
     def get_public_profile(self, profile_id: str):
-        record, rows = self.service.get_public_profile(profile_id)
-        return {**_released_profile_summary(*record), "measurements": _measurements(rows)}
+        record, links, rows = self.service.get_public_profile(profile_id)
+        return {**_released_profile_summary(*record, links[record[2].id]), "measurements": _measurements(rows)}
 
     def get_public_specimen_profiles(self, specimen_id: str):
-        profiles = self.service.get_public_specimen_profiles(specimen_id)
-        return [_released_profile_summary(*record) for record in profiles]
+        profiles, links = self.service.get_public_specimen_profiles(specimen_id)
+        return [_released_profile_summary(*record, links[record[2].id]) for record in profiles]

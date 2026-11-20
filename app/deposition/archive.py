@@ -12,7 +12,8 @@ SNAPSHOT_NAME = "deposition.json"
 MAX_SOURCE_BYTES = 512 * 1024
 MAX_SNAPSHOT_BYTES = 96 * 1024 * 1024
 MAX_MANIFEST_BYTES = 128 * 1024
-SCHEMA_VERSION = 2
+# Version 3 lists every voucher linked to each profile's sample, with its role.
+SCHEMA_VERSION = 3
 MAX_PROFILES = 50
 MAX_VOUCHERS = 250
 
@@ -27,7 +28,7 @@ def snapshot_digest(snapshot) -> str:
 
 def manifest_for(snapshot, encoded: bytes) -> dict:
     schema = snapshot["schema_version"]
-    if schema not in (1, 2):
+    if schema not in (1, 2, 3):
         raise ValueError("Unsupported deposition snapshot version.")
     profiles = snapshot["profiles"]
     if schema == 1:
@@ -44,8 +45,12 @@ def manifest_for(snapshot, encoded: bytes) -> dict:
         if len(set(voucher_ids)) != len(voucher_ids) or not all(
                 isinstance(voucher_id, str) and voucher_id for voucher_id in voucher_ids):
             raise ValueError("Invalid or duplicate voucher ID in the snapshot.")
-        if any(profile["voucher"]["id"] not in voucher_ids for profile in profiles):
+        if schema == 2 and any(profile["voucher"]["id"] not in voucher_ids for profile in profiles):
             raise ValueError("Each profile's voucher must be listed in the snapshot.")
+        if schema >= 3 and not all(
+                profile["sample"]["vouchers"] and all(link["id"] in voucher_ids for link in profile["sample"]["vouchers"])
+                for profile in profiles):
+            raise ValueError("Each voucher linked to a profile's sample must be listed in the snapshot.")
     digest = sha256(encoded).hexdigest()
     entries = [{"path": SNAPSHOT_NAME, "size": len(encoded), "sha256": digest}]
     profile_ids = set()

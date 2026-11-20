@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.chemistry.controller import ChemistryController
 from app.chemistry.repository import ChemistryRepository
-from app.chemistry.schemas import Basis, PCAIn, PreparationIn, PublicState, SampleIn, StudyIn
+from app.chemistry.schemas import Basis, PCAIn, PreparationIn, PublicState, SampleIn, StudyIn, VoucherLinkIn
 from app.chemistry.services import ChemistryService
 from app.db import get_db
 from app.users.controller import JWTBearer
@@ -44,6 +44,18 @@ def get_study(study_id: str, actor: User = Depends(authenticated),
 def create_sample(study_id: str, data: SampleIn, actor: User = Depends(authenticated),
                   controller: ChemistryController = Depends(get_chemistry_controller)):
     return controller.create_sample(study_id, data, actor)
+
+
+@chemistry_router.post("/samples/{sample_id}/vouchers", status_code=201)
+def add_sample_voucher(sample_id: str, data: VoucherLinkIn, actor: User = Depends(authenticated),
+                       controller: ChemistryController = Depends(get_chemistry_controller)):
+    return controller.add_sample_voucher(sample_id, data, actor)
+
+
+@chemistry_router.delete("/samples/{sample_id}/vouchers/{specimen_id}", status_code=204)
+def remove_sample_voucher(sample_id: str, specimen_id: str, actor: User = Depends(authenticated),
+                          controller: ChemistryController = Depends(get_chemistry_controller)):
+    controller.remove_sample_voucher(sample_id, specimen_id, actor)
 
 
 @chemistry_router.post("/samples/{sample_id}/preparations", status_code=201)

@@ -8,6 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 
 from app.catalog import public_location
+from app.chemistry.sample_links import PROVENANCE, determination_at_link, public_site, redetermined
 from app.chemistry.models import LabSample, Preparation, Profile, Study
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.services.chemistry_services import ChemistryService
@@ -17,7 +18,7 @@ from app.specimen.models import Specimen
 from app.taxonomy.models import Taxonomy
 from app.users.models import User
 
-from .archive import SCHEMA_VERSION
+from .archive import MAX_VOUCHERS, SCHEMA_VERSION
 from .models import Institution
 from .schemas import Draft
 
@@ -80,18 +81,28 @@ def selected_records(db, deposition, profile_ids):
     if not profile_ids:
         return {}
     records = db.execute(
-        select(Profile, Preparation, LabSample, Study, Specimen, Taxonomy)
+        select(Profile, Preparation, LabSample, Study)
         .join(Preparation, Profile.preparation_id == Preparation.id)
         .join(LabSample, Preparation.sample_id == LabSample.id)
         .join(Study, LabSample.study_id == Study.id)
-        .join(Specimen, LabSample.specimen_id == Specimen.specimen_id)
-        .outerjoin(Taxonomy, Specimen.taxon_id == Taxonomy.taxon_id)
         .where(Profile.id.in_(profile_ids))
-    )
+    ).all()
+    links = ChemistryRepository(db).list_sample_links(sorted({sample.id for _, _, sample, _ in records}))
     return {
-        profile.id: (profile, preparation, sample, study, voucher, taxon)
-        for profile, preparation, sample, study, voucher, taxon in records
+        profile.id: (profile, preparation, sample, study, links[sample.id])
+        for profile, preparation, sample, study in records
         if (owner.is_superuser or study.owner_id == owner.user_id)
+    }
+
+
+def _sample_metadata(sample, links):
+    return {
+        "id": sample.id, "code": sample.code, **{name: getattr(sample, name) for name in PROVENANCE},
+        "site": public_site(sample, links),
+        "vouchers": [{
+            "id": link.specimen_id, "role": link.role, "determination_at_link": determination_at_link(link),
+            "redetermined_since_linking": redetermined(link, voucher),
+        } for link, voucher, _ in links],
     }
 
 
@@ -124,19 +135,24 @@ def build_snapshot(db, deposition):
     institution = registered_institution(db, deposition.institution)
     records = selected_records(db, deposition, draft.profile_ids)
     if set(records) != set(draft.profile_ids) or any(
-        not (profile.is_public and study.is_public and voucher.is_public)
-        for profile, _, _, study, voucher, _ in records.values()
+        not (profile.is_public and study.is_public and links and all(voucher.is_public for _, voucher, _ in links))
+        for profile, _, _, study, links in records.values()
     ):
-        raise HTTPException(409, "Select released profiles from studies available to the draft owner and released vouchers.")
+        raise HTTPException(409, "Select released profiles from studies available to the draft owner, "
+                                 "with every linked voucher released.")
     listed = selected_vouchers(db, draft.specimen_ids)
     if set(listed) != set(draft.specimen_ids) or not all(voucher.is_public for voucher, _ in listed.values()):
         raise HTTPException(409, "Select vouchers that exist and have been released by a curator.")
+    linked_ids = [link.specimen_id for *_, links in records.values() for link, _, _ in links]
+    linked = selected_vouchers(db, [specimen_id for specimen_id in linked_ids if specimen_id not in listed])
     measurements = {profile_id: [] for profile_id in draft.profile_ids}
     if draft.profile_ids:
         for row in ChemistryRepository(db).list_measurements(draft.profile_ids):
             measurements[row.profile_id].append({
                 "feature": row.feature, "value": row.value, "confidence": row.confidence, "status": row.status,
             })
+    if len(set(draft.specimen_ids) | set(linked_ids)) > MAX_VOUCHERS:
+        raise HTTPException(409, f"A deposition version can list at most {MAX_VOUCHERS} vouchers.")
     if not all(measurements.values()):
         raise HTTPException(409, "Each selected profile must have recorded measurements.")
     number = deposition.latest_version + 1
@@ -144,8 +160,9 @@ def build_snapshot(db, deposition):
     vouchers = {specimen_id: listed[specimen_id] for specimen_id in draft.specimen_ids}
     profiles, files = [], {}
     for profile_id in draft.profile_ids:
-        profile, preparation, sample, study, voucher, taxon = records[profile_id]
-        vouchers.setdefault(voucher.specimen_id, (voucher, taxon))
+        profile, preparation, sample, study, links = records[profile_id]
+        for link, _, _ in links:
+            vouchers.setdefault(link.specimen_id, linked.get(link.specimen_id) or listed[link.specimen_id])
         content = ChemistryService.read_profile_source(profile)
         if not content or len(content) > MAX_CSV_BYTES:
             raise HTTPException(409, f"Profile {profile_id} has an empty or oversized source file.")
@@ -155,11 +172,9 @@ def build_snapshot(db, deposition):
             "measurement_basis": profile.measurement_basis, "unit": profile.unit,
             "measurements": measurements[profile_id],
             "study": {"id": study.id, "title": study.title},
-            "sample": {"id": sample.id, "code": sample.code, "plant_part": sample.plant_part,
-                       "voucher_relationship": sample.voucher_relationship},
+            "sample": _sample_metadata(sample, links),
             "preparation": {"id": preparation.id, "batch_code": preparation.batch_code, "kind": preparation.kind,
                             "method_reference": preparation.method_reference},
-            "voucher": _voucher_metadata(voucher, taxon, draft),
             "file": {"name": profile.source_name, "source_fidelity": profile.source_fidelity,
                      "sha256": sha256(content).hexdigest(), "size": len(content), "url": f"{url}/files/{profile_id}"},
         })

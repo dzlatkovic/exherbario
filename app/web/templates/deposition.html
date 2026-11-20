@@ -15,6 +15,11 @@
   {% if voucher.location %}<div><dt>Region</dt><dd>{{ voucher.location.region or '' }}{% if voucher.location.region and voucher.location.country %}, {% endif %}{{ voucher.location.country or '' }}</dd></div>{% endif %}
 {% endmacro %}
 {% macro voucher_name(voucher) %}{{ voucher.determination.name_as_recorded or (voucher.determination.taxonomy.name if voucher.determination.taxonomy else 'Undetermined voucher') }}{% endmacro %}
+{% set roles = {
+  'sampled_from_voucher': 'Sampled from the voucher', 'same_individual': 'Same individual as the voucher',
+  'same_population': 'Same population as the voucher', 'collected_alongside': 'Collected alongside the voucher',
+  'cultivated_from': 'Cultivated from the voucher', 'reference_for_commercial_material': 'Reference for commercial material',
+} %}
 {% block body %}
 <main id="main" class="frame">
   {% if problem %}
@@ -61,8 +66,6 @@
     <div class="publication-grid">
       <div>
         {% if snapshot %}
-          {% set profiled = snapshot.profiles | map(attribute='voucher.id') | list %}
-          {% set unprofiled = (snapshot.vouchers or []) | rejectattr('id', 'in', profiled) | list %}
           {% if unprofiled %}
           <section aria-labelledby="vouchers-title">
             <h2 id="vouchers-title">Vouchers</h2>
@@ -78,13 +81,27 @@
           <section aria-labelledby="profiles-title">
             <h2 id="profiles-title">Vouchers and analytical profiles</h2>
             {% for profile in snapshot.profiles %}
-              {% set voucher = profile.voucher %}
+              {% set sample = profile.sample %}
               <article class="panel profile">
-                <h3>{{ voucher_name(voucher) }}</h3>
+                <h3>{{ voucher_name(linked[profile.id][0][0]) }} · {{ sample.code }}</h3>
+                {% for voucher, link in linked[profile.id] %}
+                <h4>{{ roles.get(link.role, link.role) }}</h4>
                 <dl class="facts">
                   {{ voucher_facts(voucher) }}
-                  <div><dt>Sample</dt><dd>{{ profile.sample.code }} · {{ profile.sample.plant_part }}</dd></div>
-                  <div><dt>Voucher relationship</dt><dd>{{ 'Sampled from the voucher' if profile.sample.voucher_relationship == 'sampled_from_voucher' else 'Collected alongside the voucher' }}</dd></div>
+                  {% if link.determination_at_link %}{% set at_link = link.determination_at_link %}
+                  <div><dt>Determination when linked</dt><dd>{{ at_link.name_as_recorded or at_link.taxon_name or 'Undetermined' }}{% if at_link.date %} · {{ at_link.date }}{% endif %}{% if at_link.recorded == 'at_migration' %} <span class="muted">(recorded when sample links were introduced)</span>{% endif %}</dd></div>
+                  {% endif %}
+                  {% if link.redetermined_since_linking %}<div><dt>Note</dt><dd>The voucher was redetermined after this sample was linked.</dd></div>{% endif %}
+                </dl>
+                {% endfor %}
+                <dl class="facts">
+                  <div><dt>Sample</dt><dd>{{ sample.code }} · {{ sample.plant_part }}{% if sample.plant_part_note %} ({{ sample.plant_part_note }}){% endif %}</dd></div>
+                  {% if sample.material_state %}<div><dt>Material state</dt><dd>{{ sample.material_state | capitalize }}</dd></div>{% endif %}
+                  {% if sample.collection_date %}<div><dt>Sample collected</dt><dd>{{ sample.collection_date }}</dd></div>{% endif %}
+                  {% if sample.phenological_stage %}<div><dt>Phenological stage</dt><dd>{{ sample.phenological_stage }}</dd></div>{% endif %}
+                  {% if sample.site and sample.site.location %}<div><dt>Sample region</dt><dd>{{ sample.site.location.region or '' }}{% if sample.site.location.region and sample.site.location.country %}, {% endif %}{{ sample.site.location.country or '' }}</dd></div>{% endif %}
+                  {% if sample.drying_notes %}<div><dt>Drying</dt><dd>{{ sample.drying_notes }}</dd></div>{% endif %}
+                  {% if sample.storage_notes %}<div><dt>Storage</dt><dd>{{ sample.storage_notes }}</dd></div>{% endif %}
                   <div><dt>Preparation</dt><dd>{{ profile.preparation.kind | replace('_', ' ') | capitalize }} · {{ profile.preparation.batch_code }}</dd></div>
                   <div><dt>Preparation method</dt><dd>{{ profile.preparation.method_reference }}</dd></div>
                   <div><dt>Analytical method</dt><dd>{{ profile.analytical_method }}</dd></div>

@@ -75,19 +75,45 @@
             <label>Sample <select id="choose-sample"><option value="">Select a sample</option></select></label>
             <label>Preparation <select id="choose-preparation"><option value="">Select a preparation</option></select></label>
           </div>
+          <div id="sample-notice" class="notice warning" role="status" hidden></div>
           <details class="form-details">
-            <summary>Link a sample to the selected voucher</summary>
+            <summary>Add a sample</summary>
             <form id="create-sample" class="stack">
+              <fieldset class="stack">
+                <legend>Linked vouchers</legend>
+                <p class="muted">Use a voucher above, then add it here with its role. Repeat for each voucher.</p>
+                <div id="sample-vouchers"></div>
+                <button type="button" id="add-sample-voucher" class="secondary">Add the selected voucher</button>
+              </fieldset>
               <div class="form-grid">
                 <label>Sample code <input name="code" required maxlength="80"></label>
-                <label>Plant part <input name="plant_part" required maxlength="100"></label>
-                <label>Collection event <input name="collection_event" required maxlength="200"></label>
-                <label>Voucher relationship <select name="voucher_relationship">
-                  <option value="sampled_from_voucher">Sampled from the voucher</option>
-                  <option value="collected_alongside">Collected alongside the voucher</option>
+                <label>Plant part <select name="plant_part" required>
+                  <option value="leaf">Leaf</option><option value="flower">Flower</option>
+                  <option value="inflorescence">Inflorescence</option><option value="aerial parts">Aerial parts</option>
+                  <option value="stem">Stem</option><option value="root">Root</option>
+                  <option value="rhizome">Rhizome</option><option value="bark">Bark</option>
+                  <option value="fruit">Fruit</option><option value="seed">Seed</option>
+                  <option value="whole plant">Whole plant</option><option value="other">Other</option>
                 </select></label>
+                <label>Plant part details <input name="plant_part_note" maxlength="200"></label>
+                <label>Material state <select name="material_state" required>
+                  <option value="fresh">Fresh</option><option value="air-dried">Air-dried</option>
+                  <option value="oven-dried">Oven-dried</option><option value="freeze-dried">Freeze-dried</option>
+                </select></label>
+                <label>Collection date <input name="collection_date" type="date"></label>
+                <label>Phenological stage <input name="phenological_stage" maxlength="100"></label>
+                <label>Collection site <select name="site" id="sample-site">
+                  <option value="">Not recorded</option>
+                  <option value="voucher">Same as a linked voucher</option>
+                  <option value="field_location">Its own field location</option>
+                </select></label>
+                <label id="site-voucher-field" hidden>Site voucher <select name="site_specimen_id"></select></label>
+                <label id="site-location-field" hidden>Field location ID <input name="field_loc_id" maxlength="50"></label>
               </div>
-              <button class="secondary">Link sample</button>
+              <label>Drying notes <textarea name="drying_notes" maxlength="1000" rows="2"></textarea></label>
+              <label>Storage notes <textarea name="storage_notes" maxlength="1000" rows="2"></textarea></label>
+              <label>Collection notes (private) <input name="collection_notes" maxlength="200"></label>
+              <button class="secondary">Add sample</button>
               <p class="feedback" role="status"></p>
             </form>
           </details>
