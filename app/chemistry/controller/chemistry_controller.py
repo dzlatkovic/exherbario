@@ -33,7 +33,7 @@ def _released_profile_summary(profile: Profile, preparation: Preparation, sample
     return {
         "id": profile.id, "study_id": sample.study_id, "specimen_id": sample.specimen_id,
         "sample_code": sample.code, "plant_part": sample.plant_part,
-        "voucher_relationship": sample.voucher_relationship, "collection_event": sample.collection_event,
+        "voucher_relationship": sample.voucher_relationship,
         "batch_code": preparation.batch_code, "preparation_kind": preparation.kind,
         "method_reference": preparation.method_reference, "run_code": profile.run_code,
         "analytical_method": profile.analytical_method, "measurement_basis": profile.measurement_basis,

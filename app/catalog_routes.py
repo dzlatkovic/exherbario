@@ -11,10 +11,12 @@ from sqlalchemy.orm import Session
 
 from app import catalog
 from app.db import get_db
-from app.image.exceptions import ImageNotFoundException, InvalidImageFileException
+from app.image.exceptions import InvalidImageFileException
+from app.image.models import Image
 from app.image.services import ImageService
 from app.specimen.models import Specimen
 from app.taxonomy.models import Taxonomy
+from app.users.controller import JWTBearer
 
 router = APIRouter()
 
@@ -26,8 +28,10 @@ class Filters:
                  end_date: date | None = None):
         if start_date and end_date and start_date > end_date:
             raise HTTPException(422, "The collection start date must come before the end date.")
+        if box.strip():
+            raise HTTPException(422, "Use the authenticated storage routes to search by box.")
         self.values = {"q": q.strip(), "reg_no": reg_no.strip(), "taxon": taxon.strip(),
-                       "region": region.strip(), "box": box.strip(), "start_date": start_date,
+                       "region": region.strip(), "start_date": start_date,
                        "end_date": end_date}
 
 
@@ -61,7 +65,7 @@ def csv_cell(value):
 
 
 def require_specimen(db, specimen_id):
-    if db.get(Specimen, specimen_id) is None:
+    if catalog.public_specimen(db, specimen_id) is None:
         raise HTTPException(404, "Specimen not found.")
 
 
@@ -78,16 +82,11 @@ def get_specimen_details(specimen_id: str, db: Session = Depends(get_db)):
         "subnomen": specimen.subnomen,
         "collection_date": specimen.collection_date,
         "reg_date": specimen.reg_date,
-        "collected_by": record["collector"] or None,
-        "verified_by": record["verifier"] or None,
         "taxon": {
             "taxon_id": taxon.taxon_id, "name": taxon.taxon_name,
             "common_name": taxon.common_name, "gbif_key": taxon.gbif_key,
         } if taxon else None,
-        "location": {
-            "locality": location.locality, "region": location.region,
-            "country": location.country, "habitat": location.habitat,
-        } if location else None,
+        "location": location,
         "photos": [
             {"image_id": photo.image_id, "image_type": photo.image_type,
              "upload_date": photo.upload_date, "content_url": f"/api/image/{photo.image_id}/content"}
@@ -109,17 +108,37 @@ def list_publications(specimen_id: str, db: Session = Depends(get_db)):
              "journal": p.journal} for p in catalog.specimen_publications(db, specimen_id)]
 
 
-@router.get("/api/image/{image_id}/content", tags=["Image"], response_class=FileResponse,
+@router.get("/api/image/{image_id}/content", tags=["Image"], response_class=Response,
             responses={200: {"content": {"image/jpeg": {}}}})
-def image_content(image_id: str):
+def image_content(image_id: str, db: Session = Depends(get_db)):
+    path = db.scalar(select(Image.file_path).join(Specimen, Specimen.specimen_id == Image.specimen_id).where(
+        Image.image_id == image_id, Image.is_public.is_(True), Specimen.is_public.is_(True),
+    ))
+    if not path:
+        raise HTTPException(404, "Image file not found.")
     try:
-        image = ImageService.get_image_by_id(image_id)
+        content = ImageService.public_jpeg(path)
+    except InvalidImageFileException as error:
+        raise HTTPException(404, "Image file not found.") from error
+    return Response(content, media_type="image/jpeg", headers=IMAGE_HEADERS)
+
+
+IMAGE_HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+
+
+@router.get("/api/image/{image_id}/original", tags=["Image"], response_class=FileResponse,
+            dependencies=[Depends(JWTBearer())])
+def original_image(image_id: str, db: Session = Depends(get_db)):
+    image = db.get(Image, image_id)
+    if image is None or not image.file_path:
+        raise HTTPException(404, "Image file not found.")
+    try:
         path = ImageService.storage_path(image.file_path)
-    except (ImageNotFoundException, InvalidImageFileException, TypeError) as error:
+    except (OSError, InvalidImageFileException) as error:
         raise HTTPException(404, "Image file not found.") from error
     if not path.is_file():
         raise HTTPException(404, "Image file not found.")
-    return FileResponse(path, media_type="image/jpeg", headers={"X-Content-Type-Options": "nosniff"})
+    return FileResponse(path, media_type="image/jpeg", filename=f"{image_id}.jpg", headers=IMAGE_HEADERS)
 
 
 @router.get("/api/taxonomy", tags=["Taxonomy"])

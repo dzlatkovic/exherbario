@@ -22,15 +22,27 @@ The bootstrap command creates the first administrator and prompts for a password
 
 ## Explore the API
 
-- `GET /api/specimen` supports filtered search and pagination. Use `/api/specimen/export` for CSV.
+- `GET /api/specimen` supports filtered search and pagination for released vouchers. Use `/api/specimen/export` for CSV.
 - `GET /api/specimen/{specimen_id}` returns specimen details and links to photos. The `/revisions` and `/publications` subpaths show its history and references.
-- In the locally seeded demo database, try `reg_no=DEMO-001` for a yarrow voucher with a photo and two revisions, or search for `wild thyme` to find vouchers with synthetic chemistry profiles. A fresh database starts empty.
+- A fresh database starts empty. Curators can follow the release workflow below to make selected synthetic vouchers visible in a local demo.
+
+## Public visibility
+
+| Role | Access |
+| --- | --- |
+| Anonymous | Released vouchers, approved photos, linked citations and determination history, eligible released chemistry, and taxonomy vocabulary. |
+| Researcher | Anonymous views plus operational reads through the authenticated archive routes. These include exact collection sites, maps, QR labels, storage, and original JPEG downloads at `GET /api/image/{image_id}/original`. Private chemistry stays available to the study owner and curators. |
+| Curator (`super_user`) | Researcher access plus account directory, archive edits, and release or withdrawal controls. |
+
+Set voucher visibility with `PUT /api/specimen/{specimen_id}/visibility` and a JSON body such as `{"is_public": true, "public_location": "withheld"}`. The `withheld` setting omits all structured location fields. The `region` setting returns country and region and enables regional filtering. Public output excludes exact GPS, locality, habitat, and staff attribution. Use the authenticated storage routes for box searches.
+
+Approve photos individually with `PUT /api/image/{image_id}/visibility` and `{"is_public": true}`. The voucher must also be released for its photos to appear. The public content endpoint returns a re-encoded JPEG without original metadata, including GPS. The authenticated original download preserves the archived file. Review visible labels, landmarks, and free-text content before release. Withdrawing a voucher immediately hides its linked photos and chemistry from anonymous readers.
 
 ## Phytochemistry
 
 Profiles are optional for each specimen. To add one, link a lab sample to a voucher, add a preparation batch, and import one UTF-8 CSV per run. Use `feature,value,confidence` with an optional `status` column. Leave the value blank for `not_detected` or `not_measured`.
 
-An administrator can release a study and selected profiles. `GET /api/chemistry/public/specimens/{specimen_id}/profiles` lists the released profiles for a voucher. For PCA, select 3–50 comparable profiles from distinct lab samples. HERBAR saves the selected profiles, preprocessing settings, and results.
+An administrator can release a study and selected profiles. Public profiles require release of the study, profile, and linked voucher. A study appears publicly when at least one profile meets those conditions. `GET /api/chemistry/public/specimens/{specimen_id}/profiles` lists eligible profiles. For PCA, select 3–50 comparable profiles from distinct lab samples. HERBAR saves the selected profiles, preprocessing settings, and results.
 
 ## Scientific corrections
 
@@ -50,6 +62,19 @@ python -m app.db.backup restore backups/collection-snapshot backups/restore-chec
 ```
 
 Both commands create a new directory containing `herbar.db` and `images/`. With the API stopped, move the current pair aside and put the restored pair in its place.
+
+### Preview migration 0004
+
+With writers stopped and a verified snapshot available, run the preview against revision `0003`. If rehearsing from an earlier revision, first upgrade a restored copy to `0003`.
+
+```powershell
+python -m app.visibility_preview
+python -m alembic upgrade head
+```
+
+The preview reports counts of vouchers, photo records, and previously released studies and profiles affected by the private defaults. It reads the configured database without updating records. Photo counts include metadata rows whose original files may be unavailable.
+
+Migration `0004` retains identifiers, links, files, and chemistry release flags. It withholds every legacy voucher and photo until a curator reviews them individually. Review approved vouchers and their linked chemistry before restoring anonymous access. During rollback to an earlier application version, keep the instance private because the older routes make archive records anonymous again. Use the verified snapshot for recovery and clear any cached public responses from before the upgrade.
 
 ## Tests
 

@@ -35,7 +35,7 @@ def create_new_field_loc(field_loc: FieldLocSchemaIn):
                                                    gps_long=field_loc.gps_long)
 
 
-@field_loc_router.get("/get-all-field-locations", response_model=list[FieldLocSchema])
+@field_loc_router.get("/get-all-field-locations", dependencies=[Depends(JWTBearer())], response_model=list[FieldLocSchema])
 def get_all_field_locations():
     """
     This function returns a list of all field locations
@@ -46,7 +46,7 @@ def get_all_field_locations():
     return field_locations
 
 
-@field_loc_router.get("/get-field-loc-by-id", response_model=FieldLocSchema)
+@field_loc_router.get("/get-field-loc-by-id", dependencies=[Depends(JWTBearer())], response_model=FieldLocSchema)
 def get_field_loc_by_id(field_loc_id: str):
     """
     Endpoint for retrieving a field location by ID.

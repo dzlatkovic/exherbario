@@ -70,7 +70,8 @@ class TestStorageRoutes(TestClass):
         storage = response.json()
         storage_id = storage["storage_id"]
         second_response = client.get(url="/api/storage/get-storage-by-id",
-                                     params={"storage_id": storage_id})
+                                     params={"storage_id": storage_id},
+                                     headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 200
 
     def test_get_storage_by_invalid_id(self):
@@ -87,7 +88,8 @@ class TestStorageRoutes(TestClass):
         assert response.status_code == 200
         storage_id = "invalid id"
         second_response = client.get(url="/api/storage/get-storage-by-id",
-                                     params={"storage_id": storage_id})
+                                     params={"storage_id": storage_id},
+                                     headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 400
 
     def test_get_all(self):
@@ -100,7 +102,7 @@ class TestStorageRoutes(TestClass):
                         json={"room": f"Room{storage}", "shelf": f"Shelf{storage}",
                               "box": f"Box{storage}"},
                         headers={"Authorization": f"Bearer {token}"})
-        response = client.get(url="/api/storage/get-all")
+        response = client.get(url="/api/storage/get-all", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         output = response.json()
         assert len(output) == 10

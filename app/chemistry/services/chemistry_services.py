@@ -160,7 +160,10 @@ class ChemistryService:
         study = self.repository.get_study(study_id)
         if not study or not study.is_public:
             raise ChemistryError(404, "Study not found.")
-        return study, self.repository.list_released_study_profiles(study_id)
+        profiles = self.repository.list_released_study_profiles(study_id)
+        if not profiles:
+            raise ChemistryError(404, "Study not found.")
+        return study, profiles
 
     def get_public_profile(self, profile_id: str):
         record = self.repository.get_released_profile(profile_id)
@@ -169,6 +172,6 @@ class ChemistryService:
         return record, self.repository.list_measurements([profile_id])
 
     def get_public_specimen_profiles(self, specimen_id: str):
-        if not self.repository.specimen_exists(specimen_id):
+        if not self.repository.public_specimen_exists(specimen_id):
             raise ChemistryError(404, "Specimen not found.")
         return self.repository.list_released_specimen_profiles(specimen_id)

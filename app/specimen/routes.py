@@ -31,7 +31,7 @@ def create_new_specimen(specimen: SpecimenSchemaIn):
     return SpecimenController.create_new_specimen(specimen)
 
 
-@specimen_router.get("/get-specimen-by-id", response_model=SpecimenSchema)
+@specimen_router.get("/get-specimen-by-id", dependencies=[Depends(JWTBearer())], response_model=SpecimenSchema)
 def get_specimen_by_id(specimen_id: str):
     """
     Retrieve a specimen from the database by its ID.
@@ -53,7 +53,7 @@ def delete_specimen_by_id(specimen_id: str):
     return SpecimenController.delete_specimen_by_id(specimen_id)
 
 
-@specimen_router.get("/get-specimen-per-year")
+@specimen_router.get("/get-specimen-per-year", dependencies=[Depends(JWTBearer())])
 def get_specimen_per_year():
     """
     This function returns a list of dicts containing the number of specimens collected per year
@@ -62,7 +62,7 @@ def get_specimen_per_year():
     return SpecimenController.get_specimens_per_year()
 
 
-@specimen_router.get("/get-specimen-per-user")
+@specimen_router.get("/get-specimen-per-user", dependencies=[Depends(JWTBearer())])
 def get_specimen_per_user():
     """
     It returns a dictionary of the form {'name surname': number of
@@ -75,7 +75,7 @@ def get_specimen_per_user():
     return SpecimenController.get_specimens_per_user()
 
 
-@specimen_router.get("/get-specimen-per-region")
+@specimen_router.get("/get-specimen-per-region", dependencies=[Depends(JWTBearer())])
 def get_specimen_per_region():
     """
     This function returns a dictionary containing
@@ -87,7 +87,7 @@ def get_specimen_per_region():
     return SpecimenController.get_specimens_per_region()
 
 
-@specimen_router.get("/get-gps")
+@specimen_router.get("/get-gps", dependencies=[Depends(JWTBearer())])
 def get_gps_for_search_results(keyword: str):
     """
     Retrieve GPS locations for search results based on a keyword.
@@ -105,7 +105,7 @@ def get_gps_for_search_results(keyword: str):
     return SpecimenController.get_gps_for_search_result(keyword)
 
 
-@specimen_router.get("/visualize-gps")
+@specimen_router.get("/visualize-gps", dependencies=[Depends(JWTBearer())])
 def visualize_gps(keyword: str) -> HTMLResponse:
     """
     Generate a map visualization of the GPS coordinates for specimens that match the given keyword.
@@ -121,7 +121,7 @@ def visualize_gps(keyword: str) -> HTMLResponse:
     return SpecimenController.visualize_gps(keyword)
 
 
-@specimen_router.get("/get-last-specimens", response_model=list[SpecimenSchema])
+@specimen_router.get("/get-last-specimens", dependencies=[Depends(JWTBearer())], response_model=list[SpecimenSchema])
 def get_last_specimens():
     """
     This function returns the last 10 specimens added to the database
@@ -129,7 +129,7 @@ def get_last_specimens():
     return SpecimenController.get_last_specimens()
 
 
-@specimen_router.get("/get-herbarium-label")
+@specimen_router.get("/get-herbarium-label", dependencies=[Depends(JWTBearer())])
 def get_herbarium_label(reg_no):
     """
     Retrieve the herbarium label for a given specimen registration number.
@@ -155,7 +155,7 @@ def update_specimen(specimen_id: str, specimen: SpecimenSchemaUpdate,
     return SpecimenController.update_specimen(specimen_id, specimen, actor.user_id)
 
 
-@specimen_router.get("/filter-by-date")
+@specimen_router.get("/filter-by-date", dependencies=[Depends(JWTBearer())])
 def get_specimens_by_date_range(start_date: str, end_date: str):
     """
     Returns a list of specimens that were collected between the specified start and end dates
@@ -166,7 +166,7 @@ def get_specimens_by_date_range(start_date: str, end_date: str):
     return SpecimenController.get_specimens_by_date_range(start_date, end_date)
 
 
-@specimen_router.get("/get-specimens-by-distance")
+@specimen_router.get("/get-specimens-by-distance", dependencies=[Depends(JWTBearer())])
 def get_specimens_by_distance(keyword: str):
     """
     Get specimens by distance from a given keyword.
@@ -182,7 +182,7 @@ def get_specimens_by_distance(keyword: str):
     return SpecimenController.get_specimens_by_distance(keyword)
 
 
-@specimen_router.get("/generate_qr_code")
+@specimen_router.get("/generate_qr_code", dependencies=[Depends(JWTBearer())])
 def generate_qr_code(reg_no: str):
     """
     `generate_qr_code` takes a registration number of the specimen
@@ -195,7 +195,7 @@ def generate_qr_code(reg_no: str):
     return SpecimenController.generate_qrcode(reg_no)
 
 
-@specimen_router.get("/search-specimens-by-keyword", response_model=Page[SpecimenSchema])
+@specimen_router.get("/search-specimens-by-keyword", dependencies=[Depends(JWTBearer())], response_model=Page[SpecimenSchema])
 def search_specimens_by_keyword(keyword: str, params: Params = Depends()):
     """
     Searches for specimens by keyword and returns a paginated result.

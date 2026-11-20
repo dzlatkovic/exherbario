@@ -33,7 +33,7 @@ def create_new_publication(publication: PublicationSchemaIn):
                                                         abstract=publication.abstract)
 
 
-@publication_router.get("/get-all", response_model=list[PublicationSchema])
+@publication_router.get("/get-all", dependencies=[Depends(JWTBearer())], response_model=list[PublicationSchema])
 def get_all():
     """Get all publication records
     :return: A list of all publication records.
@@ -42,7 +42,7 @@ def get_all():
     return PublicationController.get_all()
 
 
-@publication_router.get("/get-publication-by-id", response_model=PublicationSchema)
+@publication_router.get("/get-publication-by-id", dependencies=[Depends(JWTBearer())], response_model=PublicationSchema)
 def get_publication_by_id(pub_id: str):
     """Get a publication record by ID
     :param pub_id: The ID of the publication record to retrieve
@@ -110,7 +110,7 @@ def delete_publication_authors_by_id(publication_authors_id: str):
     return PublicationAuthorsController.delete_publication_authors_by_id(publication_authors_id)
 
 
-@publication_authors_router.get("/get-publication-report")
+@publication_authors_router.get("/get-publication-report", dependencies=[Depends(JWTBearer())])
 def get_publication_report():
     """
     This function returns a dictionary containing

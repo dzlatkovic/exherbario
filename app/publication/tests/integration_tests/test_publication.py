@@ -77,7 +77,8 @@ class TestPublicationRoutes(TestClass):
         pub = response.json()
         pub_id = pub["pub_id"]
         second_response = client.get(url="/api/publication/get-publication-by-id",
-                                     params={"pub_id": pub_id})
+                                     params={"pub_id": pub_id},
+                                     headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 200
 
     def test_get_publication_by_invalid_id(self):
@@ -97,7 +98,8 @@ class TestPublicationRoutes(TestClass):
         assert response.status_code == 200
         pub_id = "invalid id"
         second_response = client.get(url="/api/publication/get-publication-by-id",
-                                     params={"pub_id": pub_id})
+                                     params={"pub_id": pub_id},
+                                     headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 400
 
     def test_read_all(self):
@@ -113,7 +115,7 @@ class TestPublicationRoutes(TestClass):
                               "title": f"COVID-19 Treatment, part {pub}",
                               "abstract": "Abstract text"},
                         headers={"Authorization": f"Bearer {token}"})
-        response = client.get(url="/api/publication/get-all")
+        response = client.get(url="/api/publication/get-all", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         result = response.json()
         assert len(result) == 10

@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.db import SessionLocal
 from app.image.exceptions import (
@@ -34,6 +34,26 @@ class ImageService:
         if IMAGE_ROOT.resolve() not in path.parents:
             raise InvalidImageFileException("Image path is outside the storage directory.", 400)
         return path
+
+    @staticmethod
+    def public_jpeg(stored_path: str) -> bytes:
+        """Render a metadata-free copy without modifying the archived original."""
+        try:
+            path = ImageService.storage_path(stored_path)
+            with path.open("rb") as original:
+                data = original.read(MAX_IMAGE_BYTES + 1)
+            if len(data) > MAX_IMAGE_BYTES:
+                raise InvalidImageFileException("Image exceeds the public size limit.", 400)
+            with Image.open(BytesIO(data)) as source:
+                if source.format != "JPEG" or max(source.size) > 2048:
+                    raise InvalidImageFileException("Unsupported public image.", 400)
+                oriented = ImageOps.exif_transpose(source).convert("RGB")
+                clean = Image.frombytes("RGB", oriented.size, oriented.tobytes())
+                output = BytesIO()
+                clean.save(output, format="JPEG", quality=90)
+                return output.getvalue()
+        except (OSError, ValueError, SyntaxError, Image.DecompressionBombError) as error:
+            raise InvalidImageFileException("Invalid JPEG image.", 400) from error
 
     @staticmethod
     def create_image(specimen_id: str, image_type: ImageType, file: UploadFile):

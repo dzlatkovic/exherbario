@@ -2,7 +2,7 @@
 
 
 from datetime import date, datetime
-from sqlalchemy import Column, String, Date, ForeignKey
+from sqlalchemy import Boolean, Column, String, Date, ForeignKey, false
 from sqlalchemy.orm import relationship
 
 from app.db import Base, new_id
@@ -21,6 +21,8 @@ class Specimen(Base):
     storage_id = Column(String(50), ForeignKey("storage.storage_id"))
     collected_by = Column(String(50), ForeignKey("users.user_id"))
     verified_by = Column(String(50), ForeignKey("users.user_id"))
+    is_public = Column(Boolean, nullable=False, server_default=false())
+    public_location = Column(String(8), nullable=False, server_default="withheld")
 
     field_loc = relationship("FieldLoc", back_populates="specimens")
     weather = relationship("Weather", back_populates="specimen", uselist=False, passive_deletes="all")

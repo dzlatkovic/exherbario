@@ -4,21 +4,25 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
 from threading import Event, local
+from uuid import uuid4
 
 import pytest
 from PIL import Image
-from sqlalchemy import URL, select
+from sqlalchemy import MetaData, Table, URL, select
 
+from app.chemistry.models import LabSample, Preparation, Profile, Study
 from app.db import SessionLocal
 from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
 from app.field_loc.models import FieldLoc
+from app.image.models import Image as ImageRecord
 from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
 from app.tests import TestingSessionLocal, client
 from app.users.services import UserServices
+from app.visibility_preview import preview
 from app.weather.models import Weather
 
 
@@ -110,6 +114,11 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         files={"file": ("voucher.jpg", image.getvalue(), "image/jpeg")},
     )
     assert upload.status_code == 200, upload.text
+    photo_url = f"/api/image/{upload.json()['image_id']}"
+    voucher_url = f"/api/specimen/{specimen.specimen_id}"
+    assert client.put(f"{photo_url}/visibility", headers=headers, json={"is_public": True}).status_code == 200
+    assert client.put(f"{voucher_url}/visibility", headers=headers,
+                      json={"is_public": True, "public_location": "region"}).status_code == 200
 
     revised = client.put(
         "/api/specimen/update-specimen", headers=headers,
@@ -132,7 +141,7 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         assert detail.json()["subnomen"] == "Updated voucher determination"
         photo = client.get(detail.json()["photos"][0]["content_url"])
         assert photo.status_code == 200
-        assert photo.content == image.getvalue()
+        assert client.get(f"{photo_url}/original", headers=headers).content == image.getvalue()
         history = client.get(f"/api/specimen/{specimen.specimen_id}/revisions")
         assert history.json()[0]["previous_subnomen"] == specimen.subnomen
     finally:
@@ -150,28 +159,75 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
         subprocess.run([sys.executable, "-m", "alembic", "upgrade", revision],
                        cwd=project, check=True, timeout=30)
 
-    upgrade("0002")
+    upgrade("0003")
     engine = create_database_engine(url)
     monkeypatch.setitem(SessionLocal.kw, "bind", engine)
     monkeypatch.setitem(TestingSessionLocal.kw, "bind", engine)
     try:
-        specimen = SpecimenFixtures.create_test_specimen()
+        specimen_data = SpecimenFixtures.create_test_specimen_object()
+        specimen_id = str(uuid4())
+        image_id = str(uuid4())
         admin = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
-        SpecimenService.update_specimen(
-            specimen.specimen_id, SpecimenSchemaUpdate(subnomen="Earlier redetermination"), admin.user_id,
-        )
+        with engine.begin() as connection:
+            old_metadata = MetaData()
+            specimens = Table("specimen", old_metadata, autoload_with=connection)
+            images = Table("image", old_metadata, autoload_with=connection)
+            values = specimen_data.dict()
+            values["subnomen"] = "Earlier redetermination"
+            connection.execute(specimens.insert().values(specimen_id=specimen_id, **values))
+            connection.execute(images.insert().values(
+                image_id=image_id, specimen_id=specimen_id, file_path="images/archived.jpg",
+            ))
         with SessionLocal() as db:
-            revision_id = db.scalar(select(Revision.revision_id))
-            db.add(Weather(specimen.specimen_id, 20, 40, 0, 2, 90))
+            db.add(Revision(admin.user_id, specimen_id, specimen_data.taxon_id, specimen_data.subnomen))
+            db.add(Weather(specimen_id, 20, 40, 0, 2, 90))
             db.commit()
+            revision_id = db.scalar(select(Revision.revision_id))
+        study_id, sample_id, preparation_id, profile_id = [str(uuid4()) for _ in range(4)]
+        with engine.begin() as connection:
+            connection.execute(Study.__table__.insert().values(
+                id=study_id, owner_id=admin.user_id, title="Synthetic study",
+                description="", is_public=True,
+            ))
+            connection.execute(LabSample.__table__.insert().values(
+                id=sample_id, study_id=study_id, specimen_id=specimen_id, code="Sample",
+                plant_part="leaf", collection_event="Synthetic site", voucher_relationship="collected_alongside",
+            ))
+            connection.execute(Preparation.__table__.insert().values(
+                id=preparation_id, sample_id=sample_id, batch_code="Batch",
+                kind="essential_oil", method_reference="Synthetic reference",
+            ))
+            connection.execute(Profile.__table__.insert().values(
+                id=profile_id, preparation_id=preparation_id, run_code="Run",
+                analytical_method="Synthetic method", measurement_basis="peak_area_percent", unit="%",
+                source_name="fixture.csv", source_csv="feature,value,confidence\nA,100,annotated",
+                is_public=True,
+            ))
+
+        with engine.connect() as connection:
+            assert preview(connection) == {
+                "vouchers_withheld": 1, "photo_records_withheld": 1,
+                "public_studies_withheld": 1, "public_profiles_withheld": 1,
+            }
+            assert connection.execute(select(specimens.c.specimen_id)).scalar_one() == specimen_id
 
         upgrade("head")
         with engine.connect() as connection:
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
         with SessionLocal() as db:
-            assert db.get(Specimen, specimen.specimen_id).reg_no == specimen.reg_no
-            assert db.get(Revision, revision_id).prev_subnomen == specimen.subnomen
+            specimen = db.get(Specimen, specimen_id)
+            assert specimen.reg_no == specimen_data.reg_no
+            assert not specimen.is_public and specimen.public_location == "withheld"
+            image = db.get(ImageRecord, image_id)
+            assert not image.is_public and image.file_path == "images/archived.jpg"
+            assert image.specimen_id == specimen_id
+            assert db.get(Revision, revision_id).prev_subnomen == specimen_data.subnomen
+            assert db.get(Study, study_id).is_public and db.get(Profile, profile_id).is_public
             assert db.scalars(select(ScientificCorrection)).all() == []
+        assert client.get(f"/api/specimen/{specimen_id}").status_code == 404
+        assert client.get(f"/api/image/{image_id}/content").status_code == 404
+        assert client.get(f"/api/chemistry/public/studies/{study_id}").status_code == 404
+        assert client.get(f"/api/chemistry/public/profiles/{profile_id}").status_code == 404
 
         login = client.post("/api/users/login", json={"email": admin.email, "password": "password"})
         headers = {"Authorization": "Bearer " + login.json()["access_token"]}
@@ -212,7 +268,7 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             assert site_correction.old_values == {"gps_lat": 43}
             assert site_correction.new_values == {"gps_lat": 0}
             assert {row.prev_subnomen for row in db.scalars(select(Revision))} == {
-                specimen.subnomen, "Earlier redetermination",
+                specimen_data.subnomen, "Earlier redetermination",
             }
     finally:
         engine.dispose()

@@ -76,7 +76,7 @@ def delete_taxon(taxon_id: str):
     return TaxonomyController.delete_taxon(taxon_id)
 
 
-@taxonomy_router.get("/get-specimens-for-taxon", response_model=List[SpecimenSchema])
+@taxonomy_router.get("/get-specimens-for-taxon", dependencies=[Depends(JWTBearer())], response_model=List[SpecimenSchema])
 def get_specimens_by_taxon(taxon_name: str):
     """Retrieve a list of all specimens belonging to a given taxon and its child taxa.
 

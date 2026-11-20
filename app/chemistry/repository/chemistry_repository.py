@@ -38,6 +38,11 @@ class ChemistryRepository:
     def specimen_exists(self, specimen_id: str):
         return self.db.get(Specimen, specimen_id) is not None
 
+    def public_specimen_exists(self, specimen_id: str):
+        return self.db.scalar(select(Specimen.specimen_id).where(
+            Specimen.specimen_id == specimen_id, Specimen.is_public.is_(True),
+        )) is not None
+
     def list_study_samples(self, study_id: str):
         query = (select(LabSample, Specimen.reg_no).join(Specimen)
                  .where(LabSample.study_id == study_id).order_by(LabSample.code))
@@ -66,9 +71,10 @@ class ChemistryRepository:
 
     @classmethod
     def _released_profiles(cls):
-        return cls._profile_records().join(Study, Study.id == LabSample.study_id).where(
-            Study.is_public.is_(True), Profile.is_public.is_(True)
-        )
+        return (cls._profile_records()
+                .join(Study, Study.id == LabSample.study_id)
+                .join(Specimen, Specimen.specimen_id == LabSample.specimen_id)
+                .where(Study.is_public.is_(True), Profile.is_public.is_(True), Specimen.is_public.is_(True)))
 
     def list_released_study_profiles(self, study_id: str):
         query = (self._released_profiles().where(LabSample.study_id == study_id)

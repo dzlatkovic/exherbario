@@ -148,7 +148,7 @@ class TestUserRoutes(TestClass):
                             "password": f"password{user}"
                         },
                         headers={"Authorization": f"Bearer {token}"})
-        response = client.get(url="/api/users/get-all-users")
+        response = client.get(url="/api/users/get-all-users", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         output = response.json()
         assert len(output) == 11

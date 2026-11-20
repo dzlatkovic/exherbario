@@ -3,25 +3,35 @@
 from datetime import date
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from app.field_loc.models import FieldLoc
 from app.image.models import Image
 from app.publication.models import Publication
 from app.specimen.models import Revision, Specimen, SpecimenPublication
-from app.storage.models import Storage
 from app.taxonomy.models import Taxonomy
-from app.users.models import User
 
 
-def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", box="",
+def public_specimen(db: Session, specimen_id: str):
+    return db.scalar(select(Specimen).where(
+        Specimen.specimen_id == specimen_id, Specimen.is_public.is_(True),
+    ))
+
+
+def public_location(specimen, location):
+    if location is None or specimen.public_location != "region":
+        return None
+    return {"region": location.region, "country": location.country}
+
+
+def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="",
                    start_date: date | None = None, end_date: date | None = None,
                    page=1, size=12):
     query = (
-        select(Specimen, Taxonomy.taxon_name, Taxonomy.common_name,
-               FieldLoc.locality, FieldLoc.region, FieldLoc.country)
+        select(Specimen, Taxonomy.taxon_name, Taxonomy.common_name, FieldLoc)
         .outerjoin(Taxonomy, Taxonomy.taxon_id == Specimen.taxon_id)
         .outerjoin(FieldLoc, FieldLoc.field_loc_id == Specimen.field_loc_id)
+        .where(Specimen.is_public.is_(True))
     )
     if q:
         query = query.where(or_(
@@ -35,9 +45,8 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", box="",
     if taxon:
         query = query.where(Taxonomy.taxon_name.icontains(taxon, autoescape=True))
     if region:
-        query = query.where(FieldLoc.region.icontains(region, autoescape=True))
-    if box:
-        query = query.join(Storage, Storage.storage_id == Specimen.storage_id).where(Storage.box == box)
+        query = query.where(Specimen.public_location == "region",
+                            FieldLoc.region.icontains(region, autoescape=True))
     if start_date:
         query = query.where(Specimen.collection_date >= start_date)
     if end_date:
@@ -46,7 +55,8 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", box="",
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     query = query.order_by(Specimen.reg_no, Specimen.specimen_id).offset((page - 1) * size).limit(size)
     entries = []
-    for specimen, taxon_name, common_name, locality, region_name, country in db.execute(query):
+    for specimen, taxon_name, common_name, location in db.execute(query):
+        visible_location = public_location(specimen, location) or {}
         entries.append({
             "specimen_id": specimen.specimen_id,
             "reg_no": specimen.reg_no,
@@ -54,42 +64,33 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", box="",
             "common_name": common_name,
             "subnomen": specimen.subnomen,
             "collection_date": specimen.collection_date,
-            "locality": locality,
-            "region": region_name,
-            "country": country,
+            "locality": None,
+            "region": visible_location.get("region"),
+            "country": visible_location.get("country"),
         })
     return {"items": entries, "total": total, "page": page, "size": size}
 
 
 def specimen_details(db: Session, specimen_id: str):
-    collector = aliased(User)
-    verifier = aliased(User)
     record = db.execute(
-        select(Specimen, Taxonomy, FieldLoc, collector.name, collector.surname,
-               verifier.name, verifier.surname)
+        select(Specimen, Taxonomy, FieldLoc)
         .outerjoin(Taxonomy, Taxonomy.taxon_id == Specimen.taxon_id)
         .outerjoin(FieldLoc, FieldLoc.field_loc_id == Specimen.field_loc_id)
-        .outerjoin(collector, collector.user_id == Specimen.collected_by)
-        .outerjoin(verifier, verifier.user_id == Specimen.verified_by)
-        .where(Specimen.specimen_id == specimen_id)
+        .where(Specimen.specimen_id == specimen_id, Specimen.is_public.is_(True))
     ).first()
     if record is None:
         return None
-    specimen, taxon, location, first, last, verifier_first, verifier_last = record
+    specimen, taxon, location = record
     return {
-        "specimen": specimen, "taxon": taxon, "location": location,
-        "collector": display_name(first, last), "verifier": display_name(verifier_first, verifier_last),
+        "specimen": specimen, "taxon": taxon, "location": public_location(specimen, location),
         "name": (taxon.taxon_name if taxon else specimen.subnomen) or "Unidentified specimen",
     }
 
 
-def display_name(first, last):
-    return " ".join(part for part in (first, last) if part)
-
-
 def specimen_photos(db: Session, specimen_id: str):
     return db.scalars(
-        select(Image).where(Image.specimen_id == specimen_id)
+        select(Image).join(Specimen, Specimen.specimen_id == Image.specimen_id)
+        .where(Image.specimen_id == specimen_id, Image.is_public.is_(True), Specimen.is_public.is_(True))
         .order_by(Image.upload_date, Image.image_id)
     ).all()
 
@@ -97,16 +98,16 @@ def specimen_photos(db: Session, specimen_id: str):
 def specimen_revisions(db: Session, specimen_id: str):
     query = (
         select(Revision.revision_id, Revision.timestamp, Revision.prev_subnomen,
-               Taxonomy.taxon_name, User.name, User.surname)
+               Taxonomy.taxon_name)
+        .join(Specimen, Specimen.specimen_id == Revision.specimen_id)
         .outerjoin(Taxonomy, Taxonomy.taxon_id == Revision.prev_taxon_id)
-        .outerjoin(User, User.user_id == Revision.revised_by)
-        .where(Revision.specimen_id == specimen_id)
+        .where(Revision.specimen_id == specimen_id, Specimen.is_public.is_(True))
         .order_by(Revision.timestamp.desc(), Revision.revision_id.desc())
     )
     return [
         {"revision_id": revision_id, "timestamp": timestamp, "previous_name": taxon_name,
-         "previous_subnomen": subnomen, "revised_by": display_name(first, last)}
-        for revision_id, timestamp, subnomen, taxon_name, first, last in db.execute(query)
+         "previous_subnomen": subnomen}
+        for revision_id, timestamp, subnomen, taxon_name in db.execute(query)
     ]
 
 
@@ -114,6 +115,7 @@ def specimen_publications(db: Session, specimen_id: str):
     return db.scalars(
         select(Publication)
         .join(SpecimenPublication, SpecimenPublication.publication_id == Publication.pub_id)
-        .where(SpecimenPublication.specimen_id == specimen_id)
+        .join(Specimen, Specimen.specimen_id == SpecimenPublication.specimen_id)
+        .where(SpecimenPublication.specimen_id == specimen_id, Specimen.is_public.is_(True))
         .order_by(Publication.year.desc(), Publication.pub_id)
     ).all()

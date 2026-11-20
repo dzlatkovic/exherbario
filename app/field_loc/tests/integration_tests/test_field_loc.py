@@ -35,14 +35,14 @@ class TestFieldLocRoutes(TestClass):
                                      "gps_lat": 43.0,
                                      "gps_long": 22.1},
                                headers={"Authorization": f"Bearer {token}"})
-        return response
+        return response, token
 
     def test_create_new_field_loc(self):
         """
         It creates a new field location and checks that the response
         is 200 and that the country and gps_lat are correct
         """
-        response = TestFieldLocRoutes.create_field_loc_for_tests()
+        response, _ = TestFieldLocRoutes.create_field_loc_for_tests()
         assert response.status_code == 200
         field_loc = response.json()
         assert field_loc["country"] == "Serbia"
@@ -54,22 +54,24 @@ class TestFieldLocRoutes(TestClass):
         a field_loc and then using the field_loc_id to get the
         field_loc
         """
-        response = TestFieldLocRoutes.create_field_loc_for_tests()
+        response, token = TestFieldLocRoutes.create_field_loc_for_tests()
         assert response.status_code == 200
         field_loc = response.json()
         field_loc_id = field_loc["field_loc_id"]
         second_response = client.get(url="/api/field-locations/get-field-loc-by-id",
-                                     params={"field_loc_id": field_loc_id})
+                                     params={"field_loc_id": field_loc_id},
+                                     headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 200
 
     def test_get_field_loc_by_invalid_id(self):
         """
         This function tests the get_field_loc_by_id route by passing in an invalid id
         """
-        response = TestFieldLocRoutes.create_field_loc_for_tests()
+        response, token = TestFieldLocRoutes.create_field_loc_for_tests()
         assert response.status_code == 200
         second_response = client.get(url="/api/field-locations/get-field-loc-by-id",
-                                     params={"field_loc_id": "invalid id"})
+                                     params={"field_loc_id": "invalid id"},
+                                     headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 404
 
     def test_get_all_field_loc(self):
@@ -77,9 +79,9 @@ class TestFieldLocRoutes(TestClass):
         This function tests the get_all_field_locations route by creating
         a field location and then getting all field locations
         """
-        response = TestFieldLocRoutes.create_field_loc_for_tests()
+        response, token = TestFieldLocRoutes.create_field_loc_for_tests()
         assert response.status_code == 200
-        second_response = client.get(url="/api/field-locations/get-all-field-locations")
+        second_response = client.get(url="/api/field-locations/get-all-field-locations", headers={"Authorization": f"Bearer {token}"})
         assert second_response.status_code == 200
         content = second_response.json()
         assert len(content) == 1
@@ -111,7 +113,7 @@ class TestFieldLocRoutes(TestClass):
         This function tests the delete-field-location
         route with an invalid field location id
         """
-        response = TestFieldLocRoutes.create_field_loc_for_tests()
+        response, _ = TestFieldLocRoutes.create_field_loc_for_tests()
         assert response.status_code == 200
         second_response = client.delete(url="/api/field-locations/delete-field-loc",
                                         params={"field_loc_id": "invalid id"})

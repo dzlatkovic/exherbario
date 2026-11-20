@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from sqlalchemy import Column, String, ForeignKey, Date, Integer, Enum
+from sqlalchemy import Boolean, Column, String, ForeignKey, Date, Integer, Enum, false
 from sqlalchemy.orm import relationship
 
 from app.image.schemas import ImageType
@@ -15,6 +15,7 @@ class Image(Base):
     width = Column(Integer)
     height = Column(Integer)
     upload_date = Column(Date, default=datetime.utcnow)
+    is_public = Column(Boolean, nullable=False, server_default=false())
 
     plantnet_results = relationship("PlantNetResult", backref="image")
 

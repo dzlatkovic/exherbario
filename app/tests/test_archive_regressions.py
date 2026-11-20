@@ -172,6 +172,7 @@ class TestArchiveRegressions(TestClass):
 
         response = client.get(
             "/api/specimen/search-specimens-by-keyword", params={"keyword": "Revised", "size": 1},
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
         assert response.json()["items"][0]["specimen_id"] == specimen.specimen_id

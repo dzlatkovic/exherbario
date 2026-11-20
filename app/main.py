@@ -11,7 +11,7 @@ please refer to the documentation.
 
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.catalog_routes import router as catalog_router
 from app.chemistry.controller import chemistry_error_response
@@ -27,6 +27,7 @@ from app.users.routes import user_router
 from app.weather.routes import weather_router
 from app.image.routes import image_router, plantnet_router
 from app.taxonomy.routes import taxonomy_router
+from app.visibility_routes import router as visibility_router
 
 def init_app():
     """
@@ -39,6 +40,13 @@ def init_app():
     """
     fastapi_app = FastAPI()
     fastapi_app.add_exception_handler(ChemistryError, chemistry_error_response)
+
+    @fastapi_app.middleware("http")
+    async def prevent_record_caching(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     @fastapi_app.on_event("startup")
     def validate_auth_config():
@@ -58,6 +66,7 @@ def init_app():
     fastapi_app.include_router(user_router)
     fastapi_app.include_router(weather_router)
     fastapi_app.include_router(chemistry_router)
+    fastapi_app.include_router(visibility_router)
     fastapi_app.include_router(catalog_router)
     return fastapi_app
 

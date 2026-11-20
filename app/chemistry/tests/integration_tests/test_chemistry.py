@@ -23,6 +23,9 @@ class TestChemistry(TestClass):
         )
         assert created.status_code == 200, created.text
         specimen_id = created.json()["specimen_id"]
+        assert client.get(f"/api/specimen/{specimen_id}").status_code == 404
+        assert client.put(f"/api/specimen/{specimen_id}/visibility", headers=headers_for(admin),
+                          json={"is_public": True, "public_location": "withheld"}).status_code == 200
         assert client.get(f"/api/specimen/{specimen_id}").status_code == 200
 
         profiles = client.get(f"/api/chemistry/public/specimens/{specimen_id}/profiles")
@@ -78,7 +81,7 @@ class TestChemistry(TestClass):
         public_profile = f"{base}/public/profiles/{first}"
         voucher_profiles = f"{base}/public/specimens/{specimen.specimen_id}/profiles"
         assert client.get(public_profile).status_code == 404
-        assert client.get(voucher_profiles).json() == []
+        assert client.get(voucher_profiles).status_code == 404
         assert client.get(f"{base}/profiles/{first}/source", headers=outsider).status_code == 404
         assert client.get(f"{base}/profiles/{first}/source", headers=owner).text.startswith("feature,value")
         visibility = f"{base}/profiles/{first}/visibility"
@@ -86,11 +89,17 @@ class TestChemistry(TestClass):
         assert client.put(visibility, json={"is_public": True}, headers=curator).status_code == 200
         assert client.get(public_profile).status_code == 404
         assert client.put(study_url + "/visibility", json={"is_public": True}, headers=curator).status_code == 200
+        assert client.get(public_profile).status_code == 404
+        assert client.get(public_study).status_code == 404
+        voucher_visibility = f"/api/specimen/{specimen.specimen_id}/visibility"
+        voucher_state = {"is_public": True, "public_location": "region"}
+        assert client.put(voucher_visibility, json=voucher_state, headers=curator).status_code == 200
         released = client.get(public_profile)
         assert released.status_code == 200, released.text
         assert released.json()["specimen_id"] == specimen.specimen_id
         assert [row["value"] for row in released.json()["measurements"]] == [20, 35, 45]
         assert "source_name" not in released.json()
+        assert "collection_event" not in released.json()
         assert [row["id"] for row in client.get(voucher_profiles).json()] == [first]
         assert [row["id"] for row in client.get(public_study).json()["profiles"]] == [first]
         assert client.get(f"{base}/public/profiles/{profiles[1]}").status_code == 404
@@ -107,3 +116,10 @@ class TestChemistry(TestClass):
         assert client.put(study_url + "/visibility", json={"is_public": False}, headers=curator).status_code == 200
         assert client.get(public_profile).status_code == 404
         assert client.get(voucher_profiles).json() == []
+        assert client.put(study_url + "/visibility", json={"is_public": True}, headers=curator).status_code == 200
+        voucher_state["is_public"] = False
+        assert client.put(voucher_visibility, json=voucher_state, headers=curator).status_code == 200
+        assert client.get(voucher_profiles).status_code == 404
+        assert client.get(public_study).status_code == 404
+        assert client.get(public_profile).status_code == 404
+        assert client.get(f"{base}/profiles/{first}/source", headers=owner).status_code == 200

@@ -23,7 +23,7 @@ def create_new_storage(storage: StorageSchemaIn):
                                                 box=storage.box)
 
 
-@storage_router.get("/get-all", response_model=list[StorageSchema])
+@storage_router.get("/get-all", dependencies=[Depends(JWTBearer())], response_model=list[StorageSchema])
 def get_all():
     """
     Retrieve a list of all storage objects
@@ -32,7 +32,7 @@ def get_all():
     return StorageController.get_all()
 
 
-@storage_router.get("/get-storage-by-id", response_model=StorageSchema)
+@storage_router.get("/get-storage-by-id", dependencies=[Depends(JWTBearer())], response_model=StorageSchema)
 def get_storage_by_id(storage_id: str):
     """
     Retrieve a storage object by its ID
@@ -51,7 +51,7 @@ def delete_storage_by_id(storage_id: str):
     return StorageController.delete_storage_by_id(storage_id)
 
 
-@storage_router.get("/get-box-content")
+@storage_router.get("/get-box-content", dependencies=[Depends(JWTBearer())])
 def get_box_content(box: str):
     """
     This function returns the content of a box

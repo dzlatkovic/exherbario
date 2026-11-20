@@ -31,7 +31,7 @@ def upload_image(specimen_id: str, image_type: ImageType, file: UploadFile = Fil
     return ImageController.create_image(specimen_id, image_type, file)
 
 
-@image_router.get("/get-image/{image_id}", response_model=ImageSchema)
+@image_router.get("/get-image/{image_id}", dependencies=[Depends(JWTBearer())], response_model=ImageSchema)
 def get_image_by_id(image_id: str):
     """
     Retrieves an image by its ID.
@@ -42,7 +42,7 @@ def get_image_by_id(image_id: str):
     return ImageController.get_image_by_id(image_id)
 
 
-@image_router.get("/get-all_images/{specimen_id}", response_model=List[ImageSchema])
+@image_router.get("/get-all_images/{specimen_id}", dependencies=[Depends(JWTBearer())], response_model=List[ImageSchema])
 def get_all_images(specimen_id: str):
     """
     Retrieves all images associated with the specified specimen.
@@ -82,7 +82,7 @@ def save_plantnet_identification(image_id: str, organs: Organs):
     return PlantNetController.save_plantnet_identification(image_id, organs)
 
 
-@plantnet_router.get("/get-result/{result_id}", response_model=PlantNetResultSchema)
+@plantnet_router.get("/get-result/{result_id}", dependencies=[Depends(JWTBearer())], response_model=PlantNetResultSchema)
 def get_image_by_id(result_id: str):
     """
     Retrieves a PlantNet result by its ID.
@@ -105,7 +105,7 @@ def delete_weather_data(result_id: str):
     return PlantNetController.delete_plantnet_identification(result_id)
 
 
-@plantnet_router.get("/get-all-results-for-image/{image_id}", response_model=List[PlantNetResultSchema])
+@plantnet_router.get("/get-all-results-for-image/{image_id}", dependencies=[Depends(JWTBearer())], response_model=List[PlantNetResultSchema])
 def get_all_results_for_image(image_id: str):
     """
     Retrieves all PlantNet results for an image with the given ID.
@@ -116,7 +116,7 @@ def get_all_results_for_image(image_id: str):
     return PlantNetController.get_plantnet_result_for_image(image_id)
 
 
-@plantnet_router.get("/get-all-results-for-specimen/{specimen_id}",
+@plantnet_router.get("/get-all-results-for-specimen/{specimen_id}", dependencies=[Depends(JWTBearer())],
                      response_model=List[PlantNetResultSchema])
 def get_all_results_for_specimen(specimen_id: str):
     """
@@ -128,7 +128,7 @@ def get_all_results_for_specimen(specimen_id: str):
     return PlantNetController.get_plantnet_result_for_specimen(specimen_id)
 
 
-@plantnet_router.get("/get-plantnet-results-with-mismatched-taxonomy",
+@plantnet_router.get("/get-plantnet-results-with-mismatched-taxonomy", dependencies=[Depends(JWTBearer())],
                      response_model=List[Dict[str, str]])
 def get_plantnet_results_with_mismatched_taxonomy():
     """
