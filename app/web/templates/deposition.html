@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ record.title if record else 'Deposition unavailable' }} · HERBAR{% endblock %}
+{% macro voucher_facts(voucher) %}
+  {% set determination = voucher.determination %}
+  <div><dt>Holding institution</dt><dd>{{ voucher.holding_institution or 'Unrecorded' }}</dd></div>
+  <div><dt>Collection</dt><dd>{{ voucher.collection or 'Unrecorded' }}</dd></div>
+  <div><dt>Voucher accession</dt><dd>{{ voucher.accession or voucher.reg_no or 'Unrecorded' }}</dd></div>
+  {% if voucher.collector_number or voucher.collector_name %}<div><dt>Collector and number</dt><dd>{{ voucher.collector_name or '' }}{% if voucher.collector_name and voucher.collector_number %} {% endif %}{{ voucher.collector_number or '' }}</dd></div>{% endif %}
+  {% if voucher.type_status %}<div><dt>Type status</dt><dd>{{ voucher.type_status | capitalize }}</dd></div>{% endif %}
+  {% if voucher.collection_date or voucher.verbatim_collection_date %}<div><dt>Collected</dt><dd>{{ voucher.collection_date or voucher.verbatim_collection_date }}</dd></div>{% endif %}
+  <div><dt>Voucher identifier</dt><dd class="break">{{ voucher.id }}</dd></div>
+  {% if determination.taxonomy %}<div><dt>Taxonomy</dt><dd>{{ determination.taxonomy.name }}{% if determination.taxonomy.authority %} {{ determination.taxonomy.authority }}{% endif %}</dd></div>{% endif %}
+  {% if determination.date %}<div><dt>Determined</dt><dd>{{ determination.date }}{% if determination.determiner_name %} · {{ determination.determiner_name }}{% endif %}</dd></div>
+  {% elif determination.determiner_name %}<div><dt>Determiner</dt><dd>{{ determination.determiner_name }}</dd></div>{% endif %}
+  {% if voucher.location %}<div><dt>Region</dt><dd>{{ voucher.location.region or '' }}{% if voucher.location.region and voucher.location.country %}, {% endif %}{{ voucher.location.country or '' }}</dd></div>{% endif %}
+{% endmacro %}
+{% macro voucher_name(voucher) %}{{ voucher.determination.name_as_recorded or (voucher.determination.taxonomy.name if voucher.determination.taxonomy else 'Undetermined voucher') }}{% endmacro %}
+{% block body %}
+<main id="main" class="frame">
+  {% if problem %}
+    <section class="hero">
+      <h1>Deposition unavailable</h1>
+      <p>{{ problem }}</p>
+    </section>
+  {% else %}
+    <section class="hero">
+      <div class="hero-content">
+        <p class="overline">{{ record.institution_name }} · Scientific deposition</p>
+        <h1>{{ record.title }}</h1>
+        {% if snapshot and snapshot.description %}<p class="lead">{{ snapshot.description }}</p>{% endif %}
+        <dl class="hero-facts">
+          <div><dt>Accession</dt><dd>{{ record.institution }} <span class="break">{{ record.accession }}</span></dd></div>
+          <div><dt>Version</dt><dd>{{ record.version }} · {{ record.status | capitalize }}</dd></div>
+          <div><dt>Published</dt><dd><time datetime="{{ record.published_at }}">{{ record.published_at[:10] }}</time></dd></div>
+          {% if snapshot %}<div><dt>License</dt><dd><a href="#citation">{{ snapshot.license }}</a></dd></div>{% endif %}
+          {% if record.dataset_doi %}<div><dt>Dataset DOI</dt><dd><a class="break" href="{{ record.dataset_doi.url }}">{{ record.dataset_doi.doi }}</a></dd></div>{% endif %}
+        </dl>
+      </div>
+      {% if snapshot %}<a class="button primary" href="{{ record.url }}/archive.zip" download>Download version ZIP</a>{% endif %}
+    </section>
+
+    {% if record.withdrawal or record.status == "superseded" or previous_url %}
+    <section class="notice {% if record.withdrawal %}warning{% endif %}" aria-label="Version history">
+      {% if record.withdrawal %}
+        <h2>Version withdrawn</h2>
+        <p>{{ record.withdrawal.reason }}</p>
+        <p>Withdrawn <time datetime="{{ record.withdrawal.withdrawn_at }}">{{ record.withdrawal.withdrawn_at[:10] }}</time>.</p>
+      {% elif record.status == "superseded" %}
+        <h2>A newer version is available</h2>
+      {% else %}
+        <h2>Correction</h2>
+      {% endif %}
+      {% if snapshot and snapshot.correction_reason %}<p>{{ snapshot.correction_reason }}</p>{% endif %}
+      <div class="link-row">
+        {% if previous_url %}<a href="{{ previous_url }}">Previous version</a>{% endif %}
+        {% if latest_url != current_url %}<a href="{{ latest_url }}">Latest version</a>{% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <div class="publication-grid">
+      <div>
+        {% if snapshot %}
+          {% set profiled = snapshot.profiles | map(attribute='voucher.id') | list %}
+          {% set unprofiled = (snapshot.vouchers or []) | rejectattr('id', 'in', profiled) | list %}
+          {% if unprofiled %}
+          <section aria-labelledby="vouchers-title">
+            <h2 id="vouchers-title">Vouchers</h2>
+            {% for voucher in unprofiled %}
+              <article class="panel profile">
+                <h3>{{ voucher_name(voucher) }}</h3>
+                <dl class="facts">{{ voucher_facts(voucher) }}</dl>
+              </article>
+            {% endfor %}
+          </section>
+          {% endif %}
+          {% if snapshot.profiles %}
+          <section aria-labelledby="profiles-title">
+            <h2 id="profiles-title">Vouchers and analytical profiles</h2>
+            {% for profile in snapshot.profiles %}
+              {% set voucher = profile.voucher %}
+              <article class="panel profile">
+                <h3>{{ voucher_name(voucher) }}</h3>
+                <dl class="facts">
+                  {{ voucher_facts(voucher) }}
+                  <div><dt>Sample</dt><dd>{{ profile.sample.code }} · {{ profile.sample.plant_part }}</dd></div>
+                  <div><dt>Voucher relationship</dt><dd>{{ 'Sampled from the voucher' if profile.sample.voucher_relationship == 'sampled_from_voucher' else 'Collected alongside the voucher' }}</dd></div>
+                  <div><dt>Preparation</dt><dd>{{ profile.preparation.kind | replace('_', ' ') | capitalize }} · {{ profile.preparation.batch_code }}</dd></div>
+                  <div><dt>Preparation method</dt><dd>{{ profile.preparation.method_reference }}</dd></div>
+                  <div><dt>Analytical method</dt><dd>{{ profile.analytical_method }}</dd></div>
+                  <div><dt>Measurement basis</dt><dd>{{ profile.measurement_basis | replace('_', ' ') | capitalize }} · {{ profile.unit }}</dd></div>
+                </dl>
+                <div class="file-row">
+                  <div><a class="break" href="{{ profile.file.url }}" download>{{ profile.file.name }}</a>
+                    <p class="muted">{{ profile.file.size }} bytes · {{ profile.file.source_fidelity | replace('-', ' ') | capitalize }}</p></div>
+                  <details><summary>SHA-256</summary><code class="break">{{ profile.file.sha256 }}</code></details>
+                </div>
+              </article>
+            {% endfor %}
+          </section>
+          {% endif %}
+        {% endif %}
+      </div>
+      <aside id="citation" class="citation panel">
+        <h2>Citation</h2>
+        <p>{{ citation }}</p>
+        <a class="break" href="{{ current_url }}">Link to this version</a>
+        {% if record.identifier %}<p class="muted">Persistent identifier: <span class="break">{{ record.dataset_doi.url if record.dataset_doi else record.identifier }}</span></p>{% endif %}
+        {% if record.article_dois %}
+          <h3>Related articles</h3>
+          <ul>{% for doi in record.article_dois %}<li><a href="https://doi.org/{{ doi | urlencode }}">{{ doi }}</a></li>{% endfor %}</ul>
+        {% endif %}
+        {% if snapshot %}
+          <h3>License</h3>
+          <p>{{ snapshot.license }}</p>
+          {% if snapshot.rights_statement %}<p>{{ snapshot.rights_statement }}</p>{% endif %}
+          <h3>Contributors</h3>
+          <ul>{% for contributor in snapshot.contributors %}<li>{{ contributor.name }} · {{ contributor.role }}{% if contributor.orcid %} · <a href="https://orcid.org/{{ contributor.orcid }}">ORCID {{ contributor.orcid }}</a>{% endif %}</li>{% endfor %}</ul>
+          <details class="verify">
+            <summary>Verify the archive offline</summary>
+            <code class="break">python -m app.deposition.verify_archive &lt;ZIP&gt; --snapshot-sha256 {{ record.snapshot_sha256 }}</code>
+          </details>
+        {% endif %}
+      </aside>
+    </div>
+  {% endif %}
+</main>
+{% endblock %}

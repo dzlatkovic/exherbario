@@ -26,6 +26,10 @@ def create_database_engine(url, **options):
 
         return database_engine
 
+    if database_url.drivername in {"mysql", "mysql+mysqldb", "mariadb", "mariadb+mysqldb"}:
+        import pymysql
+
+        pymysql.install_as_MySQLdb()
     return create_engine(database_url, pool_pre_ping=True, hide_parameters=True, **options)
 
 

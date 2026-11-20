@@ -54,6 +54,8 @@ def test_chemistry_upgrade_resumes_after_creating_the_study_table(monkeypatch):
             scripts.get_revision("0005").module.upgrade()
             scripts.get_revision("0006").module.upgrade()
             scripts.get_revision("0007").module.upgrade()
+            scripts.get_revision("0008").module.upgrade()
+            scripts.get_revision("0009").module.upgrade()
             assert not compare_metadata(context, Base.metadata)
 
 

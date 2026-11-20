@@ -6,17 +6,28 @@ from app.db import get_db
 from app.users.controller import JWTBearer
 from app.users.models import User
 
-from .schemas import ArticleLink, CreateDeposition, EditDraft, PublishDraft, WithdrawVersion
+from .schemas import ArticleLink, CreateDeposition, DatasetDOI, EditDraft, PublishDraft, RegisterInstitution, WithdrawVersion
 from .services import DepositionService
 
 
 router = APIRouter(prefix="/api/depositions", tags=["Depositions"])
+institution_router = APIRouter(prefix="/api/institutions", tags=["Depositions"])
 researcher = JWTBearer()
 curator = JWTBearer("super_user")
 
 
 def get_service(db: Session = Depends(get_db)):
     return DepositionService(db)
+
+
+@institution_router.get("")
+def list_institutions(service=Depends(get_service)):
+    return service.list_institutions()
+
+
+@institution_router.post("", status_code=201)
+def register_institution(data: RegisterInstitution, actor: User = Depends(curator), service=Depends(get_service)):
+    return service.register_institution(data, actor)
 
 
 @router.post("", status_code=201)
@@ -39,6 +50,11 @@ def preview_draft(deposition_id: str, actor: User = Depends(researcher), service
     return service.preview(deposition_id, actor)
 
 
+@router.get("/{deposition_id}/draft/inputs")
+def draft_inputs(deposition_id: str, actor: User = Depends(researcher), service=Depends(get_service)):
+    return service.draft_inputs(deposition_id, actor)
+
+
 @router.post("/{deposition_id}/publish")
 def publish_draft(deposition_id: str, data: PublishDraft, actor: User = Depends(curator), service=Depends(get_service)):
     return service.publish(deposition_id, data, actor)
@@ -48,6 +64,12 @@ def publish_draft(deposition_id: str, data: PublishDraft, actor: User = Depends(
 def link_article(deposition_id: str, data: ArticleLink, number: int = Path(ge=1, le=2_147_483_647),
                  actor: User = Depends(curator), service=Depends(get_service)):
     return service.link_article(deposition_id, number, data.doi, actor)
+
+
+@router.put("/{deposition_id}/versions/{number}/doi")
+def register_dataset_doi(deposition_id: str, data: DatasetDOI, number: int = Path(ge=1, le=2_147_483_647),
+                         actor: User = Depends(curator), service=Depends(get_service)):
+    return service.register_doi(deposition_id, number, data, actor)
 
 
 @router.post("/{deposition_id}/versions/{number}/withdraw")
@@ -61,6 +83,24 @@ def public_version(institution: str, accession: str, number: int = Path(ge=1, le
                    service=Depends(get_service)):
     status, metadata = service.public_version(institution, accession, number)
     return JSONResponse(metadata, status_code=status)
+
+
+@router.get("/public/{institution}/{accession}/versions/{number}/datacite.json")
+def public_datacite(institution: str, accession: str, number: int = Path(ge=1, le=2_147_483_647),
+                    service=Depends(get_service)):
+    return service.public_datacite(institution, accession, number)
+
+
+@router.get("/public/{institution}/{accession}/versions/{number}/archive.zip", response_class=Response,
+            responses={200: {"content": {"application/zip": {}}}})
+def download_archive(institution: str, accession: str, number: int = Path(ge=1, le=2_147_483_647),
+                     service=Depends(get_service)):
+    content, digest, filename = service.public_archive(institution, accession, number)
+    return Response(content, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "X-Content-Type-Options": "nosniff",
+        "X-HERBAR-Snapshot-SHA256": digest,
+    })
 
 
 @router.get("/public/{institution}/{accession}/versions/{number}/files/{profile_id}",

@@ -22,7 +22,7 @@ class FieldLocController:
     """
     @staticmethod
     def create_new_field_loc(country: str, region: str, locality: str, altitude: int,
-                             habitat: str, gps_lat: float, gps_long: float):
+                             habitat: str, gps_lat: float, gps_long: float, coordinate_uncertainty_m=None, geodetic_datum=None, georeference_source=None):
         """
         Creates a new field location with the provided data.
 
@@ -39,7 +39,8 @@ class FieldLocController:
         """
         try:
             course = FieldLocService.create_new_field_loc(country, region, locality, altitude,
-                                                          habitat, gps_lat, gps_long)
+                                                          habitat, gps_lat, gps_long,
+                                                          coordinate_uncertainty_m=coordinate_uncertainty_m, geodetic_datum=geodetic_datum, georeference_source=georeference_source)
             return course
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error

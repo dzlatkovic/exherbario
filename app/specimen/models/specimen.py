@@ -15,7 +15,7 @@ class Specimen(Base):
         "holding_institution", "collection", "accession", name="uq_specimen_holding_accession",
     ),)
     specimen_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
-    reg_no = Column(String(10), unique=True)
+    reg_no = Column(String(40), unique=True)
     collection_date = Column(Date)
     reg_date = Column(Date, default=datetime.utcnow)
     taxon_id = Column(String(50), ForeignKey("taxonomy.taxon_id"))
@@ -32,6 +32,9 @@ class Specimen(Base):
     accession = Column(String(100))
     verbatim_label = Column(Text)
     collector_name = Column(String(200))
+    collector_number = Column(String(100))
+    verbatim_collection_date = Column(String(100))
+    type_status = Column(String(50))
     verifier_name = Column(String(200))
     determiner_name = Column(String(200))
     determination_date = Column(Date)

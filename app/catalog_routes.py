@@ -89,6 +89,8 @@ def get_specimen_details(specimen_id: str, db: Session = Depends(get_db)):
         "name": record["name"],
         "subnomen": specimen.subnomen,
         "collection_date": specimen.collection_date,
+        "collector_number": specimen.collector_number,
+        "type_status": specimen.type_status,
         "determination_date": specimen.determination_date,
         "reg_date": specimen.reg_date,
         "taxon": {

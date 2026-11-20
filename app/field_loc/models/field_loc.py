@@ -22,19 +22,23 @@ class FieldLoc(Base):
     """
     __tablename__ = "field_loc"
     field_loc_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
-    country = Column(String(20))
-    region = Column(String(20))
-    locality = Column(String(40))
+    country = Column(String(100))
+    region = Column(String(150))
+    locality = Column(String(500))
     altitude = Column(Integer, nullable=True)
-    habitat = Column(String(20), nullable=True)
+    habitat = Column(String(255), nullable=True)
     gps_lat = Column(Float, nullable=True)
     gps_long = Column(Float, nullable=True)
+    coordinate_uncertainty_m = Column(Integer, nullable=True)
+    geodetic_datum = Column(String(20), nullable=True)
+    georeference_source = Column(String(200), nullable=True)
 
     specimens = relationship("Specimen", back_populates="field_loc", passive_deletes="all")
 
     def __init__(self, country: str, region: str, locality: str, altitude: Optional[int] = None,
                  habitat: Optional[str] = None, gps_lat: Optional[float] = None,
-                 gps_long: Optional[float] = None):
+                 gps_long: Optional[float] = None, coordinate_uncertainty_m: Optional[int] = None,
+                 geodetic_datum: Optional[str] = None, georeference_source: Optional[str] = None):
         """
         Constructor method for creating a new instance of the FieldLoc class.
 
@@ -47,6 +51,9 @@ class FieldLoc(Base):
         :param habitat: the type of habitat the specimen was found in
         :param gps_lat: The latitude of the location
         :param gps_long: The longitude of the location
+        :param coordinate_uncertainty_m: Radius of the georeference uncertainty in metres
+        :param geodetic_datum: Datum or spatial reference system of the coordinates, e.g. WGS84
+        :param georeference_source: How the coordinates were obtained, e.g. GPS or gazetteer
         """
         self.country = country
         self.region = region
@@ -55,3 +62,6 @@ class FieldLoc(Base):
         self.habitat = habitat
         self.gps_lat = gps_lat
         self.gps_long = gps_long
+        self.coordinate_uncertainty_m = coordinate_uncertainty_m
+        self.geodetic_datum = geodetic_datum
+        self.georeference_source = georeference_source

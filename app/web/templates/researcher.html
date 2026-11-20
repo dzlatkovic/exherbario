@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Research workspace · HERBAR{% endblock %}
+{% block head %}<script src="/assets/herbar/researcher.js" defer></script>{% endblock %}
+{% block body %}
+<main id="main" class="frame">
+  <section class="hero">
+    <div class="hero-content">
+      <p class="overline">HERBAR Research</p>
+      <h1>Research workspace</h1>
+      <p class="lead">Register a voucher, upload analytical data, and prepare a citable deposition.</p>
+    </div>
+    <div id="session" class="session" hidden><span id="role"></span><button type="button" id="sign-out" class="secondary">Sign out</button></div>
+  </section>
+
+  <section id="sign-in" class="panel sign-in" aria-labelledby="login-title">
+    <h2 id="login-title">Sign in to your archive</h2>
+    <form id="login" class="stack">
+      <label>Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="primary">Sign in</button>
+      <p class="feedback" role="status"></p>
+    </form>
+  </section>
+
+  <div id="workspace" class="workspace" hidden>
+    <nav class="step-nav" aria-label="Research workflow">
+      <a href="#voucher">Voucher</a>
+      <a href="#analytical">Analytical data</a>
+      <a href="#draft">Deposition draft</a>
+      <a href="#review">Review and publish</a>
+    </nav>
+    <div class="work-sections">
+      <section id="voucher" class="panel">
+        <h2>Voucher</h2>
+        <p id="voucher-selection" class="selection" aria-live="polite">No voucher selected</p>
+        <form id="find-voucher" class="inline-form">
+          <label>Existing voucher ID <input name="specimen_id" required maxlength="50"></label>
+          <button class="secondary">Use voucher</button>
+          <p class="feedback" role="status"></p>
+        </form>
+        <details class="form-details curator-only" hidden>
+          <summary>Register a voucher</summary>
+          <form id="register" class="stack">
+            <div class="form-grid">
+              <label>Holding type <select name="holding_type"><option value="local">Locally held</option><option value="external">Externally held</option></select></label>
+              <label>Holding institution <input name="holding_institution" maxlength="120"></label>
+              <label>Collection <input name="collection" maxlength="120"></label>
+              <label>Accession <input name="accession" maxlength="100"></label>
+              <label>Determination as recorded <input name="subnomen" maxlength="200"></label>
+              <label>Determiner name <input name="determiner_name" maxlength="200"></label>
+              <label>Determination date <input name="determination_date" type="date"></label>
+              <label>Collector name <input name="collector_name" maxlength="200"></label>
+            </div>
+            <label>Verbatim label <textarea name="verbatim_label" maxlength="10000" rows="3"></textarea></label>
+            <button class="primary">Register voucher</button>
+            <p class="feedback" role="status"></p>
+          </form>
+        </details>
+      </section>
+
+      <section id="analytical" class="panel">
+        <h2>Analytical data</h2>
+        <label>Study <select id="choose-study"><option value="">Select a study</option></select></label>
+        <p id="study-feedback" class="feedback" role="status"></p>
+        <details class="form-details">
+          <summary>Create a study</summary>
+          <form id="create-study" class="stack">
+            <label>Study title <input name="title" required maxlength="200"></label>
+            <button class="secondary">Create study</button>
+            <p class="feedback" role="status"></p>
+          </form>
+        </details>
+        <div id="study-work" hidden>
+          <div class="form-grid selections">
+            <label>Sample <select id="choose-sample"><option value="">Select a sample</option></select></label>
+            <label>Preparation <select id="choose-preparation"><option value="">Select a preparation</option></select></label>
+          </div>
+          <details class="form-details">
+            <summary>Link a sample to the selected voucher</summary>
+            <form id="create-sample" class="stack">
+              <div class="form-grid">
+                <label>Sample code <input name="code" required maxlength="80"></label>
+                <label>Plant part <input name="plant_part" required maxlength="100"></label>
+                <label>Collection event <input name="collection_event" required maxlength="200"></label>
+                <label>Voucher relationship <select name="voucher_relationship">
+                  <option value="sampled_from_voucher">Sampled from the voucher</option>
+                  <option value="collected_alongside">Collected alongside the voucher</option>
+                </select></label>
+              </div>
+              <button class="secondary">Link sample</button>
+              <p class="feedback" role="status"></p>
+            </form>
+          </details>
+          <details class="form-details">
+            <summary>Add a preparation to the selected sample</summary>
+            <form id="create-preparation" class="stack">
+              <div class="form-grid">
+                <label>Batch code <input name="batch_code" required maxlength="80"></label>
+                <label>Preparation type <select name="kind"><option value="extract">Extract</option><option value="essential_oil">Essential oil</option></select></label>
+              </div>
+              <label>Method reference <input name="method_reference" required maxlength="500"></label>
+              <button class="secondary">Add preparation</button>
+              <p class="feedback" role="status"></p>
+            </form>
+          </details>
+          <details class="form-details" id="upload-details">
+            <summary>Upload a CSV profile</summary>
+            <form id="upload" class="stack">
+              <div class="form-grid">
+                <label>Run code <input name="run_code" required maxlength="80"></label>
+                <label>Analytical method <input name="analytical_method" required maxlength="120"></label>
+                <label>Measurement basis <select name="measurement_basis" id="measurement-basis">
+                  <option value="peak_area_percent">Peak-area percentage</option>
+                  <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
+                </select></label>
+                <label>Unit <input name="unit" value="%" required maxlength="40"></label>
+              </div>
+              <label>Source CSV <input name="file" type="file" accept=".csv,text/csv" required></label>
+              <p class="muted">Use UTF-8 with <code>feature,value,confidence</code> and optional <code>status</code>.</p>
+              <button class="primary">Validate and upload CSV</button>
+              <p class="feedback" role="status"></p>
+            </form>
+          </details>
+        </div>
+      </section>
+
+      <section id="draft" class="panel">
+        <h2>Deposition draft</h2>
+        <form id="open-draft" class="inline-form">
+          <label>Existing deposition ID <input name="deposition_id" required maxlength="50"></label>
+          <button class="secondary">Open deposition</button>
+          <p class="feedback" role="status"></p>
+        </form>
+        <div class="draft-bar">
+          <p id="draft-selection" class="selection" aria-live="polite">New deposition</p>
+          <button type="button" id="new-draft" class="secondary" hidden>New deposition</button>
+        </div>
+        <form id="save-draft" class="stack">
+          <div class="form-grid">
+            <label>Registered institution code <input name="institution" required maxlength="40" pattern="[A-Za-z0-9][A-Za-z0-9\-]{0,39}"></label>
+            <label>Title <input name="title" maxlength="200"></label>
+            <label>License <input name="license" maxlength="200" placeholder="e.g. CC BY 4.0"></label>
+          </div>
+          <label>Description <textarea name="description" rows="3" maxlength="10000"></textarea></label>
+          <label>Rights statement <textarea name="rights_statement" rows="2" maxlength="2000"></textarea></label>
+          <fieldset id="credits">
+            <legend>Contributor credits</legend>
+            <div id="credit-rows"></div>
+            <button type="button" id="add-credit" class="secondary">Add contributor</button>
+          </fieldset>
+          <div id="profile-picker" class="inline-form" hidden>
+            <label>Profile from selected study <select id="choose-profile"></select></label>
+            <button type="button" id="attach-profile" class="secondary">Add profile</button>
+          </div>
+          <label>Selected profile IDs <textarea name="profile_ids" rows="2" spellcheck="false"></textarea></label>
+          <label>Voucher IDs without analytical profiles <textarea name="specimen_ids" rows="2" spellcheck="false"></textarea></label>
+          <label class="check"><input name="include_collector_names" type="checkbox"> Include recorded collector names</label>
+          <label class="check"><input name="include_determiner_names" type="checkbox"> Include recorded scientific determiner names</label>
+          <label id="correction-field" hidden>Reason for this correction <textarea name="correction_reason" rows="2" maxlength="1000"></textarea></label>
+          <button class="primary">Save draft</button>
+          <p class="feedback" role="status"></p>
+        </form>
+      </section>
+
+      <section id="review" class="panel">
+        <h2>Review and publish</h2>
+        <p id="inputs-status" class="feedback" role="status"></p>
+        <div id="release-inputs"></div>
+        <form id="validate" class="stack">
+          <button class="secondary" disabled>Validate and preview</button>
+          <p class="feedback" role="status"></p>
+        </form>
+        <section id="preview" class="preview" hidden aria-labelledby="preview-title">
+          <h3 id="preview-title">Public snapshot preview</h3>
+          <div id="preview-summary"></div>
+          <details><summary>Inspect complete snapshot</summary><pre id="preview-json"></pre></details>
+          <form id="publish" class="stack curator-only" hidden>
+            <label class="check"><input name="approved" type="checkbox" required> I reviewed this snapshot for public release.</label>
+            <button class="primary">Publish version</button>
+            <p class="feedback" role="status"></p>
+          </form>
+          <p id="awaiting-curator" class="muted" hidden>A curator can open the deposition by ID and publish the reviewed snapshot.</p>
+        </section>
+        <p id="publication-result" class="notice" role="status" hidden></p>
+      </section>
+    </div>
+  </div>
+  <dialog id="confirm-release" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+    <form method="dialog" class="stack">
+      <h2 id="confirm-title">Release record</h2>
+      <p id="confirm-body">This makes the selected record available through the public archive.</p>
+      <div class="link-row">
+        <button value="cancel" class="secondary" autofocus>Cancel</button>
+        <button value="release" class="primary">Release record</button>
+      </div>
+    </form>
+  </dialog>
+</main>
+{% endblock %}

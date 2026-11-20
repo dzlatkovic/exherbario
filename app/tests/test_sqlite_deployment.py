@@ -5,6 +5,7 @@ from datetime import datetime
 from hashlib import sha256
 from io import BytesIO
 from os import environ
+from types import SimpleNamespace
 from pathlib import Path
 from threading import Event, local
 from uuid import uuid4
@@ -19,6 +20,7 @@ from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
 from app.deposition.models import Deposition
 from app.field_loc.models import FieldLoc
+from app.field_loc.repository import FieldLocRepository
 from app.image.models import Image as ImageRecord
 from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.specimen.schemas import SpecimenSchemaUpdate
@@ -214,6 +216,19 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
     engine = create_database_engine(url)
     monkeypatch.setitem(SessionLocal.kw, "bind", engine)
     monkeypatch.setitem(TestingSessionLocal.kw, "bind", engine)
+
+    def legacy_field_loc(repository, country, region, locality, altitude, habitat, gps_lat, gps_long, **_):
+        # Write the location as the 0003 schema stores it; the current model has later columns.
+        table = Table("field_loc", MetaData(), autoload_with=repository.db.connection())
+        field_loc_id = str(uuid4())
+        repository.db.execute(table.insert().values(
+            field_loc_id=field_loc_id, country=country, region=region, locality=locality,
+            altitude=altitude, habitat=habitat, gps_lat=gps_lat, gps_long=gps_long,
+        ))
+        repository.db.commit()
+        return SimpleNamespace(field_loc_id=field_loc_id)
+
+    monkeypatch.setattr(FieldLocRepository, "create_field_loc", legacy_field_loc)
     try:
         specimen_data = SpecimenFixtures.create_test_specimen_object()
         specimen_id = str(uuid4())

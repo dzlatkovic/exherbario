@@ -116,6 +116,9 @@ class TestCatalog(TestClass):
             "/api/chemistry/public/studies/{study_id}", "/api/chemistry/public/profiles/{profile_id}",
             "/api/chemistry/public/specimens/{specimen_id}/profiles",
             "/api/depositions/public/{institution}/{accession}/versions/{number}",
+            "/api/depositions/public/{institution}/{accession}/versions/{number}/archive.zip",
+            "/api/depositions/public/{institution}/{accession}/versions/{number}/datacite.json",
+            "/api/institutions",
             "/api/depositions/public/{institution}/{accession}/versions/{number}/files/{profile_id}",
         }
         for route in app.routes:

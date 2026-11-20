@@ -10,11 +10,16 @@ from app.db import SessionLocal
 from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
 from app.deposition.models import Deposition, DepositionFile, DepositionVersion
+from app.deposition.verify_archive import verify_archive
+from app.config import settings
 from app.main import app
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
 from app.tests import client
 from app.tests.test_sqlite_deployment import sqlite_archive
 from app.users.services import UserServices, signJWT
+
+
+BASE_URL = "https://herbar.example.edu"
 
 
 def headers_for(user):
@@ -24,10 +29,13 @@ def headers_for(user):
 
 def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, monkeypatch):
     archive, engine = sqlite_archive
+    monkeypatch.setattr(settings, "PUBLIC_BASE_URL", BASE_URL + "/")
     curator = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
     owner = UserServices.create_user("Lab", "Owner", "lab@example.org", "password")
     other = UserServices.create_user("Other", "User", "other@example.org", "password")
     admin, author, outsider = map(headers_for, (curator, owner, other))
+    assert client.post("/api/institutions", headers=admin,
+                       json={"code": "exu", "name": "Example University"}).status_code == 201
     specimen = SpecimenFixtures.create_test_specimen()
     voucher_url = f"/api/specimen/{specimen.specimen_id}"
     with SessionLocal() as db:
@@ -81,8 +89,13 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     assert first_preview.status_code == 200, first_preview.text
     preview = first_preview.json()
     first_url = preview["snapshot"]["url"]
-    assert first_url.startswith("/api/depositions/public/EXU/")
+    assert first_url.startswith(BASE_URL + "/api/depositions/public/EXU/")
+    assert preview["snapshot"]["schema_version"] == 2
+    assert preview["snapshot"]["identifier"] == first_url.replace("/api/depositions/public/", "/depositions/")
+    assert [voucher["id"] for voucher in preview["snapshot"]["vouchers"]] == [specimen.specimen_id]
     assert client.get(first_url).status_code == 404
+    first_page = first_url.replace("/api/depositions/public/", "/depositions/")
+    assert client.get(first_page).status_code == 404
     selected = preview["snapshot"]["profiles"][0]
     assert selected["sample"]["id"] == sample_id
     assert selected["sample"]["voucher_relationship"] == "collected_alongside"
@@ -132,6 +145,19 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     assert published["snapshot"] == preview["snapshot"]
     assert published["snapshot"]["contributors"] == metadata["contributors"]
     assert published["snapshot"]["license"] == metadata["license"]
+    page = client.get(first_page)
+    assert page.status_code == 200
+    for value in ("Test method reference", "Collected alongside the voucher", "CC BY 4.0",
+                  "F. Scientist", "Citation", "Download version ZIP", "source.csv"):
+        assert value in page.text
+    assert "Private site details" not in page.text
+    archive_url = f"{first_url}/archive.zip"
+    bundle = client.get(archive_url)
+    assert bundle.status_code == 200 and bundle.headers["content-type"] == "application/zip"
+    assert bundle.headers["X-HERBAR-Snapshot-SHA256"] == published["snapshot_sha256"]
+    bundle_path = tmp_path / "published-v1.zip"
+    bundle_path.write_bytes(bundle.content)
+    assert verify_archive(bundle_path, published["snapshot_sha256"])["identity"]["version"] == 1
 
     with SessionLocal() as db:
         original = Path(db.get(Profile, profile_id).source_path)
@@ -151,6 +177,8 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     linked = client.get(first_url).json()
     assert linked["article_dois"] == ["10.0000/example"]
     assert linked["snapshot_sha256"] == published["snapshot_sha256"]
+    assert client.get(archive_url).content == bundle.content
+    assert "https://doi.org/10.0000/example" in client.get(first_page).text
 
     assert client.put(f"{path}/draft", headers=author, json={**metadata, "expected_revision": None}).status_code == 409
     correction = client.put(f"{path}/draft", headers=author, json={
@@ -160,11 +188,14 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     corrected = client.get(preview_url, headers=admin).json()
     assert client.post(publish, headers=admin, json=approval(corrected)).status_code == 200
     second_url = corrected["snapshot"]["url"]
+    second_page = second_url.replace("/api/depositions/public/", "/depositions/")
     second = client.get(second_url).json()["snapshot"]
     assert second["supersedes"] == first_url
     assert second["profiles"][0]["voucher"]["determination"]["name_as_recorded"] == "Revised determination"
     superseded = client.get(first_url).json()
     assert superseded["status"] == "superseded" and superseded["snapshot"] == published["snapshot"]
+    assert "A newer version is available" in client.get(first_page).text
+    assert "Correct the title" in client.get(second_page).text
 
     withdrawal_url = f"{path}/versions/1/withdraw"
     reason = {"reason": "Replace the published version with its correction."}
@@ -176,6 +207,11 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     assert tombstone.json()["article_dois"] == linked["article_dois"]
     assert "snapshot" not in tombstone.json()
     assert client.get(file_url).status_code == 410
+    assert client.get(archive_url).status_code == 410
+    notice_page = client.get(first_page)
+    assert notice_page.status_code == 410
+    assert reason["reason"] in notice_page.text
+    assert "Download version ZIP" not in notice_page.text
     assert client.get(second_url).status_code == 200
     assert submit().json() == replies[0].json()
 

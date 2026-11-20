@@ -10,7 +10,7 @@ Use Python 3.12 and run these commands from the project root with your virtual e
 python -m pip install -r requirements.txt
 ```
 
-Copy `env-template` to `.env`. Set `USER_SECRET` to the output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`. The file also configures the origin for distance searches and the Pl@ntNet key for image identification.
+Copy `env-template` to `.env`. Set `USER_SECRET` to the output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`. The file also configures the origin for distance searches and the Pl@ntNet key for image identification. Before publishing real records, set `PUBLIC_BASE_URL` to the instance's public origin, such as `https://herbar.example.edu`. Every published version records its identifiers under that origin.
 
 ```powershell
 python -m alembic upgrade head
@@ -19,6 +19,8 @@ python -m uvicorn app.main:app --reload
 ```
 
 The bootstrap command creates the first administrator and prompts for a password. In Swagger, log in with `POST /api/users/login` and paste the returned `access_token` into **Authorize**. [Open Swagger](http://127.0.0.1:8000/docs)
+
+The [research workspace](http://127.0.0.1:8000/researcher) uses the same sign-in. It guides you through voucher registration or selection, study and sample setup, CSV upload, draft validation, preview, and publication. A researcher can save the draft and share its internal deposition ID with a curator. Curators can open that draft, review its linked records, and publish the approved preview.
 
 ## Explore the API
 
@@ -40,13 +42,16 @@ In Swagger, authenticate as a curator and call `POST /api/specimen/create-new-sp
   "collector_name": "F. Collector",
   "determiner_name": "D. Botanist",
   "determination_date": "2024-05-02",
-  "subnomen": "Achillea cf. millefolium"
+  "subnomen": "Achillea cf. millefolium",
+  "collector_number": "FC 1234",
+  "verbatim_collection_date": "mid-June 2024",
+  "type_status": "isotype"
 }
 ```
 
-Omit unknown fields or send `null`. HERBAR supplies a specimen UUID and registration date. A linked taxon, collection site, storage slot, and login accounts for the collector or determiner are optional. The scientific names are independent of accounts. You can add a `verifier_name` if known. Accession numbers are unique within a holding institution and collection when all three values are known. Legacy `reg_no` remains a separate global lookup key.
+Omit unknown fields or send `null`. `type_status` accepts holotype, isotype, lectotype, isolectotype, neotype, isoneotype, epitype, syntype, isosyntype, paratype, isoparatype or type. Collection sites accept locality text up to 500 characters and optional `coordinate_uncertainty_m`, `geodetic_datum` and `georeference_source`. HERBAR supplies a specimen UUID and registration date. A linked taxon, collection site, storage slot, and login accounts for the collector or determiner are optional. The scientific names are independent of accounts. You can add a `verifier_name` if known. Accession numbers are unique within a holding institution and collection when all three values are known. Legacy `reg_no` remains a separate global lookup key.
 
-Use the returned `specimen_id` to link images and lab samples, and as the query parameter for label and QR reads when a legacy registration number is unavailable. The full label and scientific attribution names are available on authenticated routes. After curator release, the public catalog supports accession, institution, and collection filters.
+Use the returned `specimen_id` to link images and lab samples, and as the query parameter for label and QR reads when a legacy registration number is unavailable. The full label and scientific attribution names are available on authenticated routes. The public catalog shows the collector number and type status, but not collector names. After curator release, the public catalog supports accession, institution, and collection filters.
 
 ## Public visibility
 
@@ -70,12 +75,25 @@ An administrator can release a study and selected profiles. Public profiles requ
 
 ## Publish a scientific deposition
 
-1. An authenticated researcher creates a draft with `POST /api/depositions`. Supply an institution code such as `EXU`, then add the institution name, title, license, contributor names and roles, and selected `profile_ids`. Description and rights statements are optional. HERBAR reserves an accession in that institution's namespace. Use `PUT /api/depositions/{id}/draft` with the returned `draft_revision` as `expected_revision` to edit.
-2. Review `GET /api/depositions/{id}/draft/preview` before release. It shows the exact proposed public snapshot. Profiles must belong to studies available to the draft owner. Each voucher, study, and profile must be released through its existing visibility control. The preview uses the voucher's approved regional projection and keeps verbatim labels, exact locations, original sample collection-event text, and account IDs private. Scientific determiner names are included only when the draft explicitly enables them. Review contributor names and remaining free text before approval.
-3. A curator calls `POST /api/depositions/{id}/publish` with the preview's `draft_revision` and `snapshot_sha256`. If the underlying records or files have changed, review a new preview. Retry the same request to get the same version. Cite the returned path at the serving instance, `/api/depositions/public/{institution}/{accession}/versions/{number}`.
+A curator first registers the institution whose namespace holds the accessions. Use `POST /api/institutions` with a `code` such as `EXU` and the institution `name`. Add the `index_herbariorum_code` and `ror_id` where they exist, so citations resolve to a known institution. `GET /api/institutions` lists registered codes. A code, Index Herbariorum code or ROR ID cannot be reassigned to another institution.
+
+1. An authenticated researcher creates a draft with `POST /api/depositions`. Supply a registered institution code, then add the title, license and contributor names and roles, with an optional `orcid` for each contributor. Select `profile_ids` for analytical profiles, `specimen_ids` for vouchers cited without analytical data, or both. Description and rights statements are optional. HERBAR reserves an accession in that institution's namespace. Use `PUT /api/depositions/{id}/draft` with the returned `draft_revision` as `expected_revision` to edit.
+2. Review `GET /api/depositions/{id}/draft/preview` before release. It shows the exact proposed public snapshot. Profiles must belong to studies available to the draft owner. Each voucher, study, and profile must be released through its existing visibility control. The preview uses the voucher's approved regional projection and keeps verbatim labels, exact locations, original sample collection-event text, and account IDs private. Scientific determiner and collector names are included only when the draft enables `include_determiner_names` or `include_collector_names`. Collector numbers and type status are always included. Review contributor names and remaining free text before approval.
+3. A curator calls `POST /api/depositions/{id}/publish` with the preview's `draft_revision` and `snapshot_sha256`. If the underlying records or files have changed, review a new preview. Retry the same request to get the same version. The returned `identifier` is the version's public page under `PUBLIC_BASE_URL`, and `url` is its JSON record.
 
 Each published version freezes the metadata, voucher determination, sample and preparation links, methods, measurements, credits, rights, and file digests. It stores a bounded copy of each source file with the snapshot in the database, in the same transaction. The original uploads remain in local storage. Exports of legacy sources are marked `legacy-reconstructed`. Published files remain available if live records or files later change.
 
+Share the public page at `/depositions/{institution}/{accession}/versions/{number}`. It shows the citation, licenses and credits, voucher and sample relationships, methods, files, and any correction or withdrawal notice. The **Download version ZIP** link packages the frozen `deposition.json`, source files under `files/`, and a versioned `manifest.json` with sizes and SHA-256 digests. Later DOI links and status notices appear on the page while the archived version bytes stay fixed. Withdrawal disables downloads for that version.
+
+Verify a downloaded ZIP from a checkout with Python 3.12. Use the snapshot SHA-256 shown on the public page to compare against the published digest.
+
+```powershell
+python -m app.deposition.verify_archive .\deposition-v1.zip --snapshot-sha256 <digest>
+```
+
+The verifier runs offline without the server, database, or installed Python dependencies. Omitting the expected digest still checks the archive's internal consistency.
+
+- Get a dataset DOI by mirroring the version to Zenodo. Set `ZENODO_TOKEN` to a token with the `deposit:write` and `deposit:actions` scopes. Rehearse with `ZENODO_URL=https://sandbox.zenodo.org`, then run `python -m app.deposition.mirror_zenodo EXU <accession> 1 --curator curator@example.org`. Add `--dry-run` to review the Zenodo metadata first. Zenodo receives the same ZIP that HERBAR serves, and HERBAR records the DOI it returns. An institution with its own DataCite membership can register a DOI from `GET /api/depositions/public/{institution}/{accession}/versions/{number}/datacite.json`. Record that DOI with `PUT /api/depositions/{id}/versions/{number}/doi` and `{"doi": "10.…", "agency": "datacite"}`. The public page then cites the DOI.
 - Link a bare article DOI with `PUT /api/depositions/{id}/versions/{number}/article-doi`. Article links are attached to the cited version without editing its snapshot.
 - Create a correction by sending a complete new draft with `expected_revision: null` and a `correction_reason`, then preview and publish it. The accession stays the same and the version-specific URL changes. Earlier versions remain citable and indicate that they were superseded.
 - Withdraw a published version with `POST /api/depositions/{id}/versions/{number}/withdraw` and a public `reason`. Its URL returns a 410 notice with citation identity and linked DOIs. File downloads are withdrawn and the frozen records remain in the archive. Withdrawing release from a live voucher or profile leaves the immutable deposition in place. Use the version withdrawal action for the published record.
@@ -107,6 +125,10 @@ Migration `0006` adds holding and scientific attribution fields and makes the le
 
 Migration `0007` adds deposition tables and preserves existing scientific records and file references. The SQLite snapshot includes frozen deposition metadata and files. Downgrade is blocked when deposition records exist. Keep verified backups and preserve the serving URLs for published versions.
 
+Migration `0008` widens location, voucher and taxon text fields and adds collector numbers, verbatim collection dates, type status and georeference details. Existing values are kept. Downgrade is blocked when a value exceeds an earlier length or a new field holds data.
+
+Migration `0009` adds the institution registry and dataset DOIs. It registers each institution code already used by a deposition, named as its latest version or draft names it. Review those entries and add Index Herbariorum and ROR identifiers. Versions published before this migration keep their original relative paths and snapshot digests. Publish a correction to give a deposition absolute identifiers. Downgrade is blocked once a dataset DOI is recorded.
+
 ### Preview migration 0004
 
 With writers stopped and a verified snapshot available, run the preview against revision `0003`. If rehearsing from an earlier revision, first upgrade a restored copy to `0003`.
@@ -123,6 +145,10 @@ Migration `0004` retains identifiers, links, files, and chemistry release flags.
 ## Tests
 
 Run `python -m pytest`. The suite covers the SQLite API, migrations, concurrent specimen revisions, and backup restoration. CI also checks MySQL.
+
+## License
+
+HERBAR is released under the [MIT License](LICENSE).
 
 ## Meta
 

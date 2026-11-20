@@ -12,13 +12,14 @@ please refer to the documentation.
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 
 from app.catalog_routes import router as catalog_router
 from app.chemistry.controller import chemistry_error_response
 from app.chemistry.exceptions import ChemistryError
 from app.chemistry.routes import chemistry_router
 from app.config import settings
-from app.deposition.routes import router as deposition_router
+from app.deposition.routes import institution_router, router as deposition_router
 
 from app.field_loc.routes import field_loc_router
 from app.publication.routes import publication_router, publication_authors_router
@@ -29,6 +30,7 @@ from app.weather.routes import weather_router
 from app.image.routes import image_router, plantnet_router
 from app.taxonomy.routes import taxonomy_router
 from app.visibility_routes import router as visibility_router
+from app.web.routes import ROOT as WEB_ROOT, router as web_router
 
 def init_app():
     """
@@ -68,8 +70,11 @@ def init_app():
     fastapi_app.include_router(weather_router)
     fastapi_app.include_router(chemistry_router)
     fastapi_app.include_router(deposition_router)
+    fastapi_app.include_router(institution_router)
     fastapi_app.include_router(visibility_router)
     fastapi_app.include_router(catalog_router)
+    fastapi_app.include_router(web_router)
+    fastapi_app.mount("/assets/herbar", StaticFiles(directory=WEB_ROOT / "assets"), name="herbar-assets")
     return fastapi_app
 
 

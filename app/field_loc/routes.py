@@ -32,7 +32,10 @@ def create_new_field_loc(field_loc: FieldLocSchemaIn):
                                                    altitude=field_loc.altitude,
                                                    habitat=field_loc.habitat,
                                                    gps_lat=field_loc.gps_lat,
-                                                   gps_long=field_loc.gps_long)
+                                                   gps_long=field_loc.gps_long,
+                                                   coordinate_uncertainty_m=field_loc.coordinate_uncertainty_m,
+                                                   geodetic_datum=field_loc.geodetic_datum,
+                                                   georeference_source=field_loc.georeference_source)
 
 
 @field_loc_router.get("/get-all-field-locations", dependencies=[Depends(JWTBearer())], response_model=list[FieldLocSchema])

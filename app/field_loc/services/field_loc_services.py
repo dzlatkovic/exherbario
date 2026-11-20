@@ -29,7 +29,7 @@ class FieldLocService:
 
     @staticmethod
     def create_new_field_loc(country: str, region: str, locality: str, altitude: int,
-                             habitat: str, gps_lat: float, gps_long: float) -> FieldLoc:
+                             habitat: str, gps_lat: float, gps_long: float, coordinate_uncertainty_m=None, geodetic_datum=None, georeference_source=None) -> FieldLoc:
         """
         It creates a new field location in the database
         :param country: The country of the field location
@@ -45,7 +45,8 @@ class FieldLocService:
             with SessionLocal() as db:
                 repository = FieldLocRepository(db)
                 return repository.create_field_loc(country, region, locality, altitude,
-                                                   habitat, gps_lat, gps_long)
+                                                   habitat, gps_lat, gps_long,
+                                                   coordinate_uncertainty_m=coordinate_uncertainty_m, geodetic_datum=geodetic_datum, georeference_source=georeference_source)
         except Exception as error:
             raise error
 

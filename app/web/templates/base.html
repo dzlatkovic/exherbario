@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}HERBAR{% endblock %}</title>
+  <link rel="stylesheet" href="/assets/herbar/herbar.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="masthead">
+    <div class="frame masthead-inner">
+      <a class="wordmark" href="/researcher">HERBAR</a>
+      <nav aria-label="Site">
+        <a href="/researcher">Research workspace</a>
+        <a href="/docs">API</a>
+      </nav>
+    </div>
+  </header>
+  {% block body %}{% endblock %}
+</body>
+</html>

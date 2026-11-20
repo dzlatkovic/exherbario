@@ -6,6 +6,18 @@ from sqlalchemy.orm import deferred
 from app.db import Base, new_id
 
 
+class Institution(Base):
+    """A registered namespace for deposition accessions, tied to external registries where known."""
+    __tablename__ = "institution"
+
+    code = Column(String(40), primary_key=True)
+    name = Column(String(200), nullable=False)
+    index_herbariorum_code = Column(String(20), unique=True)
+    ror_id = Column(String(9), unique=True)
+    registered_by = Column(String(50), ForeignKey("users.user_id"))
+    registered_at = Column(DateTime)
+
+
 class Deposition(Base):
     __tablename__ = "deposition"
     __table_args__ = (UniqueConstraint("institution", "accession", name="uq_deposition_accession"),)
@@ -68,3 +80,19 @@ class DepositionWithdrawal(Base):
     reason = Column(Text, nullable=False)
     withdrawn_by = Column(String(50), ForeignKey("users.user_id"), nullable=False)
     withdrawn_at = Column(DateTime, nullable=False)
+
+
+class DepositionDOI(Base):
+    """A dataset DOI registered for one frozen version, e.g. by mirroring its ZIP to Zenodo."""
+    __tablename__ = "deposition_doi"
+    __table_args__ = (ForeignKeyConstraint(
+        ["deposition_id", "version"], ["deposition_version.deposition_id", "deposition_version.number"],
+    ),)
+
+    deposition_id = Column(String(50), primary_key=True)
+    version = Column(Integer, primary_key=True, autoincrement=False)
+    doi = Column(String(200), nullable=False, unique=True)
+    agency = Column(String(20), nullable=False)
+    record_url = Column(String(500))
+    registered_by = Column(String(50), ForeignKey("users.user_id"), nullable=False)
+    registered_at = Column(DateTime, nullable=False)

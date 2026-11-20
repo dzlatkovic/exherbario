@@ -37,7 +37,7 @@ class FieldLocRepository:
         self.db = db
 
     def create_field_loc(self, country: str, region: str, locality: str, altitude: int,
-                         habitat: str, gps_lat: float, gps_long: float):
+                         habitat: str, gps_lat: float, gps_long: float, coordinate_uncertainty_m=None, geodetic_datum=None, georeference_source=None):
         """
         Method for creating a new field location in the database.
 
@@ -53,7 +53,8 @@ class FieldLocRepository:
         :return: The created field location.
         """
         try:
-            field_loc = FieldLoc(country, region, locality, altitude, habitat, gps_lat, gps_long)
+            field_loc = FieldLoc(country, region, locality, altitude, habitat, gps_lat, gps_long,
+                                 coordinate_uncertainty_m=coordinate_uncertainty_m, geodetic_datum=geodetic_datum, georeference_source=georeference_source)
             self.db.add(field_loc)
             self.db.commit()
             self.db.refresh(field_loc)

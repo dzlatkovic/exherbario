@@ -10,7 +10,11 @@ from pydantic import BaseModel, Field, UUID4, constr, root_validator
 PersonName = constr(strip_whitespace=True, min_length=1, max_length=200)
 CollectionName = constr(strip_whitespace=True, min_length=1, max_length=120)
 Accession = constr(strip_whitespace=True, min_length=1, max_length=100)
-RegistrationNumber = constr(strip_whitespace=True, min_length=1, max_length=10)
+RegistrationNumber = constr(strip_whitespace=True, min_length=1, max_length=40)
+TYPE_STATUSES = (
+    "holotype", "isotype", "lectotype", "isolectotype", "neotype", "isoneotype", "epitype",
+    "syntype", "isosyntype", "paratype", "isoparatype", "type",
+)
 
 
 class VoucherMetadata(BaseModel):
@@ -20,6 +24,9 @@ class VoucherMetadata(BaseModel):
     accession: Accession | None = None
     verbatim_label: constr(max_length=10000) | None = None
     collector_name: PersonName | None = None
+    collector_number: constr(strip_whitespace=True, min_length=1, max_length=100) | None = None
+    verbatim_collection_date: constr(strip_whitespace=True, min_length=1, max_length=100) | None = None
+    type_status: Literal[TYPE_STATUSES] | None = None
     verifier_name: PersonName | None = None
     determiner_name: PersonName | None = None
     determination_date: date | None = None

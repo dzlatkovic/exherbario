@@ -14,12 +14,12 @@ from app.taxonomy.schemas.taxonomy_schemas import TaxonRank
 class Taxonomy(Base):
     __tablename__ = "taxonomy"
     taxon_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
-    taxon_name = Column(String(100), nullable=False)
+    taxon_name = Column(String(255), nullable=False)
     gbif_key = Column(String(20), nullable=False, unique=True)
     taxon_rank = Column(Enum(TaxonRank), nullable=False)
     parent_taxon_key = Column(String(50), ForeignKey('taxonomy.taxon_id'), nullable=True)
-    common_name = Column(String(50), nullable=True)
-    authority = Column(String(30), nullable=True)
+    common_name = Column(String(150), nullable=True)
+    authority = Column(String(200), nullable=True)
 
     def __init__(self,
                  taxon_name: str,
