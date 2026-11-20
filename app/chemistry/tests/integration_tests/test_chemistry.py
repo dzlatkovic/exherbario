@@ -1,7 +1,6 @@
 from hashlib import sha256
 from pathlib import Path
 
-import pytest
 from fastapi.encoders import jsonable_encoder
 
 from app.chemistry.models import SampleVoucher
@@ -37,7 +36,7 @@ class TestChemistry(TestClass):
         with TestingSessionLocal() as db:
             assert db.query(SampleVoucher).filter_by(specimen_id=specimen_id).count() == 0
 
-    def test_drafts_release_and_reproducible_pca(self, tmp_path, monkeypatch):
+    def test_drafts_and_release(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         specimen = SpecimenFixtures.create_test_specimen()
         actor = UserServices.create_user("Lab", "Owner", "lab@example.org", "password")
@@ -68,7 +67,7 @@ class TestChemistry(TestClass):
             assert sample.status_code == 201, sample.text
             sample_id = sample.json()["id"]
             preparation = client.post(f"{base}/samples/{sample_id}/preparations", headers=owner, json={
-                "batch_code": f"batch-{index}", "kind": "essential_oil", "method_reference": "REF-1",
+                "batch_code": f"batch-{index}", "kind": "essential_oil", "yield_percent": 0.8, "method_reference": "REF-1",
             })
             assert preparation.status_code == 201, preparation.text
             preparation_id = preparation.json()["id"]
@@ -77,7 +76,7 @@ class TestChemistry(TestClass):
             ) + "\r\n").encode("utf-8")
             profile = client.post(f"{base}/preparations/{preparation_id}/profiles", headers=owner,
                                   data={"run_code": f"run-{index}", "analytical_method": "GC-MS-1",
-                                        "measurement_basis": "peak_area_percent", "unit": "%"},
+                                        "technique": "GC-MS", "run_metadata": '{"polarity_class": "non-polar"}', "measurement_basis": "peak_area_percent", "unit": "%"},
                                   files={"file": ("source.csv", csv, "text/csv")})
             assert profile.status_code == 201, profile.text
             assert profile.json()["source_fidelity"] == "byte-preserved"
@@ -86,7 +85,7 @@ class TestChemistry(TestClass):
             source_bytes.append(csv)
         duplicate = client.post(f"{base}/preparations/{preparation_id}/profiles", headers=owner,
                                 data={"run_code": "run-2", "analytical_method": "GC-MS-1",
-                                      "measurement_basis": "peak_area_percent", "unit": "%"},
+                                      "technique": "GC-MS", "run_metadata": '{"polarity_class": "non-polar"}', "measurement_basis": "peak_area_percent", "unit": "%"},
                                 files={"file": ("source.csv", csv, "text/csv")})
         assert duplicate.status_code == 409
         assert len(list(Path("files").glob("*.csv"))) == 3
@@ -121,15 +120,8 @@ class TestChemistry(TestClass):
         assert [row["id"] for row in client.get(public_study).json()["profiles"]] == [first]
         assert client.get(f"{base}/public/profiles/{profiles[1]}").status_code == 404
 
-        request = {"profile_ids": profiles}
-        result = client.post(study_url + "/pca", json=request, headers=owner)
-        assert result.status_code == 201, result.text
-        analysis = result.json()
-        assert analysis["configuration"]["transform"] == "centered_log_ratio"
-        assert analysis["profile_ids"] == profiles
-        assert sum(analysis["explained_variance"]) == pytest.approx(100)
-        saved = client.get(study_url + "/pca/" + analysis["id"], headers=owner)
-        assert saved.json() == analysis
+        # PCA was removed in favour of the analysis-ready export.
+        assert client.post(study_url + "/pca", json={"profile_ids": profiles}, headers=owner).status_code in (404, 405)
         assert client.put(study_url + "/visibility", json={"is_public": False}, headers=curator).status_code == 200
         assert client.get(public_profile).status_code == 404
         assert client.get(voucher_profiles).json() == []

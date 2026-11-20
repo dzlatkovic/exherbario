@@ -104,6 +104,8 @@
                   {% if sample.storage_notes %}<div><dt>Storage</dt><dd>{{ sample.storage_notes }}</dd></div>{% endif %}
                   <div><dt>Preparation</dt><dd>{{ profile.preparation.kind | replace('_', ' ') | capitalize }} · {{ profile.preparation.batch_code }}</dd></div>
                   <div><dt>Preparation method</dt><dd>{{ profile.preparation.method_reference }}</dd></div>
+                  {% if profile.preparation.yield_percent is not none %}<div><dt>Yield</dt><dd>{{ profile.preparation.yield_percent }}% (w/w){% if profile.preparation.plant_material_mass_g %} from {{ profile.preparation.plant_material_mass_g }} g{% endif %}</dd></div>{% endif %}
+                  {% if profile.technique %}<div><dt>Technique</dt><dd>{{ profile.technique }}{% if profile.run_metadata and profile.run_metadata.column %} · {{ profile.run_metadata.column }}{% endif %}</dd></div>{% endif %}
                   <div><dt>Analytical method</dt><dd>{{ profile.analytical_method }}</dd></div>
                   <div><dt>Measurement basis</dt><dd>{{ profile.measurement_basis | replace('_', ' ') | capitalize }} · {{ profile.unit }}</dd></div>
                 </dl>

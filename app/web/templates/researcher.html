@@ -71,6 +71,8 @@
           </form>
         </details>
         <div id="study-work" hidden>
+          <p class="link-row">Released profiles of this study:
+            <a id="export-long" href="#" download>long CSV</a> · <a id="export-wide" href="#" download>wide CSV</a></p>
           <div class="form-grid selections">
             <label>Sample <select id="choose-sample"><option value="">Select a sample</option></select></label>
             <label>Preparation <select id="choose-preparation"><option value="">Select a preparation</option></select></label>
@@ -125,9 +127,89 @@
                 <label>Preparation type <select name="kind"><option value="extract">Extract</option><option value="essential_oil">Essential oil</option></select></label>
               </div>
               <label>Method reference <input name="method_reference" required maxlength="500"></label>
+              <div class="form-grid">
+                <label>Plant material (g) <input name="plant_material_mass_g" type="number" min="0" step="any"></label>
+                <label>Yield (% w/w, required for essential oils) <input name="yield_percent" type="number" min="0" max="100" step="any"></label>
+              </div>
+              <label>Method and parameters <input name="method_parameters" maxlength="1000" placeholder="e.g. hydrodistillation, Clevenger apparatus, 3 h"></label>
               <button class="secondary">Add preparation</button>
               <p class="feedback" role="status"></p>
             </form>
+          </details>
+          <details class="form-details" id="import-details">
+            <summary>Import a results table (Excel or CSV)</summary>
+            <form id="import-upload" class="inline-form">
+              <label>Results table <input name="file" type="file" accept=".xlsx,.csv" required></label>
+              <button class="secondary">Upload table</button>
+              <p class="feedback" role="status"></p>
+            </form>
+            <form id="import-assign" class="stack" hidden>
+              <div class="form-grid">
+                <label>Sheet <select name="sheet" id="import-sheet"></select></label>
+                <label>Header row <input name="header_row" id="import-header-row" type="number" min="1" value="1" required></label>
+                <label>Saved layout <select id="import-template"><option value="">None</option></select></label>
+              </div>
+              <div class="table-scroll"><table id="import-grid" class="grid"></table></div>
+              <h3>Columns</h3>
+              <div class="table-scroll"><table id="import-columns" class="grid"></table></div>
+              <h3>Settings for all sample columns</h3>
+              <div class="form-grid">
+                <label>Technique <select name="technique" class="technique">
+                  <option value="GC-MS">GC-MS</option><option value="GC-FID">GC-FID</option>
+                  <option value="LC-MS">LC-MS</option><option value="LC-MS/MS">LC-MS/MS</option>
+                  <option value="HPLC-DAD">HPLC-DAD</option>
+                </select></label>
+                <label>Measurement basis <select name="measurement_basis">
+                  <option value="peak_area_percent">Peak-area percentage</option>
+                  <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
+                </select></label>
+                <label>Unit <input name="unit" value="%" required maxlength="40"></label>
+                <label>Analytical method <input name="analytical_method" required maxlength="120"></label>
+                <label>Reference RI column polarity <select name="ri_ref_polarity">
+                  <option value="">Not stated</option><option value="non-polar">Non-polar</option>
+                  <option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
+                </select></label>
+                <label>RI tolerance <input name="ri_tolerance" type="number" min="1" max="500" value="20"></label>
+                <label>Save this layout as <input name="save_template" maxlength="120" placeholder="optional"></label>
+              </div>
+              <fieldset class="form-grid run-fields">
+                <legend>Run</legend>
+                <label>Column <input name="run.column" maxlength="200"></label>
+                <label data-for="gc">Stationary phase <input name="run.stationary_phase" maxlength="200"></label>
+                <label data-for="gc">Column polarity <select name="run.polarity_class">
+                  <option value="non-polar">Non-polar</option><option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
+                </select></label>
+                <label data-for="gc">Temperature programme <input name="run.temperature_programme" maxlength="1000"></label>
+                <label data-for="gc">Carrier gas <input name="run.carrier_gas" maxlength="100"></label>
+                <label data-for="gc">Alkane reference series <input name="run.alkane_series" maxlength="200"></label>
+                <label data-for="lc">Mobile phase <input name="run.mobile_phase" maxlength="500"></label>
+                <label data-for="lc">Gradient <input name="run.gradient" maxlength="1000"></label>
+                <label data-for="lc">Ionisation mode <select name="run.ionisation_mode">
+                  <option value="">Not stated</option><option>ESI+</option><option>ESI-</option><option>APCI+</option>
+                  <option>APCI-</option><option>APPI+</option><option>APPI-</option>
+                </select></label>
+                <label data-for="lc">Mass analyser <input name="run.mass_analyser" maxlength="100"></label>
+              </fieldset>
+              <button class="secondary">Preview</button>
+              <p class="feedback" role="status"></p>
+            </form>
+            <div id="import-preview" class="stack" hidden>
+              <div id="import-problems" class="notice warning" hidden></div>
+              <div id="import-notes" class="notice" hidden></div>
+              <div class="table-scroll"><table id="import-samples" class="grid"></table></div>
+              <div id="import-excluded"></div>
+              <h3>PubChem assignments</h3>
+              <p class="muted">Check every compound. Accept the proposed match, pick another candidate, search by name, CAS,
+                CID or InChIKey, switch to the stereo-unspecified parent, or mark the row unidentified.</p>
+              <div class="link-row">
+                <button type="button" id="import-match" class="secondary">Look up remaining names in PubChem</button>
+                <button type="button" id="import-accept-all" class="secondary">Accept all proposed matches</button>
+              </div>
+              <p id="import-match-status" class="feedback" role="status"></p>
+              <div class="table-scroll"><table id="import-review" class="grid"></table></div>
+              <button type="button" id="import-confirm" class="primary">Confirm import</button>
+              <p id="import-confirm-status" class="feedback" role="status"></p>
+            </div>
           </details>
           <details class="form-details" id="upload-details">
             <summary>Upload a CSV profile</summary>
@@ -140,9 +222,43 @@
                   <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
                 </select></label>
                 <label>Unit <input name="unit" value="%" required maxlength="40"></label>
+                <label>Technique <select name="technique" class="technique" required>
+                  <option value="GC-MS">GC-MS</option><option value="GC-FID">GC-FID</option>
+                  <option value="LC-MS">LC-MS</option><option value="LC-MS/MS">LC-MS/MS</option>
+                  <option value="HPLC-DAD">HPLC-DAD</option>
+                </select></label>
               </div>
+              <fieldset class="form-grid run-fields">
+                <legend>Run</legend>
+                <label>Column <input name="run.column" maxlength="200"></label>
+                <label data-for="gc">Stationary phase <input name="run.stationary_phase" maxlength="200"></label>
+                <label data-for="gc">Column polarity <select name="run.polarity_class">
+                  <option value="non-polar">Non-polar</option><option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
+                </select></label>
+                <label data-for="gc">Temperature programme <input name="run.temperature_programme" maxlength="1000"></label>
+                <label data-for="gc">Carrier gas <input name="run.carrier_gas" maxlength="100"></label>
+                <label data-for="gc">Alkane reference series <input name="run.alkane_series" maxlength="200"></label>
+                <label data-for="gc">RI type <select name="run.ri_type">
+                  <option value="">Not stated</option>
+                  <option value="linear_temperature_programmed">Linear, temperature-programmed (van den Dool &amp; Kratz)</option>
+                  <option value="isothermal_kovats">Isothermal (Kováts)</option>
+                </select></label>
+                <label data-for="lc">Mobile phase <input name="run.mobile_phase" maxlength="500"></label>
+                <label data-for="lc">Gradient <input name="run.gradient" maxlength="1000"></label>
+                <label data-for="lc">Ionisation mode <select name="run.ionisation_mode">
+                  <option value="">Not stated</option><option>ESI+</option><option>ESI-</option><option>APCI+</option>
+                  <option>APCI-</option><option>APPI+</option><option>APPI-</option>
+                </select></label>
+                <label data-for="lc">Mass analyser <input name="run.mass_analyser" maxlength="100"></label>
+              </fieldset>
               <label>Source CSV <input name="file" type="file" accept=".csv,text/csv" required></label>
-              <p class="muted">Use UTF-8 with <code>feature,value,confidence</code> and optional <code>status</code>.</p>
+              <p class="muted">Use UTF-8 with <code>feature,value,confidence</code>. Optional columns: <code>status</code>,
+                <code>cid</code>, <code>inchikey</code>, <code>cas</code>, <code>rt_min</code>, <code>id_basis</code>,
+                <code>id_level</code>, <code>qualifier</code>, <code>sd</code>, <code>n</code>; for GC <code>ri_exp</code>,
+                <code>ri_ref</code>, <code>ri_ref_source</code>, <code>ri_ref_polarity</code>, and for GC-MS <code>library_match</code>,
+                <code>library_score</code>; for LC-MS <code>mz_obs</code>, <code>adduct</code>, <code>mass_error_ppm</code>,
+                <code>msms_match</code>.</p>
+              <p id="upload-warnings" class="notice warning" hidden></p>
               <button class="primary">Validate and upload CSV</button>
               <p class="feedback" role="status"></p>
             </form>

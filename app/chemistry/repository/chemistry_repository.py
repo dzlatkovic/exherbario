@@ -5,7 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import LabSample, Measurement, PCAAnalysis, Preparation, Profile, SampleVoucher, Study
+from app.chemistry.models import (Compound, LabSample, Measurement, MeasurementCorrection, Preparation,
+                                  Profile, SampleVoucher, Study)
 from app.field_loc.models import FieldLoc
 from app.publication.models import Publication
 from app.specimen.models import Specimen
@@ -139,20 +140,21 @@ class ChemistryRepository:
         return self.db.execute(self._released_profiles().where(Profile.id == profile_id)).one_or_none()
 
     def list_measurements(self, profile_ids: list[str]):
-        query = (select(Measurement).where(Measurement.profile_id.in_(profile_ids))
-                 .order_by(Measurement.feature))
-        return self.db.scalars(query).all()
-
-    def list_study_analyses(self, study_id: str):
-        query = (select(PCAAnalysis.id, PCAAnalysis.created_at)
-                 .where(PCAAnalysis.study_id == study_id).order_by(PCAAnalysis.created_at.desc()))
+        """Measurements with their registered compound (or None), ordered by feature."""
+        query = (select(Measurement, Compound).outerjoin(Compound, Compound.cid == Measurement.cid)
+                 .where(Measurement.profile_id.in_(profile_ids)).order_by(Measurement.feature))
         return self.db.execute(query).all()
 
-    def get_analysis(self, study_id: str, analysis_id: str):
-        query = select(PCAAnalysis).where(
-            PCAAnalysis.study_id == study_id, PCAAnalysis.id == analysis_id
-        )
-        return self.db.scalar(query)
+    def get_compound(self, cid: int):
+        return self.db.get(Compound, cid)
+
+    def get_measurement(self, profile_id: str, feature: str):
+        return self.db.get(Measurement, (profile_id, feature))
+
+    def list_corrections(self, profile_ids: list[str]):
+        query = (select(MeasurementCorrection).where(MeasurementCorrection.profile_id.in_(profile_ids))
+                 .order_by(MeasurementCorrection.corrected_at, MeasurementCorrection.id))
+        return self.db.scalars(query).all()
 
     def save(self, *records):
         self.db.add_all(records)
@@ -169,7 +171,7 @@ class ChemistryRepository:
             self.db.rollback()
             raise ChemistryError(409, "A matching record already exists or a linked record changed.") from error
 
-    def save_profile(self, profile: Profile, rows: list[dict]):
+    def save_profile(self, profile: Profile, rows: list[dict], commit=True):
         self.db.add(profile)
         try:
             self.db.flush()
@@ -177,4 +179,7 @@ class ChemistryRepository:
             self.db.rollback()
             raise ChemistryError(409, "A profile with that run code already exists for this batch.") from error
         self.db.add_all(Measurement(profile_id=profile.id, **row) for row in rows)
-        self._commit()
+        if commit:
+            self._commit()
+        else:
+            self.db.flush()

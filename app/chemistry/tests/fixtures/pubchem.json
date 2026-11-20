@@ -1,0 +1,68 @@
+{
+ "note": "Hand-written test data for four well-known compounds, not recorded PubChem responses. Replace with recorded data: python -m app.chemistry.pubchem_record --out <this file> alpha-pinene 82227 440968 limonene",
+ "records": [
+  {
+   "cid": 6654,
+   "title": "alpha-Pinene",
+   "iupac_name": "2,6,6-trimethylbicyclo[3.1.1]hept-2-ene",
+   "molecular_formula": "C10H16",
+   "monoisotopic_mass": 136.12520051,
+   "inchi": "InChI=1S/C10H16/c1-7-4-5-8-6-9(7)10(8,2)3/h4,8-9H,5-6H2,1-3H3",
+   "inchikey": "GRWFGVWFFZKLTI-UHFFFAOYSA-N",
+   "smiles": "CC1=CCC2CC1C2(C)C",
+   "synonyms": [
+    "alpha-Pinene",
+    "2-Pinene",
+    "80-56-8",
+    "alpha-pinene",
+    "Pinene"
+   ]
+  },
+  {
+   "cid": 82227,
+   "title": "(+)-alpha-Pinene",
+   "iupac_name": "(1R,5R)-2,6,6-trimethylbicyclo[3.1.1]hept-2-ene",
+   "molecular_formula": "C10H16",
+   "monoisotopic_mass": 136.12520051,
+   "inchi": null,
+   "inchikey": "GRWFGVWFFZKLTI-IUCAKERBSA-N",
+   "smiles": "CC1=CC[C@@H]2C[C@H]1C2(C)C",
+   "synonyms": [
+    "(+)-alpha-Pinene",
+    "7785-70-8",
+    "d-alpha-Pinene"
+   ]
+  },
+  {
+   "cid": 440968,
+   "title": "(-)-alpha-Pinene",
+   "iupac_name": "(1S,5S)-2,6,6-trimethylbicyclo[3.1.1]hept-2-ene",
+   "molecular_formula": "C10H16",
+   "monoisotopic_mass": 136.12520051,
+   "inchi": null,
+   "inchikey": "GRWFGVWFFZKLTI-RKDXNWHRSA-N",
+   "smiles": "CC1=CC[C@H]2C[C@@H]1C2(C)C",
+   "synonyms": [
+    "(-)-alpha-Pinene",
+    "7785-26-4",
+    "l-alpha-Pinene"
+   ]
+  },
+  {
+   "cid": 22311,
+   "title": "Limonene",
+   "iupac_name": "1-methyl-4-prop-1-en-2-ylcyclohexene",
+   "molecular_formula": "C10H16",
+   "monoisotopic_mass": 136.12520051,
+   "inchi": null,
+   "inchikey": "XMGQYMWWDOXHJM-UHFFFAOYSA-N",
+   "smiles": "CC1=CCC(CC1)C(=C)C",
+   "synonyms": [
+    "Limonene",
+    "138-86-3",
+    "Dipentene",
+    "dl-Limonene"
+   ]
+  }
+ ]
+}

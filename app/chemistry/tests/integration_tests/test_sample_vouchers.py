@@ -46,11 +46,11 @@ class TestSampleVouchers(TestClass):
 
     def add_profile(self, owner, curator, sample_id, release=True):
         preparation = client.post(f"{BASE}/samples/{sample_id}/preparations", headers=owner, json={
-            "batch_code": "B-1", "kind": "essential_oil", "method_reference": "Hydrodistillation, 3 h"})
+            "batch_code": "B-1", "kind": "essential_oil", "yield_percent": 0.8, "method_reference": "Hydrodistillation, 3 h"})
         assert preparation.status_code == 201, preparation.text
         profile = client.post(f"{BASE}/preparations/{preparation.json()['id']}/profiles", headers=owner,
                               data={"run_code": "R-1", "analytical_method": "GC-MS",
-                                    "measurement_basis": "peak_area_percent", "unit": "%"},
+                                    "technique": "GC-MS", "run_metadata": '{"polarity_class": "non-polar"}', "measurement_basis": "peak_area_percent", "unit": "%"},
                               files={"file": ("results.csv", CSV, "text/csv")})
         assert profile.status_code == 201, profile.text
         if release:
@@ -221,7 +221,7 @@ class TestSampleVouchers(TestClass):
         preview = client.get(f"{path}/draft/preview", headers=curator)
         assert preview.status_code == 200, preview.text
         snapshot = preview.json()["snapshot"]
-        assert snapshot["schema_version"] == 3
+        assert snapshot["schema_version"] == 4
         assert sorted(voucher["id"] for voucher in snapshot["vouchers"]) == sorted([first, second])
         sample = snapshot["profiles"][0]["sample"]
         assert [(link["id"], link["role"]) for link in sample["vouchers"]] == [

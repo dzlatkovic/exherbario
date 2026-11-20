@@ -58,7 +58,7 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     source = b"\xef\xbb\xbffeature,value,confidence\r\nA,100,annotated\r\n"
     imported = client.post(f"/api/chemistry/preparations/{batch_id}/profiles", headers=author,
                            data={"run_code": "Run", "analytical_method": "Test method",
-                                 "measurement_basis": "peak_area_percent", "unit": "%"},
+                                 "technique": "GC-MS", "run_metadata": '{"polarity_class": "non-polar"}', "measurement_basis": "peak_area_percent", "unit": "%"},
                            files={"file": ("source.csv", source, "text/csv")})
     assert imported.status_code == 201, imported.text
     profile_id = imported.json()["id"]
@@ -92,7 +92,7 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     preview = first_preview.json()
     first_url = preview["snapshot"]["url"]
     assert first_url.startswith(BASE_URL + "/api/depositions/public/EXU/")
-    assert preview["snapshot"]["schema_version"] == 3
+    assert preview["snapshot"]["schema_version"] == 4
     assert preview["snapshot"]["identifier"] == first_url.replace("/api/depositions/public/", "/depositions/")
     assert [voucher["id"] for voucher in preview["snapshot"]["vouchers"]] == [specimen.specimen_id]
     assert client.get(first_url).status_code == 404

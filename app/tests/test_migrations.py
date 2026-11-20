@@ -57,6 +57,9 @@ def test_chemistry_upgrade_resumes_after_creating_the_study_table(monkeypatch):
             scripts.get_revision("0008").module.upgrade()
             scripts.get_revision("0009").module.upgrade()
             scripts.get_revision("0010").module.upgrade()
+            scripts.get_revision("0011").module.upgrade()
+            scripts.get_revision("0012").module.upgrade()
+            scripts.get_revision("0013").module.upgrade()
             assert not compare_metadata(context, Base.metadata)
 
 
@@ -121,3 +124,30 @@ def test_sample_voucher_migration_converts_samples_and_guards_downgrade():
                 ("a", "v1", "leaf", "Site a", "sampled_from_voucher"),
                 ("b", "v1", "needles and twigs", "Site b", "sampled_from_voucher")]
             assert not sa.inspect(connection).has_table("chemistry_sample_voucher")
+
+
+def test_pca_removal_waits_for_saved_analyses_to_be_exported(tmp_path):
+    from app.db.export_pca import export
+    scripts = migrations()
+    with sa.create_engine("sqlite://").begin() as connection:
+        with Operations.context(MigrationContext.configure(connection)):
+            for revision in ("0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010",
+                             "0011", "0012"):
+                scripts.get_revision(revision).module.upgrade()
+            connection.execute(sa.text("INSERT INTO users (user_id) VALUES ('owner')"))
+            connection.execute(sa.text("INSERT INTO chemistry_study (id, owner_id, title, description, is_public) "
+                                       "VALUES ('s', 'owner', 'S', '', 0)"))
+            connection.execute(sa.text(
+                "INSERT INTO chemistry_pca (id, study_id, created_by, created_at, profile_ids, configuration, results) "
+                "VALUES ('a1', 's', 'owner', '2026-01-02 03:04:05', '[\"p1\", \"p2\", \"p3\"]', '{\"scale\": true}', "
+                "'{\"explained_variance\": [70, 30]}')"))
+            with pytest.raises(RuntimeError, match="export_pca"):
+                scripts.get_revision("0013").module.upgrade()
+            assert export(connection, tmp_path, remove=True) == 1
+            saved = __import__("json").loads((tmp_path / "a1.json").read_text(encoding="utf-8"))
+            assert saved["profile_ids"] == ["p1", "p2", "p3"] and saved["results"]["explained_variance"] == [70, 30]
+            assert "a1.json" in (tmp_path / "manifest.json").read_text(encoding="utf-8")
+            scripts.get_revision("0013").module.upgrade()
+            assert not sa.inspect(connection).has_table("chemistry_pca")
+            scripts.get_revision("0013").module.downgrade()
+            assert sa.inspect(connection).has_table("chemistry_pca")

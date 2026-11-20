@@ -151,7 +151,7 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
     source = b"\xef\xbb\xbffeature,value,confidence\r\nA,100,annotated\r\n"
     imported = client.post(f"/api/chemistry/preparations/{preparation_id}/profiles", headers=headers,
                            data={"run_code": "Run", "analytical_method": "Synthetic method",
-                                 "measurement_basis": "peak_area_percent", "unit": "%"},
+                                 "technique": "GC-MS", "run_metadata": '{"polarity_class": "non-polar"}', "measurement_basis": "peak_area_percent", "unit": "%"},
                            files={"file": ("source.csv", source, "text/csv")})
     assert imported.status_code == 201, imported.text
     download = f"/api/chemistry/profiles/{imported.json()['id']}/source"

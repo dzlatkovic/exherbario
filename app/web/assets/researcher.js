@@ -85,6 +85,20 @@ function requiredSelection(value, message) {
   return value;
 }
 
+function renderRunFields(form) {
+  const technique = form.querySelector(".technique").value;
+  const kind = technique.startsWith("GC") ? "gc" : "lc";
+  for (const field of form.querySelectorAll(".run-fields [data-for]")) field.hidden = field.dataset.for !== kind;
+}
+
+function runMetadata(form) {
+  const run = {};
+  for (const field of form.querySelectorAll(".run-fields label:not([hidden]) [name^='run.']")) {
+    if (field.value.trim()) run[field.name.slice(4)] = field.value.trim();
+  }
+  return run;
+}
+
 function voucherLabel(voucher) {
   return voucher.accession || voucher.reg_no || voucher.specimen_id;
 }
@@ -146,6 +160,10 @@ function renderStudies(selected = "") {
 
 function renderStudy(sampleId = "", preparationId = "") {
   find("study-work").hidden = !state.study;
+  for (const format of ["long", "wide"]) {
+    find(`export-${format}`).href = state.study
+      ? `/api/chemistry/public/export?study_id=${endpoint(state.study.id)}&format=${format}` : "#";
+  }
   const samples = state.study?.samples ?? [];
   selectOptions(find("choose-sample"), samples.map((sample) => ({
     id: sample.id,
@@ -455,7 +473,7 @@ bindForm("create-sample", async (data, form) => {
 bindForm("create-preparation", async (data, form) => {
   const study = requiredSelection(state.study, "Select a study first.");
   const sampleId = requiredSelection(find("choose-sample").value, "Select a sample first.");
-  const payload = Object.fromEntries(data);
+  const payload = Object.fromEntries([...data].filter(([, value]) => value.trim()));
   const preparation = await request(`/api/chemistry/samples/${endpoint(sampleId)}/preparations`,
     {method: "POST", json: payload});
   study.preparations.push({...payload, ...preparation, sample_id: sampleId});
@@ -463,6 +481,13 @@ bindForm("create-preparation", async (data, form) => {
   form.reset();
   return "Preparation saved.";
 });
+for (const form of document.querySelectorAll("form")) {
+  const technique = form.querySelector(".technique");
+  if (technique) {
+    technique.addEventListener("change", () => renderRunFields(form));
+    renderRunFields(form);
+  }
+}
 find("measurement-basis").addEventListener("change", (event) => {
   find("upload").elements.unit.value = event.target.value === "peak_area_percent" ? "%" : "";
 });
@@ -470,8 +495,13 @@ bindForm("upload", async (data, form) => {
   const study = requiredSelection(state.study, "Select a study first.");
   const sampleId = find("choose-sample").value;
   const preparationId = requiredSelection(find("choose-preparation").value, "Select a preparation first.");
+  for (const name of [...data.keys()].filter((key) => key.startsWith("run."))) data.delete(name);
+  data.set("run_metadata", JSON.stringify(runMetadata(form)));
   const profile = await request(`/api/chemistry/preparations/${endpoint(preparationId)}/profiles`,
     {method: "POST", multipart: data});
+  const warnings = find("upload-warnings");
+  warnings.hidden = !profile.warnings?.length;
+  warnings.textContent = (profile.warnings ?? []).join(" ");
   study.profiles.push(profile);
   attachProfile(profile.id);
   if (state.study === study) renderStudy(sampleId, preparationId);
@@ -559,4 +589,350 @@ bindForm("publish", async () => {
   link.href = result.url.replace("/api/depositions/public/", "/depositions/");
   message.replaceChildren(link);
   message.hidden = false;
+});
+
+// Spreadsheet import -----------------------------------------------------------------------------------------
+
+const IMPORT_ROLES = [
+  ["ignore", "Ignore"], ["name", "Compound name"], ["sample", "Sample values"], ["sd", "SD of a sample"],
+  ["rt", "RT (min)"], ["ri_exp", "Experimental RI"], ["ri_ref", "Reference RI"], ["ri_ref_source", "RI reference source"],
+  ["id_basis", "Identification basis"], ["id_level", "Identification level"], ["cid", "PubChem CID"],
+  ["cas", "CAS"], ["inchikey", "InChIKey"],
+];
+const importState = {record: null, sheets: [], columns: [], rowOverrides: {}, review: []};
+
+function columnLetter(index) {
+  let letters = "";
+  for (let value = index + 1; value > 0; value = Math.floor((value - 1) / 26)) {
+    letters = String.fromCharCode(65 + ((value - 1) % 26)) + letters;
+  }
+  return letters;
+}
+
+function cellText(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function currentSheet() {
+  return importState.sheets.find((sheet) => sheet.name === find("import-sheet").value) ?? importState.sheets[0];
+}
+
+function guessRole(header, previousRole) {
+  const text = header.toLowerCase();
+  if (!text) return "ignore";
+  if (/^(no\.?|#|nr\.?|peak)$/.test(text)) return "ignore";
+  if (/compound|component|constituent|name/.test(text)) return "name";
+  if (/\bcas\b/.test(text)) return "cas";
+  if (/\bcid\b/.test(text)) return "cid";
+  if (/inchikey/.test(text)) return "inchikey";
+  if (/\b(sd|s\.d\.|std|±)\b|±/.test(text)) return previousRole === "sample" ? "sd" : "ignore";
+  if (/\b(ri|ki|ai|lri)\b|retention ind/.test(text)) return /lit|ref|adams|nist/.test(text) ? "ri_ref" : "ri_exp";
+  if (/\brt\b|retention time/.test(text)) return "rt";
+  if (/ident|method of id/.test(text)) return "id_basis";
+  if (/level|msi/.test(text)) return "id_level";
+  return "sample";
+}
+
+function preparationOptions() {
+  const samples = Object.fromEntries((state.study?.samples ?? []).map((sample) => [sample.id, sample.code]));
+  return (state.study?.preparations ?? []).map((preparation) => ({
+    id: preparation.id, label: `${samples[preparation.sample_id] ?? "?"} · ${preparation.batch_code}`,
+  }));
+}
+
+function renderImportGrid() {
+  const sheet = currentSheet();
+  const headerRow = Number(find("import-header-row").value) || 1;
+  const grid = find("import-grid");
+  grid.replaceChildren();
+  const width = Math.max(0, ...sheet.rows.map((row) => row.length));
+  const head = grid.insertRow();
+  head.append(node("th", "Row"), ...Array.from({length: width}, (_, index) => node("th", columnLetter(index))));
+  sheet.rows.forEach((row, index) => {
+    const line = grid.insertRow();
+    if (index + 1 === headerRow) line.className = "header-row";
+    const number = node("button", String(index + 1), "secondary");
+    number.type = "button";
+    number.title = "Use as header row";
+    number.addEventListener("click", () => { find("import-header-row").value = index + 1; resetImportColumns(); });
+    line.insertCell().append(number);
+    for (let column = 0; column < width; column += 1) line.insertCell().textContent = cellText(row[column]);
+  });
+}
+
+function resetImportColumns(fromTemplate = null) {
+  const sheet = currentSheet();
+  const header = sheet.rows[(Number(find("import-header-row").value) || 1) - 1] ?? [];
+  let previous = null;
+  importState.columns = header.map((value, index) => {
+    const preset = fromTemplate?.columns.find((column) => column.index === index);
+    const role = preset?.role ?? guessRole(cellText(value).trim(), previous);
+    previous = role;
+    return {index, header: cellText(value).trim() || columnLetter(index), role,
+            sd_for: preset?.sd_for ?? (role === "sd" ? index - 1 : null), preparation_id: preset?.preparation_id ?? "",
+            run_code: preset?.run_code ?? ""};
+  });
+  importState.rowOverrides = {};
+  renderImportGrid();
+  renderImportColumns();
+}
+
+function renderImportColumns() {
+  const table = find("import-columns");
+  table.replaceChildren();
+  const head = table.insertRow();
+  head.append(node("th", "Column"), node("th", "Header"), node("th", "Role"), node("th", "Details"));
+  const samples = importState.columns.filter((column) => column.role === "sample");
+  for (const column of importState.columns) {
+    const row = table.insertRow();
+    row.insertCell().textContent = columnLetter(column.index);
+    row.insertCell().textContent = column.header;
+    const role = document.createElement("select");
+    for (const [value, text] of IMPORT_ROLES) role.append(new Option(text, value));
+    role.value = column.role;
+    role.addEventListener("change", () => {
+      column.role = role.value;
+      if (column.role === "sd" && column.sd_for === null) column.sd_for = column.index - 1;
+      renderImportColumns();
+    });
+    row.insertCell().append(role);
+    const details = row.insertCell();
+    if (column.role === "sample") {
+      const preparation = document.createElement("select");
+      preparation.append(new Option("Match by sample code", ""));
+      for (const option of preparationOptions()) preparation.append(new Option(option.label, option.id));
+      preparation.value = column.preparation_id;
+      preparation.addEventListener("change", () => { column.preparation_id = preparation.value; });
+      const runCode = document.createElement("input");
+      runCode.placeholder = `Run code (default ${column.header})`;
+      runCode.maxLength = 80;
+      runCode.value = column.run_code;
+      runCode.addEventListener("input", () => { column.run_code = runCode.value; });
+      details.append(preparation, runCode);
+    } else if (column.role === "sd") {
+      const pair = document.createElement("select");
+      for (const sample of samples) pair.append(new Option(`SD of ${sample.header}`, sample.index));
+      pair.value = column.sd_for ?? "";
+      pair.addEventListener("change", () => { column.sd_for = Number(pair.value); });
+      details.append(pair);
+    }
+  }
+}
+
+function importAssignment(form) {
+  const data = new FormData(form);
+  const value = (name) => (data.get(name) ?? "").trim();
+  const settings = {
+    technique: value("technique"), measurement_basis: value("measurement_basis"), unit: value("unit"),
+    analytical_method: value("analytical_method"), run_metadata: runMetadata(form),
+    ri_tolerance: Number(value("ri_tolerance") || 20),
+  };
+  if (value("ri_ref_polarity")) settings.ri_ref_polarity = value("ri_ref_polarity");
+  const assignment = {
+    sheet: value("sheet"), header_row: Number(value("header_row")), settings, row_overrides: importState.rowOverrides,
+    columns: importState.columns.map((column) => {
+      const entry = {index: column.index, role: column.role};
+      if (column.role === "sample") {
+        if (column.preparation_id) entry.preparation_id = column.preparation_id;
+        if (column.run_code.trim()) entry.run_code = column.run_code.trim();
+      }
+      if (column.role === "sd") entry.sd_for = column.sd_for;
+      return entry;
+    }),
+  };
+  if (value("save_template")) assignment.save_template = value("save_template");
+  return assignment;
+}
+
+function compoundCell(match) {
+  const cell = document.createElement("td");
+  if (!match) {
+    cell.textContent = "No match";
+    return cell;
+  }
+  const image = document.createElement("img");
+  image.src = match.structure_image;
+  image.alt = `Structure of ${match.title}`;
+  image.loading = "lazy";
+  const facts = node("div");
+  facts.append(node("strong", match.title), node("div", `CID ${match.cid} · ${match.molecular_formula ?? ""}`
+    + (match.monoisotopic_mass ? ` · ${Number(match.monoisotopic_mass).toFixed(4)}` : "")),
+    node("div", match.inchikey ?? "", "break"), node("div", match.smiles ?? "", "break muted"));
+  cell.append(image, facts);
+  return cell;
+}
+
+async function reviewAction(number, body) {
+  const record = importState.record;
+  const updated = await request(`/api/chemistry/imports/${endpoint(record.id)}/rows/${number}/compound`,
+    {method: "PUT", json: body});
+  importState.review = importState.review.map((row) => row.row === updated.row ? updated : row);
+  renderImportReview();
+}
+
+function renderImportReview() {
+  const table = find("import-review");
+  table.replaceChildren();
+  const head = table.insertRow();
+  head.append(node("th", "Row"), node("th", "Name in table"), node("th", "Status"), node("th", "Assigned compound"),
+    node("th", "Change"));
+  const methods = {alias: "your earlier choice", registry_name: "registry name", registry_synonym: "registry synonym",
+    pubchem_name: "PubChem name search", cas: "CAS in table", cid: "CID in table", inchikey: "InChIKey in table",
+    manual: "chosen", parent: "parent compound"};
+  for (const item of importState.review) {
+    const row = table.insertRow();
+    row.insertCell().textContent = item.row;
+    row.insertCell().textContent = item.name;
+    const statusCell = row.insertCell();
+    statusCell.className = `status-${item.status}`;
+    statusCell.textContent = item.status.replace("_", " ") + (item.method ? ` (${methods[item.method] ?? item.method})` : "")
+      + (item.problem ? ` — ${item.problem}` : "");
+    row.append(compoundCell(item.status === "unidentified" ? null : item.match));
+    const actions = row.insertCell();
+    const button = (label, handler) => {
+      const element = node("button", label, "secondary");
+      element.type = "button";
+      element.addEventListener("click", () => handler().catch((error) => { statusCell.textContent = error.message; }));
+      actions.append(element);
+    };
+    if (item.match && item.status !== "confirmed") button("Accept", () => reviewAction(item.row, {action: "accept"}));
+    if (item.candidates.length > 1) {
+      const pick = document.createElement("select");
+      for (const candidate of item.candidates) pick.append(new Option(`${candidate.title} (CID ${candidate.cid})`, candidate.cid));
+      actions.append(pick);
+      button("Use", () => reviewAction(item.row, {action: "choose", cid: Number(pick.value)}));
+    }
+    const namespace = document.createElement("select");
+    for (const value of ["name", "cas", "cid", "inchikey"]) namespace.append(new Option(value, value));
+    const query = document.createElement("input");
+    query.placeholder = "Search PubChem";
+    query.value = item.name;
+    actions.append(namespace, query);
+    button("Search", async () => {
+      const found = await request(`/api/chemistry/compounds/search?namespace=${namespace.value}&q=${endpoint(query.value.trim())}`);
+      if (!found.length) throw new Error("No PubChem match.");
+      item.candidates = found;
+      renderImportReview();
+    });
+    if (item.match && item.status !== "unidentified") button("Parent", () => reviewAction(item.row, {action: "parent"}));
+    if (item.status !== "unidentified") button("Unidentified", () => reviewAction(item.row, {action: "unidentified"}));
+  }
+  const open = importState.review.filter((item) => !["confirmed", "unidentified"].includes(item.status)).length;
+  find("import-confirm").disabled = open > 0 || !importState.ready;
+  status(find("import-confirm-status"), open ? `${open} rows still need a decision.` : "");
+}
+
+function renderImportPreview(result) {
+  const preview = result.preview;
+  importState.review = result.review;
+  importState.ready = !preview.errors.length;
+  find("import-preview").hidden = false;
+  const problems = find("import-problems");
+  problems.hidden = !preview.errors.length;
+  problems.replaceChildren(...preview.errors.map((error) => node("p", error)));
+  const notes = find("import-notes");
+  notes.hidden = !preview.warnings.length;
+  notes.replaceChildren(...preview.warnings.map((warning) => node("p", warning)));
+  const labels = Object.fromEntries(preparationOptions().map((option) => [option.id, option.label]));
+  const samples = find("import-samples");
+  samples.replaceChildren();
+  const head = samples.insertRow();
+  head.append(node("th", "Column"), node("th", "Preparation"), node("th", "Run code"), node("th", "Detected"), node("th", "Total"));
+  for (const profile of preview.profiles) {
+    const row = samples.insertRow();
+    for (const text of [profile.header, labels[profile.preparation_id] ?? "Not chosen", profile.run_code,
+                        profile.detected, `${profile.total} ${profile.settings.unit}`]) row.insertCell().textContent = text;
+  }
+  const excluded = preview.rows.filter((row) => row.summary || !row.included);
+  const list = find("import-excluded");
+  list.replaceChildren(...(excluded.length ? [node("h3", "Summary and excluded rows")] : []), ...excluded.map((row) => {
+    const label = node("label", ` Row ${row.row}: ${row.name}`);
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = row.included;
+    box.addEventListener("change", () => {
+      importState.rowOverrides[row.row] = box.checked;
+      find("import-assign").requestSubmit();
+    });
+    label.prepend(box);
+    return label;
+  }));
+  renderImportReview();
+}
+
+bindForm("import-upload", async (data, form) => {
+  const study = requiredSelection(state.study, "Select a study first.");
+  const record = await request(`/api/chemistry/studies/${endpoint(study.id)}/imports`, {method: "POST", multipart: data});
+  importState.record = record;
+  importState.sheets = record.sheets;
+  selectOptions(find("import-sheet"), record.sheets.map((sheet) => ({id: sheet.name, label: sheet.name})), "Select a sheet",
+    record.sheets[0].name);
+  const firstHeader = record.sheets[0].rows.findIndex((row) => row.filter((cell) => cell !== null).length >= 2);
+  find("import-header-row").value = Math.max(firstHeader, 0) + 1;
+  const templates = await request("/api/chemistry/import-templates");
+  selectOptions(find("import-template"), templates.map((template) => ({id: template.id, label: template.name})), "None");
+  find("import-assign").hidden = false;
+  find("import-preview").hidden = true;
+  resetImportColumns();
+  form.reset();
+  return `Uploaded ${record.source_name}. Choose the header row and assign the columns.`;
+});
+find("import-sheet").addEventListener("change", () => resetImportColumns());
+find("import-header-row").addEventListener("change", () => resetImportColumns());
+find("import-template").addEventListener("change", async (event) => {
+  if (!event.target.value) return;
+  const proposed = await request(`/api/chemistry/imports/${endpoint(importState.record.id)}/templates/${endpoint(event.target.value)}`);
+  find("import-sheet").value = proposed.sheet;
+  find("import-header-row").value = proposed.header_row;
+  const form = find("import-assign");
+  for (const [name, value] of Object.entries(proposed.settings)) {
+    if (name === "run_metadata") {
+      for (const [key, run] of Object.entries(value ?? {})) if (form.elements[`run.${key}`]) form.elements[`run.${key}`].value = run;
+    } else if (form.elements[name] && value !== null) form.elements[name].value = value;
+  }
+  renderRunFields(form);
+  resetImportColumns(proposed);
+  status(form.querySelector(".feedback"), proposed.missing_headers.length
+    ? `Columns not found in this table: ${proposed.missing_headers.join(", ")}.` : "Layout applied. Check the sample columns.");
+});
+bindForm("import-assign", async (data, form) => {
+  const result = await request(`/api/chemistry/imports/${endpoint(importState.record.id)}/assignment`,
+    {method: "PUT", json: importAssignment(form)});
+  renderImportPreview(result);
+  return result.preview.errors.length ? "Preview has problems to fix." : "Preview ready. Review the compounds below.";
+});
+find("import-match").addEventListener("click", async () => {
+  const feedback = find("import-match-status");
+  try {
+    for (;;) {
+      const result = await request(`/api/chemistry/imports/${endpoint(importState.record.id)}/match`, {method: "POST"});
+      importState.review = result.review;
+      renderImportReview();
+      if (result.problem) return status(feedback, result.problem, true);
+      status(feedback, result.pending ? `Looking up… ${result.pending} names left.` : "All names looked up.");
+      if (!result.pending) return;
+    }
+  } catch (error) {
+    status(feedback, error.message, true);
+  }
+});
+find("import-accept-all").addEventListener("click", async () => {
+  for (const item of importState.review.filter((row) => row.status === "needs_review" && row.match)) {
+    await reviewAction(item.row, {action: "accept"}).catch((error) => status(find("import-match-status"), error.message, true));
+  }
+});
+find("import-confirm").addEventListener("click", async () => {
+  const feedback = find("import-confirm-status");
+  try {
+    const result = await request(`/api/chemistry/imports/${endpoint(importState.record.id)}/confirm`, {method: "POST"});
+    const study = await request(`/api/chemistry/studies/${endpoint(state.study.id)}`);
+    state.study = study;
+    renderStudy();
+    find("import-assign").hidden = true;
+    find("import-preview").hidden = true;
+    status(find("import-upload").querySelector(".feedback"),
+      `Imported ${result.profiles.length} profiles: ${result.profiles.map((profile) => profile.run_code).join(", ")}.`);
+  } catch (error) {
+    status(feedback, error.message, true);
+  }
 });

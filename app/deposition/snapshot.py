@@ -8,8 +8,9 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 
 from app.catalog import public_location
+from app.chemistry.records import correction_record, measurement_record
 from app.chemistry.sample_links import PROVENANCE, determination_at_link, public_site, redetermined
-from app.chemistry.models import LabSample, Preparation, Profile, Study
+from app.chemistry.models import LabSample, Preparation, Profile, SpreadsheetImport, Study
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.services.chemistry_services import ChemistryService
 from app.chemistry.services.profile_import import MAX_CSV_BYTES
@@ -146,11 +147,13 @@ def build_snapshot(db, deposition):
     linked_ids = [link.specimen_id for *_, links in records.values() for link, _, _ in links]
     linked = selected_vouchers(db, [specimen_id for specimen_id in linked_ids if specimen_id not in listed])
     measurements = {profile_id: [] for profile_id in draft.profile_ids}
+    corrections = {profile_id: [] for profile_id in draft.profile_ids}
     if draft.profile_ids:
-        for row in ChemistryRepository(db).list_measurements(draft.profile_ids):
-            measurements[row.profile_id].append({
-                "feature": row.feature, "value": row.value, "confidence": row.confidence, "status": row.status,
-            })
+        repository = ChemistryRepository(db)
+        for row, compound in repository.list_measurements(draft.profile_ids):
+            measurements[row.profile_id].append(measurement_record(row, compound))
+        for correction in repository.list_corrections(draft.profile_ids):
+            corrections[correction.profile_id].append(correction_record(correction))
     if len(set(draft.specimen_ids) | set(linked_ids)) > MAX_VOUCHERS:
         raise HTTPException(409, f"A deposition version can list at most {MAX_VOUCHERS} vouchers.")
     if not all(measurements.values()):
@@ -167,16 +170,23 @@ def build_snapshot(db, deposition):
         if not content or len(content) > MAX_CSV_BYTES:
             raise HTTPException(409, f"Profile {profile_id} has an empty or oversized source file.")
         files[profile_id] = content
+        spreadsheet = db.get(SpreadsheetImport, profile.import_id) if profile.import_id else None
         profiles.append({
             "id": profile_id, "run_code": profile.run_code, "analytical_method": profile.analytical_method,
             "measurement_basis": profile.measurement_basis, "unit": profile.unit,
-            "measurements": measurements[profile_id],
+            "technique": profile.technique, "run_metadata": profile.run_metadata,
+            "measurements": measurements[profile_id], "compound_corrections": corrections[profile_id],
             "study": {"id": study.id, "title": study.title},
             "sample": _sample_metadata(sample, links),
             "preparation": {"id": preparation.id, "batch_code": preparation.batch_code, "kind": preparation.kind,
-                            "method_reference": preparation.method_reference},
+                            "method_reference": preparation.method_reference,
+                            "plant_material_mass_g": preparation.plant_material_mass_g,
+                            "method_parameters": preparation.method_parameters,
+                            "yield_percent": preparation.yield_percent},
             "file": {"name": profile.source_name, "source_fidelity": profile.source_fidelity,
-                     "sha256": sha256(content).hexdigest(), "size": len(content), "url": f"{url}/files/{profile_id}"},
+                     "sha256": sha256(content).hexdigest(), "size": len(content), "url": f"{url}/files/{profile_id}",
+                     **({"spreadsheet": {"name": spreadsheet.source_name, "sha256": spreadsheet.source_sha256,
+                                         "column": profile.import_column}} if spreadsheet else {})},
         })
     snapshot = jsonable_encoder({
         "schema_version": SCHEMA_VERSION, "institution": deposition.institution,

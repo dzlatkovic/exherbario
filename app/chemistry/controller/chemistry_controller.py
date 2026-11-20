@@ -1,14 +1,19 @@
 """HTTP responses and serialization for the chemistry API."""
 
+import json
+
 from fastapi import Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import LabSample, Measurement, PCAAnalysis, Preparation, Profile, Study
+from app.chemistry.models import LabSample, Preparation, Profile, Study
 from app.chemistry.sample_links import (PROVENANCE, current_determination, determination_at_link, public_site,
                                         redetermined)
-from app.chemistry.schemas import Basis, PCAIn, PreparationIn, PublicState, SampleIn, StudyIn, VoucherLinkIn
+from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, PublicState, SampleIn, StudyIn,
+                                   Technique, VoucherLinkIn)
 from app.chemistry.services import ChemistryService
+from app.chemistry.records import correction_record, measurement_record, preparation_summary
+from app.chemistry.services.compounds import candidate_summary, compound_summary
 from app.users.models import User
 
 
@@ -29,6 +34,8 @@ def _profile_summary(profile: Profile):
         "analytical_method": profile.analytical_method, "measurement_basis": profile.measurement_basis,
         "unit": profile.unit, "source_name": profile.source_name, "is_public": profile.is_public,
         "source_fidelity": profile.source_fidelity, "source_sha256": profile.source_sha256,
+        "technique": profile.technique, "run_metadata": profile.run_metadata,
+        "import_id": profile.import_id, "import_column": profile.import_column,
     }
 
 
@@ -67,25 +74,17 @@ def _released_profile_summary(profile: Profile, preparation: Preparation, sample
         "vouchers": [_public_link(*row) for row in links],
         "redetermined": any(redetermined(link, specimen) for link, specimen, _ in links),
         "batch_code": preparation.batch_code, "preparation_kind": preparation.kind,
-        "method_reference": preparation.method_reference, "run_code": profile.run_code,
-        "analytical_method": profile.analytical_method, "measurement_basis": profile.measurement_basis,
-        "unit": profile.unit,
+        "method_reference": preparation.method_reference,
+        "plant_material_mass_g": preparation.plant_material_mass_g,
+        "method_parameters": preparation.method_parameters, "yield_percent": preparation.yield_percent,
+        "run_code": profile.run_code, "analytical_method": profile.analytical_method,
+        "measurement_basis": profile.measurement_basis, "unit": profile.unit,
+        "technique": profile.technique, "run_metadata": profile.run_metadata,
     }
 
 
-def _measurements(rows: list[Measurement]):
-    return [
-        {"feature": row.feature, "value": row.value, "confidence": row.confidence, "status": row.status}
-        for row in rows
-    ]
-
-
-def _analysis_summary(analysis: PCAAnalysis):
-    return {
-        "id": analysis.id, "created_at": analysis.created_at,
-        "profile_ids": analysis.profile_ids, "configuration": analysis.configuration,
-        **analysis.results,
-    }
+def _measurements(rows):
+    return [measurement_record(row, compound) for row, compound in rows]
 
 
 class ChemistryController:
@@ -100,7 +99,7 @@ class ChemistryController:
         return _study_summary(self.service.create_study(data, actor))
 
     def get_study(self, study_id: str, actor: User):
-        study, samples, links, preparations, profiles, analyses = self.service.get_study(study_id, actor)
+        study, samples, links, preparations, profiles = self.service.get_study(study_id, actor)
         redetermined_samples = {
             sample_id for sample_id, rows in links.items()
             if any(redetermined(link, specimen) for link, specimen, _ in rows)
@@ -108,18 +107,12 @@ class ChemistryController:
         return {
             **_study_summary(study),
             "samples": [_workspace_sample(sample, links[sample.id]) for sample in samples],
-            "preparations": [
-                {"id": preparation.id, "sample_id": preparation.sample_id,
-                 "batch_code": preparation.batch_code, "kind": preparation.kind,
-                 "method_reference": preparation.method_reference}
-                for preparation in preparations
-            ],
+            "preparations": [preparation_summary(preparation) for preparation in preparations],
             "profiles": [
                 {**_profile_summary(profile), "sample_code": sample.code, "batch_code": preparation.batch_code,
                  "redetermined": sample.id in redetermined_samples}
                 for profile, preparation, sample in profiles
             ],
-            "analyses": [{"id": analysis_id, "created_at": created_at} for analysis_id, created_at in analyses],
         }
 
     def create_sample(self, study_id: str, data: SampleIn, actor: User):
@@ -137,16 +130,39 @@ class ChemistryController:
         return {"id": self.service.create_preparation(sample_id, data, actor).id}
 
     def import_profile(self, preparation_id: str, file: UploadFile, run_code: str,
-                       analytical_method: str, measurement_basis: Basis, unit: str, actor: User):
-        profile = self.service.import_profile(
+                       analytical_method: str, measurement_basis: Basis, unit: str, actor: User,
+                       technique: Technique, run_metadata: str):
+        try:
+            run = json.loads(run_metadata or "{}")
+        except ValueError as error:
+            raise ChemistryError(422, "Send run_metadata as a JSON object.") from error
+        if not isinstance(run, dict):
+            raise ChemistryError(422, "Send run_metadata as a JSON object.")
+        profile, warnings = self.service.import_profile(
             preparation_id, file.file, file.filename, run_code, analytical_method,
-            measurement_basis, unit, actor,
+            measurement_basis, unit, actor, technique, run,
         )
-        return _profile_summary(profile)
+        return {**_profile_summary(profile), "warnings": warnings}
 
     def get_profile(self, profile_id: str, actor: User):
-        profile, rows = self.service.get_profile(profile_id, actor)
-        return {**_profile_summary(profile), "measurements": _measurements(rows)}
+        profile, rows, corrections = self.service.get_profile(profile_id, actor)
+        return {**_profile_summary(profile), "measurements": _measurements(rows),
+                "compound_corrections": [correction_record(item) for item in corrections]}
+
+    def correct_compound(self, profile_id: str, feature: str, data: CompoundCorrectionIn, actor: User):
+        return correction_record(self.service.correct_compound(profile_id, feature, data, actor))
+
+    def search_compounds(self, query: str, namespace: str):
+        return [candidate_summary(record) for record in self.service.registry.search(query, namespace)]
+
+    def parent_compound(self, cid: int):
+        return candidate_summary(self.service.registry.parent(cid))
+
+    def get_public_compound(self, cid: int):
+        compound = self.service.repository.get_compound(cid)
+        if compound is None:
+            raise ChemistryError(404, "Compound not registered.")
+        return compound_summary(compound)
 
     def download_source(self, profile_id: str, actor: User):
         source, profile = self.service.get_profile_source(profile_id, actor)
@@ -166,12 +182,6 @@ class ChemistryController:
     def set_profile_visibility(self, profile_id: str, data: PublicState, actor: User):
         return _profile_summary(self.service.set_profile_visibility(profile_id, data.is_public, actor))
 
-    def run_pca(self, study_id: str, data: PCAIn, actor: User):
-        return _analysis_summary(self.service.run_pca(study_id, data, actor))
-
-    def get_pca(self, study_id: str, analysis_id: str, actor: User):
-        return _analysis_summary(self.service.get_pca(study_id, analysis_id, actor))
-
     def get_public_study(self, study_id: str):
         study, profiles, links = self.service.get_public_study(study_id)
         return {
@@ -180,8 +190,9 @@ class ChemistryController:
         }
 
     def get_public_profile(self, profile_id: str):
-        record, links, rows = self.service.get_public_profile(profile_id)
-        return {**_released_profile_summary(*record, links[record[2].id]), "measurements": _measurements(rows)}
+        record, links, rows, corrections = self.service.get_public_profile(profile_id)
+        return {**_released_profile_summary(*record, links[record[2].id]), "measurements": _measurements(rows),
+                "compound_corrections": [correction_record(item) for item in corrections]}
 
     def get_public_specimen_profiles(self, specimen_id: str):
         profiles, links = self.service.get_public_specimen_profiles(specimen_id)

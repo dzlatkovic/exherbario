@@ -1,27 +1,41 @@
 """Study access, profile import, and analysis workflows."""
 
+from contextlib import ExitStack
 from hashlib import sha256
 from pathlib import PurePosixPath
 from typing import BinaryIO
 from uuid import uuid4
 
-from app.chemistry.sample_links import new_link
+from pydantic import ValidationError
+
+from app.chemistry.sample_links import new_link, utc_now
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import LabSample, PCAAnalysis, Preparation, Profile, Study
+from app.chemistry.models import LabSample, MeasurementCorrection, Preparation, Profile, Study
 from app.chemistry.repository import ChemistryRepository
-from app.chemistry.schemas import Basis, PCAIn, PreparationIn, SampleIn, StudyIn, VoucherLinkIn
+from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, SampleIn, StudyIn, Technique,
+                                   VoucherLinkIn, run_metadata_for)
 from app.chemistry.schemas.chemistry_schemas import MAX_SAMPLE_VOUCHERS
 from app.db import new_id
 from app.file_storage import FILES_ROOT, archive_member, store_upload
 from app.users.models import User
 
-from .pca_analysis import calculate_pca
+from .compounds import CompoundRegistry
 from .profile_import import MAX_CSV_BYTES, read_measurements
 
 
+def validated_run(technique: str, run_metadata: dict | None) -> dict:
+    try:
+        return run_metadata_for(technique, run_metadata)
+    except ValidationError as error:
+        problems = "; ".join(f"{'.'.join(map(str, item['loc'])) or 'run metadata'}: {item['msg']}"
+                             for item in error.errors())
+        raise ChemistryError(422, f"Invalid run metadata for {technique}: {problems}") from error
+
+
 class ChemistryService:
-    def __init__(self, repository: ChemistryRepository):
+    def __init__(self, repository: ChemistryRepository, registry: CompoundRegistry | None = None):
         self.repository = repository
+        self.registry = registry or CompoundRegistry(repository.db)
 
     def _study_for_actor(self, study_id: str, actor: User):
         study = self.repository.get_study(study_id)
@@ -57,7 +71,6 @@ class ChemistryService:
             self.repository.list_sample_links([sample.id for sample in samples]),
             self.repository.list_study_preparations(study_id),
             self.repository.list_study_profiles(study_id),
-            self.repository.list_study_analyses(study_id),
         )
 
     def _vouchers(self, specimen_ids: list[str]):
@@ -116,7 +129,7 @@ class ChemistryService:
 
     def import_profile(self, preparation_id: str, source_file: BinaryIO, source_name: str | None,
                        run_code: str, analytical_method: str, measurement_basis: Basis,
-                       unit: str, actor: User):
+                       unit: str, actor: User, technique: Technique, run_metadata: dict | None = None):
         preparation = self.repository.get_preparation(preparation_id)
         if not preparation:
             raise ChemistryError(404, "Preparation not found.")
@@ -127,27 +140,67 @@ class ChemistryService:
             raise ChemistryError(422, "Enter a run code, analytical method, and unit.")
         if measurement_basis == "peak_area_percent" and unit != "%":
             raise ChemistryError(422, "Use % as the unit for normalized peak-area percentages.")
+        run = validated_run(technique, run_metadata)
         content = source_file.read(MAX_CSV_BYTES + 1)
         try:
-            source, rows = read_measurements(content, measurement_basis)
+            source, rows, warnings = read_measurements(content, measurement_basis, technique, run)
         except ValueError as error:
             raise ChemistryError(422, str(error)) from error
+        for row in rows:
+            # Identifiers in the author's own file are the author's assignment; register those compounds.
+            identifiers = row.pop("identifiers")
+            match = self.registry.lookup_identifiers(**identifiers) if identifiers else None
+            if match:
+                record, method = match
+                row["cid"], row["compound_match"] = self.registry.register(record).cid, method
         filename = PurePosixPath((source_name or "profile.csv").replace("\\", "/")).name
+        profile = self.store_profile(preparation_id, run_code, analytical_method, measurement_basis, unit, technique,
+                                     run, filename, content, source, rows)
+        return profile, warnings
+
+    def store_profile(self, preparation_id, run_code, analytical_method, measurement_basis, unit, technique, run,
+                      filename, content: bytes, source: str, rows, *, uploads: ExitStack | None = None, **extra):
+        """Store a profile and its source file. With ``uploads``, the caller commits and the file is removed
+        if the caller's transaction fails."""
         stored_path = (FILES_ROOT / f"{uuid4().hex}.csv").as_posix()
         profile = Profile(preparation_id=preparation_id, run_code=run_code,
                           analytical_method=analytical_method, measurement_basis=measurement_basis,
                           unit=unit, source_name=filename[:200] or "profile.csv", source_csv=source,
-                          source_path=stored_path, source_sha256=sha256(content).hexdigest())
+                          source_path=stored_path, source_sha256=sha256(content).hexdigest(),
+                          technique=technique, run_metadata=run or None, **extra)
         try:
-            with store_upload(archive_member(FILES_ROOT, stored_path), content):
-                self.repository.save_profile(profile, rows)
+            if uploads is not None:
+                uploads.enter_context(store_upload(archive_member(FILES_ROOT, stored_path), content))
+                self.repository.save_profile(profile, rows, commit=False)
+            else:
+                with store_upload(archive_member(FILES_ROOT, stored_path), content):
+                    self.repository.save_profile(profile, rows)
         except (OSError, ValueError) as error:
-            raise ChemistryError(500, "Could not store the original analytical file.") from error
+            raise ChemistryError(500, "Could not store the analytical file.") from error
         return profile
+
+    def correct_compound(self, profile_id: str, feature: str, data: CompoundCorrectionIn, actor: User):
+        """Reassign a measurement's compound. Values and the source file stay as they are; the change is logged."""
+        self._profile_for_actor(profile_id, actor)
+        measurement = self.repository.get_measurement(profile_id, feature)
+        if measurement is None:
+            raise ChemistryError(404, "Measurement not found.")
+        if measurement.cid == data.cid:
+            raise ChemistryError(409, "The measurement already has this compound assignment.")
+        if data.cid is not None:
+            self.registry.get(data.cid)
+        correction = MeasurementCorrection(profile_id=profile_id, feature=measurement.feature, old_cid=measurement.cid,
+                                           new_cid=data.cid, actor_id=actor.user_id, reason=data.reason,
+                                           corrected_at=utc_now())
+        measurement.cid = data.cid
+        measurement.compound_match = "correction" if data.cid else "unidentified"
+        self.repository.save(correction)
+        return correction
 
     def get_profile(self, profile_id: str, actor: User):
         profile = self._profile_for_actor(profile_id, actor)
-        return profile, self.repository.list_measurements([profile_id])
+        return (profile, self.repository.list_measurements([profile_id]),
+                self.repository.list_corrections([profile_id]))
 
     def get_profile_source(self, profile_id: str, actor: User) -> tuple[bytes, Profile]:
         profile = self._profile_for_actor(profile_id, actor)
@@ -180,49 +233,6 @@ class ChemistryService:
         self.repository.save(profile)
         return profile
 
-    def run_pca(self, study_id: str, data: PCAIn, actor: User):
-        self._study_for_actor(study_id, actor)
-        rows = self.repository.list_study_profiles(study_id, data.profile_ids)
-        if len(rows) != len(data.profile_ids):
-            raise ChemistryError(422, "Select distinct profiles from the current study.")
-        indexed = {profile.id: (profile, preparation, sample) for profile, preparation, sample in rows}
-        rows = [indexed[profile_id] for profile_id in data.profile_ids]
-        if len({sample.id for _, _, sample in rows}) != len(rows):
-            raise ChemistryError(422, "Select one profile per lab sample to avoid counting technical replicates twice.")
-        methods = {
-            (profile.analytical_method.casefold(), profile.measurement_basis, profile.unit,
-             preparation.kind, preparation.method_reference.casefold())
-            for profile, preparation, _ in rows
-        }
-        if len(methods) != 1:
-            raise ChemistryError(422, "Select profiles with matching analytical method, units, and preparation method.")
-
-        matrix = {profile_id: {} for profile_id in data.profile_ids}
-        for measurement in self.repository.list_measurements(data.profile_ids):
-            matrix[measurement.profile_id][measurement.feature.casefold()] = (
-                measurement.feature, measurement.value
-            )
-        try:
-            result = calculate_pca(
-                [matrix[profile_id] for profile_id in data.profile_ids],
-                basis=rows[0][0].measurement_basis, scale=data.scale,
-            )
-        except ValueError as error:
-            raise ChemistryError(422, str(error)) from error
-        configuration = result.pop("configuration")
-        result["sample_codes"] = [sample.code for _, _, sample in rows]
-        analysis = PCAAnalysis(study_id=study_id, created_by=actor.user_id, profile_ids=data.profile_ids,
-                               configuration=configuration, results=result)
-        self.repository.save(analysis)
-        return analysis
-
-    def get_pca(self, study_id: str, analysis_id: str, actor: User):
-        self._study_for_actor(study_id, actor)
-        analysis = self.repository.get_analysis(study_id, analysis_id)
-        if analysis is None:
-            raise ChemistryError(404, "Analysis not found.")
-        return analysis
-
     def get_public_study(self, study_id: str):
         study = self.repository.get_study(study_id)
         if not study or not study.is_public:
@@ -239,7 +249,8 @@ class ChemistryService:
         record = self.repository.get_released_profile(profile_id)
         if record is None:
             raise ChemistryError(404, "Profile not found.")
-        return record, self._links_for([record]), self.repository.list_measurements([profile_id])
+        return (record, self._links_for([record]), self.repository.list_measurements([profile_id]),
+                self.repository.list_corrections([profile_id]))
 
     def get_public_specimen_profiles(self, specimen_id: str):
         if not self.repository.public_specimen_exists(specimen_id):

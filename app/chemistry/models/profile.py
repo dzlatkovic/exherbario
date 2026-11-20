@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import deferred
 
 from app.db import Base, new_id
@@ -19,6 +19,12 @@ class Profile(Base):
     source_path = Column(String(150))
     source_sha256 = Column(String(64))
     is_public = Column(Boolean, nullable=False, default=False)
+    # Required for new profiles; NULL for profiles imported before techniques were recorded.
+    technique = Column(String(20))
+    run_metadata = Column(JSON)
+    # Set for profiles created from a spreadsheet import: the import and the source column header.
+    import_id = Column(String(50), ForeignKey("chemistry_import.id"))
+    import_column = Column(String(200))
 
     @property
     def source_fidelity(self):

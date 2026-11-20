@@ -25,7 +25,10 @@ def page_url(api_url):
 
 @router.get("/researcher", response_class=HTMLResponse)
 def researcher():
-    return HTMLResponse(templates.get_template("researcher.html").render(), headers=PAGE_HEADERS)
+    # Structure images in the PubChem review come from PubChem; other pages keep the stricter policy.
+    headers = {**PAGE_HEADERS, "Content-Security-Policy": PAGE_HEADERS["Content-Security-Policy"]
+               + "; img-src 'self' https://pubchem.ncbi.nlm.nih.gov"}
+    return HTMLResponse(templates.get_template("researcher.html").render(), headers=headers)
 
 
 def profile_vouchers(snapshot):

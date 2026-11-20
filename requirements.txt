@@ -16,7 +16,8 @@ alembic==1.13.3
 PyJWT==2.6.0
 cryptography==50.0.2
 # Scientific, geographic and media libraries
-numpy==2.5.5
+pubchempy==1.0.5
+openpyxl==3.1.5
 geopy==2.3.0
 qrcode==7.4.2
 folium==0.14.0
