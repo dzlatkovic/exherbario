@@ -239,7 +239,7 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             specimens = Table("specimen", old_metadata, autoload_with=connection)
             images = Table("image", old_metadata, autoload_with=connection)
             revisions = Table("revision", old_metadata, autoload_with=connection)
-            values = specimen_data.dict(exclude_none=True)
+            values = specimen_data.model_dump(exclude_none=True)
             values["subnomen"] = "Earlier redetermination"
             connection.execute(specimens.insert().values(specimen_id=specimen_id, **values))
             connection.execute(images.insert().values(

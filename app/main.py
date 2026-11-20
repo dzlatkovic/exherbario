@@ -10,6 +10,8 @@ please refer to the documentation.
 """
 
 
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +34,11 @@ from app.taxonomy.routes import taxonomy_router
 from app.visibility_routes import router as visibility_router
 from app.web.routes import ROOT as WEB_ROOT, router as web_router
 
+def validate_auth_config():
+    if len(settings.USER_SECRET.encode()) < 32:
+        raise RuntimeError("Set USER_SECRET to a random value of at least 32 bytes.")
+
+
 def init_app():
     """
     Initializes the FastAPI application and includes all the necessary routers.
@@ -41,7 +48,12 @@ def init_app():
     and returns the app instance.
     :return: FastAPI app instance with all the routers included.
     """
-    fastapi_app = FastAPI()
+    @asynccontextmanager
+    async def lifespan(_app):
+        validate_auth_config()
+        yield
+
+    fastapi_app = FastAPI(lifespan=lifespan)
     fastapi_app.add_exception_handler(ChemistryError, chemistry_error_response)
 
     @fastapi_app.middleware("http")
@@ -50,11 +62,6 @@ def init_app():
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         return response
-
-    @fastapi_app.on_event("startup")
-    def validate_auth_config():
-        if len(settings.USER_SECRET.encode()) < 32:
-            raise RuntimeError("Set USER_SECRET to a random value of at least 32 bytes.")
 
     fastapi_app.include_router(field_loc_router)
     fastapi_app.include_router(image_router)

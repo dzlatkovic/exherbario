@@ -87,7 +87,7 @@ class ImageService:
                 sha256=sha256(image_data).hexdigest(),
             )
             record = ImageRepository(db).create_image(image_input)
-            response = ImageSchema.from_orm(record)
+            response = ImageSchema.model_validate(record)
             with store_upload(path, image_data):
                 db.commit()
             return response

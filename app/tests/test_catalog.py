@@ -3,6 +3,7 @@ from re import sub
 
 from PIL import Image
 from PIL.TiffImagePlugin import IFDRational
+from fastapi.routing import iter_route_contexts
 
 from app.main import app
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
@@ -121,8 +122,8 @@ class TestCatalog(TestClass):
             "/api/institutions",
             "/api/depositions/public/{institution}/{accession}/versions/{number}/files/{profile_id}",
         }
-        for route in app.routes:
-            if not route.path.startswith("/api/") or "GET" not in route.methods:
+        for route in iter_route_contexts(app.routes):
+            if not route.path.startswith("/api/") or "GET" not in (route.methods or ()):
                 continue
             response = client.get(sub(r"\{[^}]+\}", "missing", route.path))
             if route.path in anonymous_routes:

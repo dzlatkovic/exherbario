@@ -5,7 +5,7 @@ logging in a user.
 """
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic import UUID4, EmailStr
 
 
@@ -18,9 +18,7 @@ class UserSchema(BaseModel):
     is_active: bool
     is_superuser: bool
 
-    class Config:
-        """Pydantic configuration for user schema."""
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSchemaIn(BaseModel):
@@ -30,9 +28,7 @@ class UserSchemaIn(BaseModel):
     email: EmailStr
     password: str
 
-    class Config:
-        """Pydantic configuration for user schema."""
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSchemaLogin(BaseModel):
@@ -40,6 +36,4 @@ class UserSchemaLogin(BaseModel):
     email: EmailStr
     password: str
 
-    class Config:
-        """Pydantic configuration for user schema."""
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

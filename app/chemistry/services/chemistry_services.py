@@ -41,7 +41,7 @@ class ChemistryService:
     def create_study(self, data: StudyIn, actor: User):
         if data.publication_id and not self.repository.publication_exists(data.publication_id):
             raise ChemistryError(404, "Publication not found.")
-        study = Study(owner_id=actor.user_id, **data.dict())
+        study = Study(owner_id=actor.user_id, **data.model_dump())
         self.repository.save(study)
         return study
 
@@ -59,7 +59,7 @@ class ChemistryService:
         self._study_for_actor(study_id, actor)
         if not self.repository.specimen_exists(data.specimen_id):
             raise ChemistryError(404, "Voucher specimen not found.")
-        sample = LabSample(study_id=study_id, **data.dict())
+        sample = LabSample(study_id=study_id, **data.model_dump())
         self.repository.save(sample)
         return sample
 
@@ -68,7 +68,7 @@ class ChemistryService:
         if not sample:
             raise ChemistryError(404, "Sample not found.")
         self._study_for_actor(sample.study_id, actor)
-        preparation = Preparation(sample_id=sample_id, **data.dict())
+        preparation = Preparation(sample_id=sample_id, **data.model_dump())
         self.repository.save(preparation)
         return preparation
 

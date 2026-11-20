@@ -31,5 +31,5 @@ class PublicState(BaseModel):
 
 
 class PCAIn(BaseModel):
-    profile_ids: list[str] = Field(min_items=3, max_items=50)
+    profile_ids: list[str] = Field(min_length=3, max_length=50)
     scale: bool = True

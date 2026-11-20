@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class TaxonRank(Enum):
@@ -36,26 +36,18 @@ class TaxonomySchema(BaseModel):
     taxon_name: str
     gbif_key: str
     taxon_rank: TaxonRank
-    parent_taxon_key: Optional[str]
-    common_name: Optional[str]
-    authority: Optional[str]
+    parent_taxon_key: Optional[str] = None
+    common_name: Optional[str] = None
+    authority: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaxonomySchemaIn(BaseModel):
     taxon_name: str
     gbif_key: str
-    parent_taxon_key: Optional[str]
-    common_name: Optional[str]
-    authority: Optional[str]
+    parent_taxon_key: Optional[str] = None
+    common_name: Optional[str] = None
+    authority: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

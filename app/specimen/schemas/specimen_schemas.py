@@ -4,7 +4,7 @@
 from datetime import date
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, UUID4, constr, root_validator
+from pydantic import BaseModel, ConfigDict, Field, UUID4, constr, model_validator
 
 
 PersonName = constr(strip_whitespace=True, min_length=1, max_length=200)
@@ -35,18 +35,17 @@ class VoucherMetadata(BaseModel):
 class SpecimenSchema(VoucherMetadata):
     """An archive record can have unknown scientific values."""
     specimen_id: UUID4
-    reg_no: str | None
-    collection_date: date | None
-    reg_date: date | None
-    taxon_id: str | None
-    subnomen: str | None
-    field_loc_id: str | None
-    storage_id: str | None
-    collected_by: str | None
-    verified_by: str | None
+    reg_no: str | None = None
+    collection_date: date | None = None
+    reg_date: date | None = None
+    taxon_id: str | None = None
+    subnomen: str | None = None
+    field_loc_id: str | None = None
+    storage_id: str | None = None
+    collected_by: str | None = None
+    verified_by: str | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SpecimenSchemaIn(VoucherMetadata):
@@ -61,21 +60,21 @@ class SpecimenSchemaIn(VoucherMetadata):
     collected_by: str | None = None
     verified_by: str | None = None
 
-    @root_validator(skip_on_failure=True)
-    def holding_or_legacy_number(cls, values):
-        if not values.get("holding_type") and not values.get("reg_no"):
+    @model_validator(mode="after")
+    def holding_or_legacy_number(self):
+        if not self.holding_type and not self.reg_no:
             raise ValueError("Choose local or external holding, or supply a legacy registration number.")
-        return values
+        return self
 
 
 class SpecimenSchemaUpdate(VoucherMetadata):
     """Pydantic model for updating a specimen record."""
-    reg_no: Optional[str]
-    collection_date: Optional[date]
-    taxon_id: Optional[str]
-    subnomen: Optional[str]
-    field_loc_id: Optional[str]
-    storage_id: Optional[str]
-    collected_by: Optional[str]
-    verified_by: Optional[str]
+    reg_no: Optional[str] = None
+    collection_date: Optional[date] = None
+    taxon_id: Optional[str] = None
+    subnomen: Optional[str] = None
+    field_loc_id: Optional[str] = None
+    storage_id: Optional[str] = None
+    collected_by: Optional[str] = None
+    verified_by: Optional[str] = None
     correction_reason: Optional[constr(strip_whitespace=True, min_length=1, max_length=1000)] = None

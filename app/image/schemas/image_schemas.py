@@ -1,7 +1,7 @@
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class ImageType(Enum):
@@ -21,11 +21,7 @@ class ImageSchema(BaseModel):
     upload_date: date
     sha256: str | None = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ImageSchemaIn(BaseModel):
@@ -37,8 +33,4 @@ class ImageSchemaIn(BaseModel):
     upload_date: date
     sha256: str | None = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

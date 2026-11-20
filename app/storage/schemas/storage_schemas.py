@@ -1,7 +1,7 @@
 """This module contains the Pydantic schemas for the storage module."""
 from typing import Optional
 
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class StorageSchema(BaseModel):
@@ -18,14 +18,10 @@ class StorageSchema(BaseModel):
     """
     storage_id: UUID4
     box: str
-    room: Optional[str]
-    shelf: Optional[str]
+    room: Optional[str] = None
+    shelf: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StorageSchemaIn(BaseModel):
@@ -39,14 +35,10 @@ class StorageSchemaIn(BaseModel):
     :type box: str
     """
     box: str
-    room: Optional[str]
-    shelf: Optional[str]
+    room: Optional[str] = None
+    shelf: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StorageSchemaUpdate(BaseModel):
@@ -57,11 +49,7 @@ class StorageSchemaUpdate(BaseModel):
     :param shelf: The new shelf of the storage
     :type shelf: str
     """
-    room: Optional[str]
-    shelf: Optional[str]
+    room: Optional[str] = None
+    shelf: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

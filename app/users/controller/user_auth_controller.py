@@ -13,6 +13,10 @@ class JWTBearer(HTTPBearer):
         super().__init__(auto_error=auto_error)
         self.role = role
 
+    def make_not_authenticated_error(self) -> HTTPException:
+        # HERBAR answers 403 for every authentication failure, including a missing token.
+        return HTTPException(status_code=403, detail="Not authenticated")
+
     async def __call__(self, request: Request) -> User:
         credentials = await super().__call__(request)
         payload = decodeJWT(credentials.credentials) if credentials else None

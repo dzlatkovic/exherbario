@@ -125,7 +125,7 @@ class FieldLocRepository:
         field_loc = lock_for_update(self.db, query).first()
         if field_loc:
             changes = {
-                key: value for key, value in field_loc_data.dict(
+                key: value for key, value in field_loc_data.model_dump(
                     exclude={"correction_reason"}, exclude_unset=True
                 ).items() if getattr(field_loc, key) != value
             }

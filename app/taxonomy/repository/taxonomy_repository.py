@@ -12,7 +12,7 @@ class TaxonomyRepository:
         self.db = db
 
     def add_taxon(self, taxon_data: TaxonomySchemaIn, taxon_rank: TaxonRank):
-        taxon = Taxonomy(**taxon_data.dict(), taxon_rank=taxon_rank)
+        taxon = Taxonomy(**taxon_data.model_dump(), taxon_rank=taxon_rank)
         self.db.add(taxon)
         self.db.flush()
         self.db.refresh(taxon)

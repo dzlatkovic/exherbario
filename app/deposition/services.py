@@ -61,7 +61,7 @@ class DepositionService:
         for column, value in (("index_herbariorum_code", data.index_herbariorum_code), ("ror_id", data.ror_id)):
             if value and self.db.scalar(select(Institution.code).where(getattr(Institution, column) == value)):
                 raise HTTPException(409, f"Another institution code already uses {value}.")
-        institution = Institution(**data.dict(), registered_by=actor.user_id, registered_at=utc_now())
+        institution = Institution(**data.model_dump(), registered_by=actor.user_id, registered_at=utc_now())
         self.db.add(institution)
         self.db.commit()
         return self._institution(institution)
@@ -71,7 +71,7 @@ class DepositionService:
             raise HTTPException(409, "A correction requires a published version.")
         registered_institution(self.db, data.institution)
         deposition = Deposition(institution=data.institution, owner_id=actor.user_id,
-                                draft=data.dict(exclude={"institution"}), draft_revision=new_id())
+                                draft=data.model_dump(exclude={"institution"}), draft_revision=new_id())
         self.db.add(deposition)
         self.db.commit()
         return self._draft_summary(deposition)
@@ -117,7 +117,7 @@ class DepositionService:
             raise HTTPException(409, "Supply a correction reason for a new version of a published deposition.")
         if not deposition.latest_version and data.correction_reason:
             raise HTTPException(409, "A correction requires a published version.")
-        deposition.draft = data.dict(exclude={"expected_revision"})
+        deposition.draft = data.model_dump(exclude={"expected_revision"})
         deposition.draft_revision = new_id()
         self.db.commit()
         return self._draft_summary(deposition)

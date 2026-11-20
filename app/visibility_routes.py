@@ -3,7 +3,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, StrictBool
+from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.orm import Session
 
 from app.db import get_db, lock_for_update
@@ -20,8 +20,7 @@ router = APIRouter(tags=["Visibility"], dependencies=[Depends(JWTBearer("super_u
 class PhotoVisibility(BaseModel):
     is_public: StrictBool
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class VoucherVisibility(PhotoVisibility):

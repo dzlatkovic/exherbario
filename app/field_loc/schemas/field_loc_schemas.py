@@ -10,7 +10,7 @@ These classes are used to validate input data and serialize/deserialize JSON dat
 """
 from typing import Optional
 
-from pydantic import BaseModel, Field, UUID4, constr
+from pydantic import BaseModel, ConfigDict, Field, UUID4, constr
 
 
 class FieldLocSchema(BaseModel):
@@ -33,11 +33,7 @@ class FieldLocSchema(BaseModel):
     geodetic_datum: Optional[str] = None
     georeference_source: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FieldLocSchemaIn(BaseModel):
@@ -59,31 +55,23 @@ class FieldLocSchemaIn(BaseModel):
     geodetic_datum: Optional[constr(strip_whitespace=True, max_length=20)] = None
     georeference_source: Optional[constr(strip_whitespace=True, max_length=200)] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FieldLocSchemaUpdate(BaseModel):
     """
     Schema class for a field location update input.
     """
-    country: Optional[constr(max_length=100)]
-    region: Optional[constr(max_length=150)]
-    locality: Optional[constr(max_length=500)]
-    altitude: Optional[int]
-    habitat: Optional[constr(max_length=255)]
+    country: Optional[constr(max_length=100)] = None
+    region: Optional[constr(max_length=150)] = None
+    locality: Optional[constr(max_length=500)] = None
+    altitude: Optional[int] = None
+    habitat: Optional[constr(max_length=255)] = None
     gps_lat: Optional[float] = Field(None, ge=-90, le=90)
     gps_long: Optional[float] = Field(None, ge=-180, le=180)
     coordinate_uncertainty_m: Optional[int] = Field(None, ge=0, le=20_037_509)
-    geodetic_datum: Optional[constr(strip_whitespace=True, max_length=20)]
-    georeference_source: Optional[constr(strip_whitespace=True, max_length=200)]
+    geodetic_datum: Optional[constr(strip_whitespace=True, max_length=20)] = None
+    georeference_source: Optional[constr(strip_whitespace=True, max_length=200)] = None
     correction_reason: Optional[constr(strip_whitespace=True, min_length=1, max_length=1000)] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

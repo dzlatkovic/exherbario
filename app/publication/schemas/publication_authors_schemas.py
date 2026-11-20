@@ -4,7 +4,7 @@ PublicationAuthors model.
 """
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic.types import UUID4
 
 
@@ -16,12 +16,7 @@ class PublicationAuthorsSchema(BaseModel):
     user_id: str
     publication_id: str
 
-    class Config:
-        """
-        Pydantic model configuration options for
-        the PublicationAuthors schema.
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublicationAuthorsSchemaIn(BaseModel):
@@ -31,9 +26,4 @@ class PublicationAuthorsSchemaIn(BaseModel):
     user_id: str
     publication_id: str
 
-    class Config:
-        """
-        Pydantic model configuration options for
-        the PublicationAuthors schema.
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

@@ -1,26 +1,35 @@
-from pydantic import BaseModel, Field, conlist, constr, validator
+from typing import Annotated
+
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, conlist, constr, field_validator
+
+
+def unique_items(values):
+    if len(set(values)) != len(values):
+        raise ValueError("the list has duplicated items")
+    return values
+
 
 
 ShortText = constr(strip_whitespace=True, min_length=1, max_length=200)
 Reason = constr(strip_whitespace=True, min_length=1, max_length=1000)
 Identifier = constr(strip_whitespace=True, min_length=1, max_length=50)
-Digest = constr(regex=r"^[0-9a-f]{64}$")
-InstitutionCode = constr(strip_whitespace=True, regex=r"^[a-zA-Z0-9][a-zA-Z0-9-]{0,39}$")
-DOI = constr(strip_whitespace=True, max_length=200, regex=r"^10\.[0-9]+/\S+$")
+Digest = constr(pattern=r"^[0-9a-f]{64}$")
+InstitutionCode = constr(strip_whitespace=True, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9-]{0,39}$")
+DOI = constr(strip_whitespace=True, max_length=200, pattern=r"^10\.[0-9]+/\S+$")
 MAX_VOUCHERS = 200
 
 
 class DepositionInput(BaseModel):
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class Contributor(DepositionInput):
     name: ShortText
     role: ShortText
-    orcid: constr(strip_whitespace=True, regex=r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$") | None = None
+    orcid: constr(strip_whitespace=True, pattern=r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$") | None = None
 
-    @validator("orcid")
+    @field_validator("orcid")
+    @classmethod
     def valid_orcid_checksum(cls, value):
         if value is None:
             return value
@@ -41,9 +50,10 @@ class Draft(DepositionInput):
     description: constr(strip_whitespace=True, max_length=10000) = ""
     license: ShortText | None = None
     rights_statement: constr(strip_whitespace=True, max_length=2000) = ""
-    contributors: conlist(Contributor, max_items=50) = Field(default_factory=list)
-    profile_ids: conlist(Identifier, max_items=50, unique_items=True) = Field(default_factory=list)
-    specimen_ids: conlist(Identifier, max_items=MAX_VOUCHERS, unique_items=True) = Field(default_factory=list)
+    contributors: conlist(Contributor, max_length=50) = Field(default_factory=list)
+    profile_ids: Annotated[conlist(Identifier, max_length=50), AfterValidator(unique_items)] = Field(default_factory=list)
+    specimen_ids: Annotated[conlist(Identifier, max_length=MAX_VOUCHERS), AfterValidator(unique_items)] = Field(
+        default_factory=list)
     include_determiner_names: bool = False
     include_collector_names: bool = False
     correction_reason: Reason | None = None
@@ -56,7 +66,10 @@ def upper_code(value):
 class CreateDeposition(Draft):
     institution: InstitutionCode
 
-    _normalize_institution = validator("institution", allow_reuse=True)(upper_code)
+    @field_validator("institution")
+    @classmethod
+    def _normalize_institution(cls, value):
+        return upper_code(value)
 
 
 class EditDraft(Draft):
@@ -75,15 +88,21 @@ def lower_doi(value):
 class ArticleLink(DepositionInput):
     doi: DOI
 
-    _normalize_doi = validator("doi", allow_reuse=True)(lower_doi)
+    @field_validator("doi")
+    @classmethod
+    def _normalize_doi(cls, value):
+        return lower_doi(value)
 
 
 class DatasetDOI(DepositionInput):
     doi: DOI
-    agency: constr(strip_whitespace=True, regex=r"^(datacite|zenodo|crossref|other)$")
-    record_url: constr(strip_whitespace=True, max_length=500, regex=r"^https://\S+$") | None = None
+    agency: constr(strip_whitespace=True, pattern=r"^(datacite|zenodo|crossref|other)$")
+    record_url: constr(strip_whitespace=True, max_length=500, pattern=r"^https://\S+$") | None = None
 
-    _normalize_doi = validator("doi", allow_reuse=True)(lower_doi)
+    @field_validator("doi")
+    @classmethod
+    def _normalize_doi(cls, value):
+        return lower_doi(value)
 
 
 class WithdrawVersion(DepositionInput):
@@ -93,15 +112,20 @@ class WithdrawVersion(DepositionInput):
 class RegisterInstitution(DepositionInput):
     code: InstitutionCode
     name: ShortText
-    index_herbariorum_code: constr(strip_whitespace=True, regex=r"^[A-Za-z]{1,20}$") | None = None
-    ror_id: constr(strip_whitespace=True, regex=r"^(https://ror\.org/)?0[a-hj-km-np-tv-z0-9]{6}[0-9]{2}$") | None = None
+    index_herbariorum_code: constr(strip_whitespace=True, pattern=r"^[A-Za-z]{1,20}$") | None = None
+    ror_id: constr(strip_whitespace=True, pattern=r"^(https://ror\.org/)?0[a-hj-km-np-tv-z0-9]{6}[0-9]{2}$") | None = None
 
-    _normalize_code = validator("code", allow_reuse=True)(upper_code)
+    @field_validator("code")
+    @classmethod
+    def _normalize_code(cls, value):
+        return upper_code(value)
 
-    @validator("index_herbariorum_code")
+    @field_validator("index_herbariorum_code")
+    @classmethod
     def upper_herbarium_code(cls, value):
         return value.upper() if value else value
 
-    @validator("ror_id")
+    @field_validator("ror_id")
+    @classmethod
     def bare_ror_id(cls, value):
         return value.removeprefix("https://ror.org/") if value else value

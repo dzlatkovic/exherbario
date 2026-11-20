@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from typing import Optional
 
-from pydantic import BaseModel, Field, UUID4
+from pydantic import BaseModel, ConfigDict, Field, UUID4
 from .specimen_schemas import PersonName
 
 
@@ -11,16 +11,12 @@ class RevisionSchema(BaseModel):
     timestamp: datetime
     revised_by: str
     specimen_id: str
-    prev_taxon_id: Optional[str]
-    prev_subnomen: Optional[str]
-    prev_determiner_name: Optional[str]
-    prev_determination_date: Optional[date]
+    prev_taxon_id: Optional[str] = None
+    prev_subnomen: Optional[str] = None
+    prev_determiner_name: Optional[str] = None
+    prev_determination_date: Optional[date] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RevisionSchemaIn(BaseModel):
@@ -30,5 +26,4 @@ class RevisionSchemaIn(BaseModel):
     determiner_name: PersonName | None = None
     determination_date: date | None = None
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")

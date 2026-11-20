@@ -1,6 +1,6 @@
 """This module contains the Settings class."""
 
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -30,14 +30,8 @@ class Settings(BaseSettings):
     ZENODO_URL: str = "https://zenodo.org"
     ZENODO_TOKEN: str = ""
 
-    class Config:
-        """
-        The configuration settings for the Settings class.
-
-        :param env_file: The path to the file containing the environment variables.
-        :type env_file: str
-        """
-        env_file = './.env'
+    # Read environment variables, then ./.env. Unrelated keys in .env are ignored, as before.
+    model_config = SettingsConfigDict(env_file="./.env", extra="ignore")
 
 
 settings = Settings()

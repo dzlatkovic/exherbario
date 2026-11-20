@@ -114,7 +114,7 @@ def registered_institution(db, code):
 
 
 def build_snapshot(db, deposition):
-    draft = Draft.parse_obj(deposition.draft)
+    draft = Draft.model_validate(deposition.draft)
     required = [name for name in ("title", "license", "contributors") if not getattr(draft, name)]
     if not (draft.profile_ids or draft.specimen_ids):
         required.append("profile_ids or specimen_ids")
@@ -175,7 +175,7 @@ def build_snapshot(db, deposition):
         "supersedes": base + version_path(deposition, number - 1) if number > 1 else None,
         "title": draft.title, "description": draft.description, "license": draft.license,
         "rights_statement": draft.rights_statement,
-        "contributors": [contributor.dict(exclude_none=True) for contributor in draft.contributors],
+        "contributors": [contributor.model_dump(exclude_none=True) for contributor in draft.contributors],
         "correction_reason": draft.correction_reason,
         "vouchers": [_voucher_metadata(voucher, taxon, draft) for voucher, taxon in vouchers.values()],
         "profiles": profiles,

@@ -75,7 +75,7 @@ class SpecimenRepository:
             specimen.taxon_id, specimen.field_loc_id, specimen.storage_id,
             specimen.collected_by, specimen.verified_by,
         )
-        record = Specimen(**specimen.dict())
+        record = Specimen(**specimen.model_dump())
         self.db.add(record)
         self._commit_specimen()
         self.db.refresh(record)
@@ -299,8 +299,8 @@ class SpecimenRepository:
 
     def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
         changes = {
-            field: value for field, value in specimen.dict(exclude={"correction_reason"}, exclude_unset=True).items()
-            if field in VoucherMetadata.__fields__ or value not in (None, "")
+            field: value for field, value in specimen.model_dump(exclude={"correction_reason"}, exclude_unset=True).items()
+            if field in VoucherMetadata.model_fields or value not in (None, "")
         }
         updated, _ = self._apply_update(specimen_id, changes, revised_by, specimen.correction_reason)
         if updated is not None:

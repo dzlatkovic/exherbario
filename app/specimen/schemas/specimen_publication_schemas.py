@@ -1,7 +1,7 @@
 """This module contains Pydantic models for SpecimenPublication objects."""
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic.types import UUID4
 
 
@@ -13,11 +13,7 @@ class SpecimenPublicationSchema(BaseModel):
     specimen_id: str
     publication_id: str
 
-    class Config:
-        """
-        The configuration settings for the Pydantic model.
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SpecimenPublicationSchemaIn(BaseModel):
@@ -28,8 +24,4 @@ class SpecimenPublicationSchemaIn(BaseModel):
     specimen_id: str
     publication_id: str
 
-    class Config:
-        """
-        The configuration settings for the Pydantic model.
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

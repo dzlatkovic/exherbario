@@ -6,7 +6,7 @@ Publication model.
 from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel, UUID4, validator
+from pydantic import BaseModel, ConfigDict, UUID4, field_validator
 
 
 class PublicationSchema(BaseModel):
@@ -20,12 +20,7 @@ class PublicationSchema(BaseModel):
     title: str
     abstract: str
 
-    class Config:
-        """
-        Pydantic model configuration options for
-        the PublicationAuthors schema.
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublicationSchemaIn(BaseModel):
@@ -38,8 +33,8 @@ class PublicationSchemaIn(BaseModel):
     title: str
     abstract: str
 
+    @field_validator('year')
     @classmethod
-    @validator('year')
     def valid_year(cls, year):
         """
         It takes a string as input, and if it's a valid year, it returns the year.
@@ -54,24 +49,15 @@ class PublicationSchemaIn(BaseModel):
         except ValueError as error:
             raise ValueError('Year must be a string of the format YYYY') from error
 
-    class Config:
-        """
-        Pydantic model configuration options for
-        the Publication schema.
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublicationSchemaUpdate(BaseModel):
     """Pydantic model for updating a publication record."""
-    doi: Optional[str]
-    year: Optional[str]
-    journal: Optional[str]
-    title: Optional[str]
-    abstract: Optional[str]
+    doi: Optional[str] = None
+    year: Optional[str] = None
+    journal: Optional[str] = None
+    title: Optional[str] = None
+    abstract: Optional[str] = None
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

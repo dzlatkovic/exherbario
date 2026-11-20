@@ -80,7 +80,7 @@ class TestArchiveRegressions(TestClass):
         specimen_input = SpecimenFixtures.create_test_specimen_object()
         with TestingSessionLocal() as db:
             specimen = SpecimenRepository(db).create_specimen(
-                specimen_input.copy(update={"taxon_id": taxa[-1].taxon_id})
+                specimen_input.model_copy(update={"taxon_id": taxa[-1].taxon_id})
             )
         assert [row.specimen_id for row in TaxonomyService.get_specimens_by_taxon("KINGDOM")] == [
             specimen.specimen_id
@@ -91,7 +91,7 @@ class TestArchiveRegressions(TestClass):
         with TestingSessionLocal() as db:
             repo = SpecimenRepository(db)
             for reg_no in ("2", "1"):
-                repo.create_specimen(specimen_input.copy(update={"reg_no": reg_no}))
+                repo.create_specimen(specimen_input.model_copy(update={"reg_no": reg_no}))
             page = repo.search_specimens_by_keyword("Achillea", Params(page=2, size=1))
             assert page.total == 2
             assert [row.reg_no for row in page.items] == ["2"]
@@ -105,7 +105,7 @@ class TestArchiveRegressions(TestClass):
         specimen = SpecimenFixtures.create_test_specimen_object()
         assert isinstance(specimen.collection_date, date)
         with pytest.raises(ValidationError):
-            SpecimenSchemaIn(**dict(specimen.dict(), collection_date="invalid"))
+            SpecimenSchemaIn(**dict(specimen.model_dump(), collection_date="invalid"))
         with pytest.raises(ValidationError):
             FieldLocSchemaIn(country="Serbia", region="Nis", locality="Nis", gps_lat=91)
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class Organs(Enum):
@@ -20,11 +20,7 @@ class PlantNetResultSchema(BaseModel):
     score: float
     timestamp: datetime
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PlantNetResultSchemaIn(BaseModel):
@@ -33,8 +29,4 @@ class PlantNetResultSchemaIn(BaseModel):
     gbif_id: str
     score: float
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class WeatherSchema(BaseModel):
@@ -10,11 +10,7 @@ class WeatherSchema(BaseModel):
     wind_speed: float
     wind_direction: float
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WeatherSchemaIn(BaseModel):
@@ -25,8 +21,4 @@ class WeatherSchemaIn(BaseModel):
     wind_speed: float
     wind_direction: float
 
-    class Config:
-        """
-        Configuration for Pydantic schema to work with ORM
-        """
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
