@@ -115,6 +115,8 @@ class TestCatalog(TestClass):
             "/api/taxonomy/get-taxon-by-id", "/api/taxonomy/get-taxon-by-gbif",
             "/api/chemistry/public/studies/{study_id}", "/api/chemistry/public/profiles/{profile_id}",
             "/api/chemistry/public/specimens/{specimen_id}/profiles",
+            "/api/depositions/public/{institution}/{accession}/versions/{number}",
+            "/api/depositions/public/{institution}/{accession}/versions/{number}/files/{profile_id}",
         }
         for route in app.routes:
             if not route.path.startswith("/api/") or "GET" not in route.methods:

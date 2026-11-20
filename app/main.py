@@ -18,6 +18,7 @@ from app.chemistry.controller import chemistry_error_response
 from app.chemistry.exceptions import ChemistryError
 from app.chemistry.routes import chemistry_router
 from app.config import settings
+from app.deposition.routes import router as deposition_router
 
 from app.field_loc.routes import field_loc_router
 from app.publication.routes import publication_router, publication_authors_router
@@ -66,6 +67,7 @@ def init_app():
     fastapi_app.include_router(user_router)
     fastapi_app.include_router(weather_router)
     fastapi_app.include_router(chemistry_router)
+    fastapi_app.include_router(deposition_router)
     fastapi_app.include_router(visibility_router)
     fastapi_app.include_router(catalog_router)
     return fastapi_app

@@ -17,6 +17,7 @@ from app.chemistry.models import LabSample, Preparation, Profile, Study
 from app.db import SessionLocal
 from app.db.backup import backup_archive, restore_archive
 from app.db.database import create_database_engine
+from app.deposition.models import Deposition
 from app.field_loc.models import FieldLoc
 from app.image.models import Image as ImageRecord
 from app.specimen.models import Revision, ScientificCorrection, Specimen
@@ -268,6 +269,7 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
 
         upgrade("0004")
         upgrade("0005")
+        upgrade("0006")
         upgrade("head")
         with engine.connect() as connection:
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
@@ -285,6 +287,7 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             legacy = db.get(Profile, profile_id)
             assert legacy.is_public and legacy.source_path is None and legacy.source_sha256 is None
             assert db.get(LabSample, sample_id).specimen_id == specimen_id
+            assert db.scalars(select(Deposition)).all() == []
             assert db.scalars(select(ScientificCorrection)).all() == []
         assert client.get(f"/api/specimen/{specimen_id}").status_code == 404
         assert client.get(f"/api/image/{image_id}/content").status_code == 404

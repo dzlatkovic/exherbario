@@ -68,6 +68,18 @@ New profile uploads preserve the original CSV bytes in `files/`, including any U
 
 An administrator can release a study and selected profiles. Public profiles require release of the study, profile, and linked voucher. A study appears publicly when at least one profile meets those conditions. `GET /api/chemistry/public/specimens/{specimen_id}/profiles` lists eligible profiles. For PCA, select 3–50 comparable profiles from distinct lab samples. HERBAR saves the selected profiles, preprocessing settings, and results.
 
+## Publish a scientific deposition
+
+1. An authenticated researcher creates a draft with `POST /api/depositions`. Supply an institution code such as `EXU`, then add the institution name, title, license, contributor names and roles, and selected `profile_ids`. Description and rights statements are optional. HERBAR reserves an accession in that institution's namespace. Use `PUT /api/depositions/{id}/draft` with the returned `draft_revision` as `expected_revision` to edit.
+2. Review `GET /api/depositions/{id}/draft/preview` before release. It shows the exact proposed public snapshot. Profiles must belong to studies available to the draft owner. Each voucher, study, and profile must be released through its existing visibility control. The preview uses the voucher's approved regional projection and keeps verbatim labels, exact locations, original sample collection-event text, and account IDs private. Scientific determiner names are included only when the draft explicitly enables them. Review contributor names and remaining free text before approval.
+3. A curator calls `POST /api/depositions/{id}/publish` with the preview's `draft_revision` and `snapshot_sha256`. If the underlying records or files have changed, review a new preview. Retry the same request to get the same version. Cite the returned path at the serving instance, `/api/depositions/public/{institution}/{accession}/versions/{number}`.
+
+Each published version freezes the metadata, voucher determination, sample and preparation links, methods, measurements, credits, rights, and file digests. It stores a bounded copy of each source file with the snapshot in the database, in the same transaction. The original uploads remain in local storage. Exports of legacy sources are marked `legacy-reconstructed`. Published files remain available if live records or files later change.
+
+- Link a bare article DOI with `PUT /api/depositions/{id}/versions/{number}/article-doi`. Article links are attached to the cited version without editing its snapshot.
+- Create a correction by sending a complete new draft with `expected_revision: null` and a `correction_reason`, then preview and publish it. The accession stays the same and the version-specific URL changes. Earlier versions remain citable and indicate that they were superseded.
+- Withdraw a published version with `POST /api/depositions/{id}/versions/{number}/withdraw` and a public `reason`. Its URL returns a 410 notice with citation identity and linked DOIs. File downloads are withdrawn and the frozen records remain in the archive. Withdrawing release from a live voucher or profile leaves the immutable deposition in place. Use the version withdrawal action for the published record.
+
 ## Scientific corrections
 
 Send a nonblank `correction_reason` in the JSON body of `PUT /api/field-locations/update-field-loc` when correcting a collection site and of `PUT /api/specimen/update-specimen` when correcting voucher metadata. A determination-only update may omit the reason for a new determination. Include it for a correction. HERBAR records the authenticated curator, UTC timestamp and changed fields with their old and new values in the same transaction. Changes to identification also retain the existing determination history.
@@ -92,6 +104,8 @@ For a trusted older snapshot without a manifest, use `python -m app.db.backup re
 Migration `0005` adds nullable source and digest fields without modifying existing records or files. Its downgrade removes the original CSV links and upload digests from the database. Keep a verified snapshot of all three components to recover their associations.
 
 Migration `0006` adds holding and scientific attribution fields and makes the legacy registration number optional. Existing UUIDs, registration numbers, account links, and dependent records are preserved. SQLite rebuilds the voucher table within a transaction and checks foreign keys before committing. Use a verified pre-upgrade snapshot for rollback. Downgrade removes the new metadata and is blocked once a voucher has been saved without a legacy registration number.
+
+Migration `0007` adds deposition tables and preserves existing scientific records and file references. The SQLite snapshot includes frozen deposition metadata and files. Downgrade is blocked when deposition records exist. Keep verified backups and preserve the serving URLs for published versions.
 
 ### Preview migration 0004
 

@@ -109,8 +109,12 @@ class ChemistryService:
 
     def get_profile_source(self, profile_id: str, actor: User) -> tuple[bytes, Profile]:
         profile = self._profile_for_actor(profile_id, actor)
+        return self.read_profile_source(profile), profile
+
+    @staticmethod
+    def read_profile_source(profile: Profile) -> bytes:
         if profile.source_path is None and profile.source_sha256 is None:
-            return profile.source_csv.encode("utf-8"), profile
+            return profile.source_csv.encode("utf-8")
         if not profile.source_path or not profile.source_sha256:
             raise ChemistryError(409, "The original analytical file reference is incomplete.")
         try:
@@ -120,7 +124,7 @@ class ChemistryService:
             raise ChemistryError(409, "The original analytical file is missing or unreadable.") from error
         if len(content) > MAX_CSV_BYTES or sha256(content).hexdigest() != profile.source_sha256:
             raise ChemistryError(409, "The original analytical file failed SHA-256 verification.")
-        return content, profile
+        return content
 
     def set_study_visibility(self, study_id: str, is_public: bool, actor: User):
         study = self._study_for_actor(study_id, actor)
