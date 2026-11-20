@@ -1,6 +1,7 @@
 """Validate and store specimen photographs."""
 
 from datetime import date
+from hashlib import sha256
 from io import BytesIO
 from logging import getLogger
 from pathlib import Path
@@ -10,6 +11,7 @@ from fastapi import UploadFile
 from PIL import Image, ImageOps
 
 from app.db import SessionLocal
+from app.file_storage import store_upload
 from app.image.exceptions import (
     ImageInUseException,
     ImageNotFoundException,
@@ -82,20 +84,12 @@ class ImageService:
             image_input = ImageSchemaIn(
                 specimen_id=specimen_id, image_type=image_type, file_path=stored_path.as_posix(),
                 width=width, height=height, upload_date=date.today(),
+                sha256=sha256(image_data).hexdigest(),
             )
             record = ImageRepository(db).create_image(image_input)
             response = ImageSchema.from_orm(record)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            created = False
-            try:
-                with path.open("xb") as output:
-                    created = True
-                    output.write(image_data)
+            with store_upload(path, image_data):
                 db.commit()
-            except Exception:
-                if created:
-                    path.unlink(missing_ok=True)
-                raise
             return response
 
     @staticmethod

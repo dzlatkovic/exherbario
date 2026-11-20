@@ -42,26 +42,32 @@ Approve photos individually with `PUT /api/image/{image_id}/visibility` and `{"i
 
 Profiles are optional for each specimen. To add one, link a lab sample to a voucher, add a preparation batch, and import one UTF-8 CSV per run. Use `feature,value,confidence` with an optional `status` column. Leave the value blank for `not_detected` or `not_measured`.
 
+New profile uploads preserve the original CSV bytes in `files/`, including any UTF-8 byte-order mark and original line endings. The authenticated source download verifies the SHA-256 and reports `X-HERBAR-Source-Fidelity: byte-preserved` and `X-HERBAR-SHA256`. Older profiles return UTF-8 reconstructed from stored text and report `legacy-reconstructed`. New photo uploads likewise record a SHA-256 for their archived JPEG. Older photos have no upload digest.
+
 An administrator can release a study and selected profiles. Public profiles require release of the study, profile, and linked voucher. A study appears publicly when at least one profile meets those conditions. `GET /api/chemistry/public/specimens/{specimen_id}/profiles` lists eligible profiles. For PCA, select 3–50 comparable profiles from distinct lab samples. HERBAR saves the selected profiles, preprocessing settings, and results.
 
 ## Scientific corrections
 
 Send a nonblank `correction_reason` in the JSON body of `PUT /api/field-locations/update-field-loc` when correcting a collection site and of `PUT /api/specimen/update-specimen` when correcting voucher metadata. A determination-only update may omit the reason for a new determination. Include it for a correction. HERBAR records the authenticated curator, UTC timestamp and changed fields with their old and new values in the same transaction. Changes to identification also retain the existing determination history.
 
-Deleting a collection site referenced by a voucher returns HTTP 409. Weather records also prevent automatic deletion of their voucher. Migration `0003` adds the correction log and preserves prior records. Downgrading it drops the log. Back up the database and images together before upgrading and use a verified snapshot for recovery.
+Deleting a collection site referenced by a voucher returns HTTP 409. Weather records also prevent automatic deletion of their voucher. Migration `0003` adds the correction log and preserves prior records. Downgrading it drops the log. Back up the archive before upgrading and use a verified snapshot for recovery.
 
 ## Database and backups
 
-The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db` and `images/` on persistent local storage. MySQL deployments can set an explicit `mysql+pymysql://…` URL and use a separate account for migrations.
+The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db`, `images/`, and `files/` on persistent local storage. MySQL deployments can set an explicit `mysql+pymysql://…` URL and use a separate account for migrations.
 
-Stop the API and other writers before backing up the database and photos together.
+Stop the API and other writers before backing up the database, photos, and analytical files together.
 
 ```powershell
 python -m app.db.backup backup backups/collection-snapshot
 python -m app.db.backup restore backups/collection-snapshot backups/restore-check
 ```
 
-Both commands create a new directory containing `herbar.db` and `images/`. With the API stopped, move the current pair aside and put the restored pair in its place.
+Both commands create a new directory containing `herbar.db`, `images/`, `files/`, and `manifest.json`. They check SQLite integrity and foreign keys, verify that referenced files exist, and compare SHA-256 against recorded upload digests where available. Restore also checks the snapshot manifest, which detects changes since the snapshot even for older photos without an upload digest. A failed check reports the affected record or file and leaves the destination unpublished.
+
+For a trusted older snapshot without a manifest, use `python -m app.db.backup restore OLD_SNAPSHOT NEW_DIRECTORY --allow-legacy`. Restore still verifies references and any recorded digests, then creates a manifest. A missing historical digest limits verification to the bytes available now. With the API stopped, move the current database and both file directories aside and put the verified restored copies in their place.
+
+Migration `0005` adds nullable source and digest fields without modifying existing records or files. Its downgrade removes the original CSV links and upload digests from the database. Keep a verified snapshot of all three components to recover their associations.
 
 ### Preview migration 0004
 

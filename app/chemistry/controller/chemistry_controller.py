@@ -26,6 +26,7 @@ def _profile_summary(profile: Profile):
         "id": profile.id, "preparation_id": profile.preparation_id, "run_code": profile.run_code,
         "analytical_method": profile.analytical_method, "measurement_basis": profile.measurement_basis,
         "unit": profile.unit, "source_name": profile.source_name, "is_public": profile.is_public,
+        "source_fidelity": profile.source_fidelity, "source_sha256": profile.source_sha256,
     }
 
 
@@ -110,12 +111,16 @@ class ChemistryController:
         return {**_profile_summary(profile), "measurements": _measurements(rows)}
 
     def download_source(self, profile_id: str, actor: User):
-        source = self.service.get_profile_source(profile_id, actor)
-        return Response(source, media_type="text/csv", headers={
+        source, profile = self.service.get_profile_source(profile_id, actor)
+        headers = {
             "Content-Disposition": 'attachment; filename="profile-source.csv"',
             "Cache-Control": "no-store",
             "X-Content-Type-Options": "nosniff",
-        })
+            "X-HERBAR-Source-Fidelity": profile.source_fidelity,
+        }
+        if profile.source_sha256 is not None:
+            headers["X-HERBAR-SHA256"] = profile.source_sha256
+        return Response(source, media_type="text/csv", headers=headers)
 
     def set_study_visibility(self, study_id: str, data: PublicState, actor: User):
         return _study_summary(self.service.set_study_visibility(study_id, data.is_public, actor))

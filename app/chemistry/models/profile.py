@@ -17,4 +17,10 @@ class Profile(Base):
     unit = Column(String(40), nullable=False)
     source_name = Column(String(200), nullable=False)
     source_csv = deferred(Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False))
+    source_path = Column(String(150))
+    source_sha256 = Column(String(64))
     is_public = Column(Boolean, nullable=False, default=False)
+
+    @property
+    def source_fidelity(self):
+        return "byte-preserved" if self.source_path else "legacy-reconstructed"

@@ -1,12 +1,15 @@
 """Study access, profile import, and analysis workflows."""
 
+from hashlib import sha256
 from pathlib import PurePosixPath
 from typing import BinaryIO
+from uuid import uuid4
 
 from app.chemistry.exceptions import ChemistryError
 from app.chemistry.models import LabSample, PCAAnalysis, Preparation, Profile, Study
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.schemas import Basis, PCAIn, PreparationIn, SampleIn, StudyIn
+from app.file_storage import FILES_ROOT, archive_member, store_upload
 from app.users.models import User
 
 from .pca_analysis import calculate_pca
@@ -88,18 +91,36 @@ class ChemistryService:
         except ValueError as error:
             raise ChemistryError(422, str(error)) from error
         filename = PurePosixPath((source_name or "profile.csv").replace("\\", "/")).name
+        stored_path = (FILES_ROOT / f"{uuid4().hex}.csv").as_posix()
         profile = Profile(preparation_id=preparation_id, run_code=run_code,
                           analytical_method=analytical_method, measurement_basis=measurement_basis,
-                          unit=unit, source_name=filename[:200] or "profile.csv", source_csv=source)
-        self.repository.save_profile(profile, rows)
+                          unit=unit, source_name=filename[:200] or "profile.csv", source_csv=source,
+                          source_path=stored_path, source_sha256=sha256(content).hexdigest())
+        try:
+            with store_upload(archive_member(FILES_ROOT, stored_path), content):
+                self.repository.save_profile(profile, rows)
+        except (OSError, ValueError) as error:
+            raise ChemistryError(500, "Could not store the original analytical file.") from error
         return profile
 
     def get_profile(self, profile_id: str, actor: User):
         profile = self._profile_for_actor(profile_id, actor)
         return profile, self.repository.list_measurements([profile_id])
 
-    def get_profile_source(self, profile_id: str, actor: User) -> str:
-        return self._profile_for_actor(profile_id, actor).source_csv
+    def get_profile_source(self, profile_id: str, actor: User) -> tuple[bytes, Profile]:
+        profile = self._profile_for_actor(profile_id, actor)
+        if profile.source_path is None and profile.source_sha256 is None:
+            return profile.source_csv.encode("utf-8"), profile
+        if not profile.source_path or not profile.source_sha256:
+            raise ChemistryError(409, "The original analytical file reference is incomplete.")
+        try:
+            with archive_member(FILES_ROOT, profile.source_path).open("rb") as source:
+                content = source.read(MAX_CSV_BYTES + 1)
+        except (OSError, ValueError) as error:
+            raise ChemistryError(409, "The original analytical file is missing or unreadable.") from error
+        if len(content) > MAX_CSV_BYTES or sha256(content).hexdigest() != profile.source_sha256:
+            raise ChemistryError(409, "The original analytical file failed SHA-256 verification.")
+        return content, profile
 
     def set_study_visibility(self, study_id: str, is_public: bool, actor: User):
         study = self._study_for_actor(study_id, actor)

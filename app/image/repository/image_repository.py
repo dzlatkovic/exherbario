@@ -19,7 +19,8 @@ class ImageRepository:
                          file_path=image_data.file_path,
                          width=image_data.width,
                          height=image_data.height,
-                         upload_date=image_data.upload_date)
+                         upload_date=image_data.upload_date,
+                         sha256=image_data.sha256)
         self.db.add(db_image)
         self.db.flush()
         self.db.refresh(db_image)

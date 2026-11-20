@@ -51,6 +51,7 @@ def test_chemistry_upgrade_resumes_after_creating_the_study_table(monkeypatch):
             assert connection.scalar(sa.select(studies.c.title)) == "Existing study"
             scripts.get_revision("0003").module.upgrade()
             scripts.get_revision("0004").module.upgrade()
+            scripts.get_revision("0005").module.upgrade()
             assert not compare_metadata(context, Base.metadata)
 
 

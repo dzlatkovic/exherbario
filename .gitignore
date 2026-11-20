@@ -1,6 +1,9 @@
 # Folder containing specimen images.
 images/
 
+# Locally archived scientific uploads
+/files/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -19,6 +19,7 @@ class ImageSchema(BaseModel):
     width: int
     height: int
     upload_date: date
+    sha256: str | None = None
 
     class Config:
         """
@@ -34,6 +35,7 @@ class ImageSchemaIn(BaseModel):
     width: int
     height: int
     upload_date: date
+    sha256: str | None = None
 
     class Config:
         """

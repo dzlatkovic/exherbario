@@ -1,3 +1,6 @@
+from hashlib import sha256
+from pathlib import Path
+
 import pytest
 from fastapi.encoders import jsonable_encoder
 
@@ -34,7 +37,8 @@ class TestChemistry(TestClass):
         with TestingSessionLocal() as db:
             assert db.query(LabSample).filter_by(specimen_id=specimen_id).count() == 0
 
-    def test_drafts_release_and_reproducible_pca(self):
+    def test_drafts_release_and_reproducible_pca(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
         specimen = SpecimenFixtures.create_test_specimen()
         actor = UserServices.create_user("Lab", "Owner", "lab@example.org", "password")
         other = UserServices.create_user("Other", "User", "other@example.org", "password")
@@ -54,6 +58,7 @@ class TestChemistry(TestClass):
         assert client.get(public_study).status_code == 404
 
         profiles = []
+        source_bytes = []
         for index, values in enumerate(((20, 35, 45), (25, 35, 40), (10, 45, 45))):
             sample = client.post(study_url + "/samples", headers=owner, json={
                 "specimen_id": specimen.specimen_id, "code": f"sample-{index}",
@@ -67,15 +72,24 @@ class TestChemistry(TestClass):
             })
             assert preparation.status_code == 201, preparation.text
             preparation_id = preparation.json()["id"]
-            csv = "feature,value,confidence\n" + "\n".join(
+            csv = ("\ufefffeature,value,confidence\r\n" + "\r\n".join(
                 f"{feature},{value},annotated" for feature, value in zip("ABC", values)
-            )
+            ) + "\r\n").encode("utf-8")
             profile = client.post(f"{base}/preparations/{preparation_id}/profiles", headers=owner,
                                   data={"run_code": f"run-{index}", "analytical_method": "GC-MS-1",
                                         "measurement_basis": "peak_area_percent", "unit": "%"},
                                   files={"file": ("source.csv", csv, "text/csv")})
             assert profile.status_code == 201, profile.text
+            assert profile.json()["source_fidelity"] == "byte-preserved"
+            assert profile.json()["source_sha256"] == sha256(csv).hexdigest()
             profiles.append(profile.json()["id"])
+            source_bytes.append(csv)
+        duplicate = client.post(f"{base}/preparations/{preparation_id}/profiles", headers=owner,
+                                data={"run_code": "run-2", "analytical_method": "GC-MS-1",
+                                      "measurement_basis": "peak_area_percent", "unit": "%"},
+                                files={"file": ("source.csv", csv, "text/csv")})
+        assert duplicate.status_code == 409
+        assert len(list(Path("files").glob("*.csv"))) == 3
 
         first = profiles[0]
         public_profile = f"{base}/public/profiles/{first}"
@@ -83,7 +97,10 @@ class TestChemistry(TestClass):
         assert client.get(public_profile).status_code == 404
         assert client.get(voucher_profiles).status_code == 404
         assert client.get(f"{base}/profiles/{first}/source", headers=outsider).status_code == 404
-        assert client.get(f"{base}/profiles/{first}/source", headers=owner).text.startswith("feature,value")
+        preserved = client.get(f"{base}/profiles/{first}/source", headers=owner)
+        assert preserved.content == source_bytes[0]
+        assert preserved.headers["X-HERBAR-Source-Fidelity"] == "byte-preserved"
+        assert preserved.headers["X-HERBAR-SHA256"] == sha256(source_bytes[0]).hexdigest()
         visibility = f"{base}/profiles/{first}/visibility"
         assert client.put(visibility, json={"is_public": True}, headers=owner).status_code == 403
         assert client.put(visibility, json={"is_public": True}, headers=curator).status_code == 200

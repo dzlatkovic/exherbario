@@ -16,6 +16,7 @@ class Image(Base):
     height = Column(Integer)
     upload_date = Column(Date, default=datetime.utcnow)
     is_public = Column(Boolean, nullable=False, server_default=false())
+    sha256 = Column(String(64))
 
     plantnet_results = relationship("PlantNetResult", backref="image")
 
@@ -25,7 +26,8 @@ class Image(Base):
                  file_path: str,
                  width: int,
                  height: int,
-                 upload_date: date
+                 upload_date: date,
+                 sha256: str | None = None,
                  ):
         self.specimen_id = specimen_id
         self.image_type = image_type
@@ -33,3 +35,4 @@ class Image(Base):
         self.width = width
         self.height = height
         self.upload_date = upload_date
+        self.sha256 = sha256

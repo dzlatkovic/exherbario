@@ -1,7 +1,9 @@
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from hashlib import sha256
 from io import BytesIO
+from os import environ
 from pathlib import Path
 from threading import Event, local
 from uuid import uuid4
@@ -114,6 +116,7 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         files={"file": ("voucher.jpg", image.getvalue(), "image/jpeg")},
     )
     assert upload.status_code == 200, upload.text
+    assert upload.json()["sha256"] == sha256(image.getvalue()).hexdigest()
     photo_url = f"/api/image/{upload.json()['image_id']}"
     voucher_url = f"/api/specimen/{specimen.specimen_id}"
     assert client.put(f"{photo_url}/visibility", headers=headers, json={"is_public": True}).status_code == 200
@@ -126,6 +129,35 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         json={"subnomen": "Updated voucher determination"},
     )
     assert revised.status_code == 200, revised.text
+    with SessionLocal() as db:
+        study = Study(owner_id=admin.user_id, title="Synthetic study", description="")
+        db.add(study)
+        db.flush()
+        sample = LabSample(study_id=study.id, specimen_id=specimen.specimen_id, code="Sample",
+                           plant_part="leaf", collection_event="Synthetic site",
+                           voucher_relationship="collected_alongside")
+        db.add(sample)
+        db.flush()
+        preparation = Preparation(sample_id=sample.id, batch_code="Batch",
+                                  kind="essential_oil", method_reference="Synthetic reference")
+        db.add(preparation)
+        db.commit()
+        preparation_id = preparation.id
+    source = b"\xef\xbb\xbffeature,value,confidence\r\nA,100,annotated\r\n"
+    imported = client.post(f"/api/chemistry/preparations/{preparation_id}/profiles", headers=headers,
+                           data={"run_code": "Run", "analytical_method": "Synthetic method",
+                                 "measurement_basis": "peak_area_percent", "unit": "%"},
+                           files={"file": ("source.csv", source, "text/csv")})
+    assert imported.status_code == 201, imported.text
+    download = f"/api/chemistry/profiles/{imported.json()['id']}/source"
+    source_path, = (archive / "files").glob("*.csv")
+    source_path.write_bytes(b"changed")
+    assert client.get(download, headers=headers).status_code == 409
+    with pytest.raises(ValueError, match="Chemistry profile .* SHA-256 mismatch"):
+        backup_archive(archive / "herbar.db", archive / "images", tmp_path / "invalid-backup")
+    assert not (tmp_path / "invalid-backup").exists()
+    source_path.write_bytes(source)
+
     database_engine.dispose()
     snapshot = backup_archive(archive / "herbar.db", archive / "images", tmp_path / "backup")
     restored = restore_archive(snapshot, tmp_path / "restored")
@@ -142,10 +174,27 @@ def test_sqlite_and_image_backup_restores_a_specimen_through_the_api(sqlite_arch
         photo = client.get(detail.json()["photos"][0]["content_url"])
         assert photo.status_code == 200
         assert client.get(f"{photo_url}/original", headers=headers).content == image.getvalue()
+        downloaded = client.get(download, headers=headers)
+        assert downloaded.content == source
+        assert downloaded.headers["X-HERBAR-SHA256"] == sha256(source).hexdigest()
         history = client.get(f"/api/specimen/{specimen.specimen_id}/revisions")
         assert history.json()[0]["previous_subnomen"] == specimen.subnomen
     finally:
         restored_engine.dispose()
+    (snapshot / "files" / source_path.name).unlink()
+    restore = subprocess.run(
+        [sys.executable, "-m", "app.db.backup", "restore", str(snapshot), str(tmp_path / "invalid-restore")],
+        cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True, encoding="utf-8",
+        env={**environ, "PYTHONIOENCODING": "utf-8"}, timeout=30,
+    )
+    assert restore.returncode == 1
+    assert "Referenced file is missing" in restore.stderr
+    assert imported.json()["id"] in restore.stderr
+    assert not (tmp_path / "invalid-restore").exists()
+    with (restored / "herbar.db").open("ab") as database:
+        database.write(b"changed after the snapshot")
+    with pytest.raises(ValueError, match="Snapshot database failed SHA-256 verification"):
+        restore_archive(restored, tmp_path / "modified-db")
 
 
 def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
@@ -211,6 +260,7 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             }
             assert connection.execute(select(specimens.c.specimen_id)).scalar_one() == specimen_id
 
+        upgrade("0004")
         upgrade("head")
         with engine.connect() as connection:
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
@@ -219,10 +269,12 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
             assert specimen.reg_no == specimen_data.reg_no
             assert not specimen.is_public and specimen.public_location == "withheld"
             image = db.get(ImageRecord, image_id)
-            assert not image.is_public and image.file_path == "images/archived.jpg"
+            assert not image.is_public and image.file_path == "images/archived.jpg" and image.sha256 is None
             assert image.specimen_id == specimen_id
             assert db.get(Revision, revision_id).prev_subnomen == specimen_data.subnomen
-            assert db.get(Study, study_id).is_public and db.get(Profile, profile_id).is_public
+            assert db.get(Study, study_id).is_public
+            legacy = db.get(Profile, profile_id)
+            assert legacy.is_public and legacy.source_path is None and legacy.source_sha256 is None
             assert db.scalars(select(ScientificCorrection)).all() == []
         assert client.get(f"/api/specimen/{specimen_id}").status_code == 404
         assert client.get(f"/api/image/{image_id}/content").status_code == 404
@@ -231,6 +283,27 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
 
         login = client.post("/api/users/login", json={"email": admin.email, "password": "password"})
         headers = {"Authorization": "Bearer " + login.json()["access_token"]}
+        legacy_download = client.get(f"/api/chemistry/profiles/{profile_id}/source", headers=headers)
+        assert legacy_download.content == b"feature,value,confidence\nA,100,annotated"
+        assert legacy_download.headers["X-HERBAR-Source-Fidelity"] == "legacy-reconstructed"
+        assert "X-HERBAR-SHA256" not in legacy_download.headers
+        images = archive / "images"
+        images.mkdir()
+        Image.new("RGB", (4, 4), "blue").save(images / "archived.jpg", "JPEG")
+        snapshot = backup_archive(archive / "herbar.db", images, tmp_path / "snapshot")
+        legacy_photo = snapshot / "images" / "archived.jpg"
+        legacy_photo.write_bytes(b"changed after the snapshot")
+        with pytest.raises(ValueError, match="referenced files differ from the manifest: images/archived.jpg"):
+            restore_archive(snapshot, tmp_path / "corrupt")
+        assert not (tmp_path / "corrupt").exists()
+        legacy_photo.write_bytes((images / "archived.jpg").read_bytes())
+        (snapshot / "manifest.json").unlink()
+        with pytest.raises(ValueError, match="Snapshot has no manifest.json"):
+            restore_archive(snapshot, tmp_path / "legacy-restore")
+        with pytest.warns(UserWarning, match="Legacy snapshot has no manifest"):
+            restored = restore_archive(snapshot, tmp_path / "legacy-restore", allow_legacy=True)
+        assert (restored / "manifest.json").is_file()
+        assert (restored / "images" / "archived.jpg").read_bytes() == legacy_photo.read_bytes()
         site = {"field_loc_id": specimen.field_loc_id}
         voucher = {"specimen_id": specimen.specimen_id}
         assert client.delete("/api/field-locations/delete-field-loc", params=site, headers=headers).status_code == 409
