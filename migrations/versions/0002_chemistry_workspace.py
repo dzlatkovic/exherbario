@@ -2,7 +2,6 @@
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 revision = "0002"
 down_revision = "0001"
@@ -31,21 +30,19 @@ def _foreign_keys(table):
 def _create_table(name, *definition):
     context = op.get_context()
     if context.as_sql or not sa.inspect(op.get_bind()).has_table(name):
-        op.create_table(name, *definition, mysql_engine="InnoDB")
+        op.create_table(name, *definition)
         return
 
-    # MySQL commits each DDL statement. A retry can encounter tables from the first attempt.
-    connection = op.get_bind()
+    # A retry after an interrupted upgrade can encounter tables from the first attempt.
     expected = sa.Table(name, sa.MetaData(), *definition)
-    existing = sa.Table(name, sa.MetaData(), autoload_with=connection, resolve_fks=False)
+    existing = sa.Table(name, sa.MetaData(), autoload_with=op.get_bind(), resolve_fks=False)
     expected_keys = _foreign_keys(expected)
     actual_keys = _foreign_keys(existing)
-    is_mysql = context.dialect.name == "mysql"
     if (
         set(existing.columns.keys()) != set(expected.columns.keys())
         or tuple(existing.primary_key.columns.keys()) != tuple(expected.primary_key.columns.keys())
         or _unique_columns(existing) != _unique_columns(expected)
-        or (not actual_keys.issubset(expected_keys) if is_mysql else actual_keys != expected_keys)
+        or actual_keys != expected_keys
         or any(
             existing.c[column.name].nullable != column.nullable
             or context.impl.compare_type(existing.c[column.name], column)
@@ -53,21 +50,6 @@ def _create_table(name, *definition):
         )
     ):
         raise RuntimeError(f"Existing table {name} does not match migration 0002.")
-
-    if is_mysql:
-        engine = existing.dialect_options["mysql"].get("engine", "").lower()
-        if engine == "myisam":
-            quoted_name = connection.dialect.identifier_preparer.quote(name)
-            op.execute(f"ALTER TABLE {quoted_name} ENGINE=InnoDB")
-        elif engine != "innodb":
-            raise RuntimeError(f"Existing table {name} has unsupported storage engine {engine!r}.")
-        # MySQL supplies the indexes required by these foreign keys.
-        for columns, targets in sorted(expected_keys - actual_keys):
-            target_table = targets[0].rsplit(".", 1)[0]
-            target_columns = [target.rsplit(".", 1)[1] for target in targets]
-            op.create_foreign_key(
-                f"fk_{name}_{columns[0]}", name, target_table, list(columns), target_columns
-            )
 
 
 def upgrade():
@@ -125,7 +107,7 @@ def upgrade():
         sa.Column('measurement_basis', sa.String(length=25), nullable=False),
         sa.Column('unit', sa.String(length=40), nullable=False),
         sa.Column('source_name', sa.String(length=200), nullable=False),
-        sa.Column('source_csv', sa.Text().with_variant(mysql.MEDIUMTEXT(), 'mysql'), nullable=False),
+        sa.Column('source_csv', sa.Text(), nullable=False),
         sa.Column('is_public', sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(['preparation_id'], ['chemistry_preparation.id'], ),
         sa.PrimaryKeyConstraint('id'),

@@ -16,7 +16,6 @@ class ScientificCorrection(Base):
             "(specimen_id IS NULL AND field_loc_id IS NOT NULL)",
             name="scientific_correction_one_target",
         ),
-        {"mysql_engine": "InnoDB"},
     )
 
     id = Column(String(50), primary_key=True, default=new_id)

@@ -26,11 +26,7 @@ def create_database_engine(url, **options):
 
         return database_engine
 
-    if database_url.drivername in {"mysql", "mysql+mysqldb", "mariadb", "mariadb+mysqldb"}:
-        import pymysql
-
-        pymysql.install_as_MySQLdb()
-    return create_engine(database_url, pool_pre_ping=True, hide_parameters=True, **options)
+    raise ValueError("HERBAR stores its archive in SQLite. Set DATABASE_URL to a sqlite:/// path.")
 
 
 DATABASE_URL = make_url(settings.DATABASE_URL)

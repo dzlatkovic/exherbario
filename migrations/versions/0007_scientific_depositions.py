@@ -2,7 +2,6 @@
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.mysql import MEDIUMBLOB
 
 revision = "0007"
 down_revision = "0006"
@@ -31,7 +30,6 @@ def upgrade():
         sa.Column("draft_revision", sa.String(50)),
         sa.Column("latest_version", sa.Integer(), nullable=False),
         sa.UniqueConstraint("institution", "accession", name="uq_deposition_accession"),
-        mysql_engine="InnoDB",
     )
     op.create_table(
         "deposition_version",
@@ -43,27 +41,23 @@ def upgrade():
         sa.Column("snapshot", sa.JSON(), nullable=False),
         sa.Column("snapshot_sha256", sa.String(64), nullable=False),
         sa.UniqueConstraint("deposition_id", "draft_revision", name="uq_deposition_published_draft"),
-        mysql_engine="InnoDB",
     )
     op.create_table(
         "deposition_file", *_version_key(),
         sa.Column("profile_id", sa.String(50), primary_key=True),
-        sa.Column("content", sa.LargeBinary().with_variant(MEDIUMBLOB(), "mysql"), nullable=False),
-        mysql_engine="InnoDB",
+        sa.Column("content", sa.LargeBinary(), nullable=False),
     )
     op.create_table(
         "deposition_article", *_version_key(),
         sa.Column("doi", sa.String(200), primary_key=True),
         sa.Column("linked_by", sa.String(50), sa.ForeignKey("users.user_id"), nullable=False),
         sa.Column("linked_at", sa.DateTime(), nullable=False),
-        mysql_engine="InnoDB",
     )
     op.create_table(
         "deposition_withdrawal", *_version_key(),
         sa.Column("reason", sa.Text(), nullable=False),
         sa.Column("withdrawn_by", sa.String(50), sa.ForeignKey("users.user_id"), nullable=False),
         sa.Column("withdrawn_at", sa.DateTime(), nullable=False),
-        mysql_engine="InnoDB",
     )
 
 

@@ -106,7 +106,7 @@ Deleting a collection site referenced by a voucher returns HTTP 409. Weather rec
 
 ## Database and backups
 
-The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db`, `images/`, and `files/` on persistent local storage. MySQL deployments can set an explicit `mysql+pymysql://…` URL and use a separate account for migrations.
+The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db`, `images/`, and `files/` on persistent local storage. HERBAR stores its archive in SQLite only, so `DATABASE_URL` must be a `sqlite:///` path.
 
 Stop the API and other writers before backing up the database, photos, and analytical files together.
 
@@ -144,7 +144,7 @@ Migration `0004` retains identifiers, links, files, and chemistry release flags.
 
 ## Tests
 
-Run `python -m pytest`. The suite covers the SQLite API, migrations, concurrent specimen revisions, and backup restoration. CI also checks MySQL.
+Run `python -m pytest`. The suite covers the SQLite API, migrations, concurrent specimen revisions, and backup restoration.
 
 ## License
 

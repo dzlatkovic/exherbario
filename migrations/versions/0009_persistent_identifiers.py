@@ -21,7 +21,6 @@ def upgrade():
         sa.Column("ror_id", sa.String(9), unique=True),
         sa.Column("registered_by", sa.String(50), sa.ForeignKey("users.user_id")),
         sa.Column("registered_at", sa.DateTime()),
-        mysql_engine="InnoDB",
     )
     op.create_table(
         "deposition_doi",
@@ -35,7 +34,6 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ["deposition_id", "version"], ["deposition_version.deposition_id", "deposition_version.number"],
         ),
-        mysql_engine="InnoDB",
     )
     _register_existing_institutions()
 

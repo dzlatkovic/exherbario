@@ -1,9 +1,8 @@
 """Run each test with its own empty database tables."""
 
-import os
-
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, make_url
+from sqlalchemy import inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -16,13 +15,6 @@ client = TestClient(app)
 
 
 def create_test_engine():
-    url = os.environ.get("HERBAR_TEST_DATABASE_URL")
-    if url:
-        url = make_url(url)
-        if url.get_backend_name() != "mysql" or not (url.database or "").startswith("test_herbar"):
-            raise RuntimeError("Use a dedicated MySQL database with a test_herbar name.")
-        return create_database_engine(url)
-
     return create_database_engine("sqlite://", poolclass=StaticPool)
 
 
@@ -47,3 +39,8 @@ class TestClass:
             Base.metadata.drop_all(bind=self.engine)
         finally:
             self.engine.dispose()
+
+
+def test_only_sqlite_archives_are_supported():
+    with pytest.raises(ValueError, match="SQLite"):
+        create_database_engine("postgresql://herbar@localhost/herbar")

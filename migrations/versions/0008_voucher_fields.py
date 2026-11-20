@@ -45,13 +45,11 @@ def upgrade():
 
 def downgrade():
     connection = op.get_bind()
-    # SQLite's length() counts characters; MySQL's counts bytes, so use char_length() there.
-    characters = sa.func.length if connection.dialect.name == "sqlite" else sa.func.char_length
     for table, columns in WIDENED.items():
         for column, (old, _) in columns.items():
             values = sa.table(table, sa.column(column))
             if connection.scalar(sa.select(sa.literal(1)).where(
-                    characters(values.c[column]) > old).limit(1)):
+                    sa.func.length(values.c[column]) > old).limit(1)):
                 raise RuntimeError(f"Downgrade would truncate {table}.{column}. Restore a verified pre-upgrade snapshot.")
     for table, columns in ADDED.items():
         values = sa.table(table, *(sa.column(name) for name in columns))

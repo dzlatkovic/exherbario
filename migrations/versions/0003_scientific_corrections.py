@@ -26,7 +26,6 @@ def upgrade():
             "(specimen_id IS NULL AND field_loc_id IS NOT NULL)",
             name="scientific_correction_one_target",
         ),
-        mysql_engine="InnoDB",
     )
 
 

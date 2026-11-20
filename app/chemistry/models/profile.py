@@ -1,5 +1,4 @@
 from sqlalchemy import Boolean, Column, ForeignKey, String, Text, UniqueConstraint
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import deferred
 
 from app.db import Base, new_id
@@ -16,7 +15,7 @@ class Profile(Base):
     measurement_basis = Column(String(25), nullable=False)
     unit = Column(String(40), nullable=False)
     source_name = Column(String(200), nullable=False)
-    source_csv = deferred(Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False))
+    source_csv = deferred(Column(Text, nullable=False))
     source_path = Column(String(150))
     source_sha256 = Column(String(64))
     is_public = Column(Boolean, nullable=False, default=False)

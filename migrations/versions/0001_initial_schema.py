@@ -10,7 +10,7 @@ depends_on = None
 
 
 def _create_table(name, *definition):
-    op.create_table(name, *definition, mysql_engine="InnoDB")
+    op.create_table(name, *definition)
 
 
 def upgrade():

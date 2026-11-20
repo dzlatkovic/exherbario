@@ -88,6 +88,6 @@ The other registered routes require bearer authentication. Archive writes and th
 - Compared the table with the running app's route definitions and bearer dependencies. All 52 anonymous method/path pairs are listed.
 - Ran Alembic against fresh temporary SQLite and upgraded a separate synthetic database from `0001` to `0002`. Both passed integrity and foreign-key checks. The populated upgrade preserved the fixture fields, identifiers and relationships across nine archive tables.
 - Ran the full pytest suite with temporary SQLite and synthetic fixtures. All 193 tests passed, including image and database backup restoration, concurrent revisions and chemistry release. The run reported eight deprecation warnings.
-- Clean dependency installation, MySQL, unversioned legacy imports, external service calls and production deployment remain unverified. The proposed publication migration awaits implementation and approval of the records and fields to release.
+- Clean dependency installation, unversioned legacy imports, external service calls and production deployment remain unverified. The proposed publication migration awaits implementation and approval of the records and fields to release.
 
 Public deployment, publication of real records and changes to live institutional data require separate authorization.

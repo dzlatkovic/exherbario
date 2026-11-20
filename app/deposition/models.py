@@ -1,6 +1,5 @@
 from sqlalchemy import Column, DateTime, ForeignKey, ForeignKeyConstraint, Integer, JSON, LargeBinary, String, Text
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from sqlalchemy.orm import deferred
 
 from app.db import Base, new_id
@@ -53,7 +52,7 @@ class DepositionFile(Base):
     deposition_id = Column(String(50), primary_key=True)
     version = Column(Integer, primary_key=True, autoincrement=False)
     profile_id = Column(String(50), primary_key=True)
-    content = deferred(Column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"), nullable=False))
+    content = deferred(Column(LargeBinary, nullable=False))
 
 
 class DepositionArticle(Base):
