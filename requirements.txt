@@ -13,17 +13,18 @@ email-validator==2.4.0
 SQLAlchemy==2.0.58
 alembic==1.13.3
 # Authentication
-PyJWT==2.6.0
+PyJWT==2.15.1
 cryptography==50.0.2
 # Scientific, geographic and media libraries
 pubchempy==1.0.5
 openpyxl==3.1.5
-geopy==2.3.0
+geopy==2.5.0
 qrcode==7.4.2
 folium==0.14.0
-requests==2.28.2
-Pillow==12.3.0
+requests==2.34.2
+urllib3==2.8.0
+Pillow==13.0.0
 pygbif==0.6.6
 # Tests
-pytest==7.2.2
+pytest==9.2.0
 httpx==0.28.1
