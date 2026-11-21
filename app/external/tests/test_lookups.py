@@ -117,6 +117,21 @@ class TestLookups(TestClass):
         with pytest.raises(requests.Timeout, match="in time"):
             lookups.http_get("https://api.example.org/slow")
 
+    def test_a_concurrent_lookup_reuses_the_answer_stored_first(self):
+        key = "work:10.1/race"
+
+        def fetch_while_another_request_stores():
+            # A second request for the same uncached key finishes first and stores its answer.
+            with TestingSessionLocal() as other:
+                other.add(ExternalLookupCache(provider="crossref", key_digest=lookups._digest(key), lookup_key=key,
+                                              found=True, payload={"title": "stored first"}, fetched_at=lookups.utc_now()))
+                other.commit()
+            return {"title": "fetched second"}
+        result = cached("crossref", key, fetch_while_another_request_stores)
+        assert result.data == {"title": "stored first"} and result.cached
+        with TestingSessionLocal() as db:
+            assert db.query(ExternalLookupCache).count() == 1
+
     def test_tests_never_reach_the_network(self):
         with pytest.raises(requests.ConnectionError, match="disabled in tests"):
             requests.get("https://api.gbif.org/v1/species/1", timeout=1)

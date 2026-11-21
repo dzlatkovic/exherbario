@@ -55,9 +55,10 @@ def _wide_cell(measurement) -> str:
         return "nd"
     if measurement.status == "not_measured":
         return ""
-    if measurement.value is None:
-        return WIDE_CELL.get(measurement.qualifier, "")
-    return _text(measurement.value)
+    if measurement.qualifier:
+        # A qualified value (trace, <LOQ) is not an ordinary quantity; the long format keeps the number.
+        return WIDE_CELL.get(measurement.qualifier, measurement.qualifier)
+    return "" if measurement.value is None else _text(measurement.value)
 
 
 class ExportService:

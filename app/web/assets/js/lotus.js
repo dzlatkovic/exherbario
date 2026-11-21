@@ -61,7 +61,7 @@ if (panel) {
       publish.disabled = true;
       try {
         const done = await request(`/api/chemistry/lotus/taxa/${taxon}/published`, {method: "PUT",
-          json: {wikidata_ids: chosen.length === boxes.length ? null : chosen}});
+          json: {review_id: found.review_id, wikidata_ids: chosen.length === boxes.length ? null : chosen}});
         status(feedback, `Published ${done.published} compound${done.published === 1 ? "" : "s"} for this taxon's public voucher pages.`);
       } catch (error) {
         status(feedback, error.message, true);

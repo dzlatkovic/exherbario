@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 import requests
+from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.db import SessionLocal
@@ -132,7 +133,15 @@ def cached(provider: str, key: str, fetch: Callable[[], Any]) -> LookupResult:
             row = ExternalLookupCache(provider=provider, key_digest=digest, lookup_key=key[:2000])
             db.add(row)
         row.found, row.payload, row.fetched_at = data is not None, data, now
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Another request stored the same answer first; use its entry rather than failing this one.
+            db.rollback()
+            stored = db.get(ExternalLookupCache, (provider, digest))
+            if stored is not None:
+                return LookupResult(provider, stored.payload, stored.found, stored.fetched_at, cached=True, stale=False)
+            raise
     return LookupResult(provider, data, data is not None, now, cached=False, stale=False)
 
 

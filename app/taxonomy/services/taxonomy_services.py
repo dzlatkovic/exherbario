@@ -270,6 +270,7 @@ class TaxonomyService:
             note = (f"{data['scientificName']} is a synonym in GBIF; the accepted name "
                     f"{data.get('accepted') or key} was linked instead.")
         created = TaxonomyService.build_taxonomic_tree(key)
+        retrieved_at = TaxonomyService._usage(key).retrieved_at if created and actor_id else None  # before the write
         with SessionLocal(expire_on_commit=False) as db:
             taxon = TaxonomyRepository(db).read_taxon_by_gbif_key(key)
             if taxon is None:
@@ -282,8 +283,7 @@ class TaxonomyService:
                 if matched_name:
                     fields["matched_name"] = matched_name
                 record_import(db, provider="gbif", external_id=key, record_type="taxon", record_id=taxon.taxon_id,
-                              fields=fields, confirmed_by=actor_id,
-                              retrieved_at=TaxonomyService._usage(key).retrieved_at)
+                              fields=fields, confirmed_by=actor_id, retrieved_at=retrieved_at)
                 db.commit()
         return taxon, note
 

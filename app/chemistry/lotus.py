@@ -8,6 +8,8 @@ Lookups are cached and only proposed; a curator publishes a taxon's list, which 
 taxon_literature_compound. Nothing here is a measurement on a voucher.
 """
 
+import hashlib
+import json
 import re
 
 from fastapi import HTTPException
@@ -114,6 +116,11 @@ def _key(taxon) -> str:
     return f"taxon:{taxon.gbif_key}"
 
 
+def review_id(data) -> str:
+    """Fingerprint of the exact list a curator reviewed; publishing must quote it."""
+    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:32]
+
+
 def lookup(db, taxon_id: str) -> dict:
     """The compounds LOTUS reports for a taxon, for a curator to review. Nothing is stored except the cache."""
     taxon = _taxon(db, taxon_id)
@@ -127,15 +134,19 @@ def lookup(db, taxon_id: str) -> dict:
             "wikidata_taxon_name": data["taxon_name"], "truncated": data["truncated"],
             "compounds": [{**item, "in_registry": item["cid"] in registered} for item in data["compounds"]],
             "published_at": published.isoformat() + "Z" if published else None,
-            "source": attribution(result)}
+            "review_id": review_id(result.data), "source": attribution(result)}
 
 
-def publish(db, taxon_id: str, wikidata_ids: list[str] | None, actor) -> dict:
-    """Copy the reviewed lookup (all compounds, or the chosen ones) to the taxon's public list."""
+def publish(db, taxon_id: str, reviewed: str, wikidata_ids: list[str] | None, actor) -> dict:
+    """Copy the reviewed lookup (all compounds, or the chosen ones) to the taxon's public list. `reviewed` is the
+    lookup's review_id: if the cached list changed since (another curator's lookup refreshed it), nothing is
+    published and the curator is asked to review the new list."""
     taxon = _taxon(db, taxon_id)
     result = peek("lotus", _key(taxon))
     if result is None or not result.found:
         raise HTTPException(409, "Look up this taxon in LOTUS first, then publish what you reviewed.")
+    if review_id(result.data) != reviewed:
+        raise HTTPException(409, "The LOTUS list changed since you reviewed it. Look it up again and review the new list.")
     compounds = result.data["compounds"]
     if wikidata_ids is not None:
         chosen = set(wikidata_ids)

@@ -4,6 +4,7 @@ import requests
 
 from app.config import settings
 from app.external.models import ExternalImport
+from app.publication.models import Publication
 from app.tests import TestClass, TestingSessionLocal, client
 from app.users.services import UserServices, signJWT
 
@@ -109,3 +110,30 @@ class TestCrossref(TestClass):
         monkeypatch.setattr(settings, "EXTERNAL_LOOKUPS", "gbif")
         off = self.lookup(DOI)
         assert off.status_code == 503 and "turned off" in off.json()["detail"]
+
+    def test_a_failed_save_leaves_nothing_behind(self, monkeypatch):
+        monkeypatch.setattr(HTTP, lambda url, params=None, headers=None: WORK)
+        proposal = self.lookup(DOI).json()
+        body = {**proposal["fields"], "source": {"provider": "crossref", "external_id": "not-a-doi"}}
+        create = "/api/publication/create-new-publication"
+
+        def nothing_saved():
+            with TestingSessionLocal() as db:
+                return db.query(Publication).count() == 0 and db.query(ExternalImport).count() == 0
+
+        invalid = client.post(create, headers=self.curator, json=body)
+        assert invalid.status_code == 400 and nothing_saved()
+        other = client.post(create, headers=self.curator,
+                            json={**body, "source": {"provider": "crossref", "external_id": "10.1000/other"}})
+        assert other.status_code == 400 and "different DOI" in other.json()["detail"] and nothing_saved()
+
+        def broken(*_args, **_kwargs):
+            raise RuntimeError("provenance could not be written")
+        monkeypatch.setattr("app.publication.services.publication_services.record_import", broken)
+        failed = client.post(create, headers=self.curator, json={**body, "source": {"provider": "crossref", "external_id": DOI}})
+        assert failed.status_code == 500 and nothing_saved()
+
+        monkeypatch.undo()
+        monkeypatch.setattr(HTTP, lambda url, params=None, headers=None: WORK)
+        retry = client.post(create, headers=self.curator, json={**body, "source": {"provider": "crossref", "external_id": DOI}})
+        assert retry.status_code == 200, retry.text  # the retry is not blocked by a half-saved entry

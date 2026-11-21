@@ -4,9 +4,15 @@ import csv
 import io
 import zipfile
 from io import BytesIO
+from pathlib import Path
+from uuid import uuid4
 from xml.etree import ElementTree
 
+import xmlschema
 from PIL import Image
+from sqlalchemy import insert
+
+from app.chemistry.models import Measurement
 
 from app.chemistry.tests.integration_tests import test_compounds
 from app.chemistry.tests.integration_tests.test_sample_vouchers import release_voucher
@@ -18,6 +24,7 @@ from app.tests import TestClass, TestingSessionLocal, client
 from app.tests import test_record_pages
 
 BASE_URL = "https://herbarium.example.edu"
+GBIF_EML = xmlschema.XMLSchema(Path(__file__).parent / "schemas" / "eml-gbif-profile-1.3" / "eml.xsd")
 DWC = "{http://rs.tdwg.org/dwc/text/}"
 
 
@@ -57,6 +64,8 @@ class TestDarwinCoreArchive(TestClass):
                   for index in range(2)]
         assert client.put(f"/api/image/{photos[0]}/visibility", headers=curator, json={"is_public": True}).status_code == 200
         with TestingSessionLocal() as db:
+            limonene = db.get(Measurement, (profile_id, "Limonene"))
+            limonene.value, limonene.qualifier = 0.123456789, "<LOQ"
             publication = Publication("10.3390/plants13010001", "2024", "Plants", "Yarrow oil", "Abstract")
             db.add(publication)
             db.flush()
@@ -100,6 +109,9 @@ class TestDarwinCoreArchive(TestClass):
         assert pinene["measurementID"] == f"{BASE_URL}/profiles/{profile_id}#α-Pinene"
         assert "PubChem CID 6654" in pinene["measurementRemarks"] and "voucher role: sampled from voucher" in pinene["measurementRemarks"]
         assert any(row["measurementValue"] == "trace" for row in measurements)
+        below = next(row for row in measurements if row["measurementType"].endswith("of Limonene"))
+        assert below["measurementValue"] == "<LOQ (0.123456789)"  # full precision, qualifier kept
+        assert below["measurementRemarks"].startswith("Qualifier: <LOQ (the value is not an ordinary quantified result)")
 
         meta = ElementTree.fromstring(bundle.read("meta.xml"))
         core = meta.find(f"{DWC}core")
@@ -111,7 +123,9 @@ class TestDarwinCoreArchive(TestClass):
         assert extension.get("rowType") == "http://rs.tdwg.org/dwc/terms/MeasurementOrFact"
         assert len(extension.findall(f"{DWC}field")) + 1 == len(measurements[0])
 
+        GBIF_EML.validate(bundle.read("eml.xml").decode())  # GBIF's EML profile 1.3
         eml = ElementTree.fromstring(bundle.read("eml.xml"))
+        assert eml.get("scope") == "system" and eml.findtext("dataset/alternateIdentifier") == f"{BASE_URL}/api/dwca.zip"
         assert eml.findtext("dataset/title") == "Example University Herbarium"
         assert eml.find("dataset/intellectualRights/para/ulink").get("url").endswith("/by/4.0/legalcode")
         assert eml.findtext("dataset/contact/electronicMailAddress") == "herbarium@example.edu"
@@ -119,6 +133,12 @@ class TestDarwinCoreArchive(TestClass):
 
         only = read(client.get("/api/dwca.zip", params={"holding_institution": "Example University",
                                                        "measurements": False}).content)
+        only_eml = ElementTree.fromstring(only[0].read("eml.xml"))
+        GBIF_EML.validate(only[0].read("eml.xml").decode())
+        assert only_eml.get("packageId") != eml.get("packageId")  # a different metadata version, a different ID
+        assert only_eml.findtext("dataset/alternateIdentifier") == f"{BASE_URL}/api/dwca.zip?holding_institution=Example+University"
+        again = ElementTree.fromstring(zipfile.ZipFile(io.BytesIO(client.get("/api/dwca.zip").content)).read("eml.xml"))
+        assert again.get("packageId") == eml.get("packageId")  # the same records and metadata, the same ID
         assert [row["catalogNumber"] for row in only[1]["occurrence.txt"]] == ["EU-77"]
         assert "measurementorfact.txt" not in only[0].namelist()
         assert ElementTree.fromstring(only[0].read("meta.xml")).find(f"{DWC}extension") is None
@@ -137,3 +157,14 @@ class TestDarwinCoreArchive(TestClass):
         monkeypatch.setattr(settings, "DWC_LICENSE", "CC0-1.0")
         empty = read(client.get("/api/dwca.zip").content)
         assert empty[1]["occurrence.txt"] == [] and "measurementorfact.txt" not in empty[0].namelist()
+
+    def test_large_collection_beyond_sqlite_parameter_limits(self, monkeypatch):
+        monkeypatch.setattr(settings, "PUBLIC_BASE_URL", BASE_URL)
+        count = 33_000  # above SQLite's default limit of 32,766 parameters per statement
+        with TestingSessionLocal() as db:
+            db.execute(insert(Specimen), [{"specimen_id": str(uuid4()), "accession": f"L-{index:05d}", "is_public": True,
+                                           "public_location": "withheld", "holding_type": "local"} for index in range(count)])
+            db.commit()
+        response = client.get("/api/dwca.zip")
+        assert response.status_code == 200, response.text[:300]
+        assert len(read(response.content)[1]["occurrence.txt"]) == count

@@ -237,8 +237,10 @@ def get_public_specimen_profiles(specimen_id: str,
 
 
 class LiteratureSelection(BaseModel):
-    """The reviewed compounds to publish; omit `wikidata_ids` to publish the whole reviewed list."""
+    """The reviewed compounds to publish; omit `wikidata_ids` to publish the whole reviewed list. `review_id` comes
+    from the lookup that was reviewed."""
     model_config = ConfigDict(extra="forbid")
+    review_id: constr(pattern=r"^[0-9a-f]{32}$")
     wikidata_ids: list[constr(pattern=r"^Q[1-9][0-9]{0,11}$")] | None = Field(None, max_length=2000)
 
 
@@ -246,7 +248,7 @@ class LiteratureSelection(BaseModel):
 def lookup_literature_compounds(taxon_id: str = Path(max_length=50), _actor: User = Depends(administrator),
                                 db: Session = Depends(get_db)):
     """Natural products reported in the literature for a taxon (LOTUS via Wikidata), with their references, for a
-    curator to review. Nothing is published until `PUT .../published`."""
+    curator to review. Nothing is published until `PUT .../published` with this answer's `review_id`."""
     return lotus.lookup(db, taxon_id)
 
 
@@ -254,7 +256,7 @@ def lookup_literature_compounds(taxon_id: str = Path(max_length=50), _actor: Use
 def publish_literature_compounds(data: LiteratureSelection, taxon_id: str = Path(max_length=50),
                                  actor: User = Depends(administrator), db: Session = Depends(get_db)):
     """Show the reviewed compounds on the taxon's public voucher pages, replacing the previous list."""
-    return lotus.publish(db, taxon_id, data.wikidata_ids, actor)
+    return lotus.publish(db, taxon_id, data.review_id, data.wikidata_ids, actor)
 
 
 @chemistry_router.delete("/lotus/taxa/{taxon_id}/published", status_code=204)

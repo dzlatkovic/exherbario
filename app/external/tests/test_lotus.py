@@ -1,12 +1,12 @@
 """Literature-reported natural products for a taxon (LOTUS via Wikidata), with recorded SPARQL answers."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
 from app.chemistry.models import Compound
 from app.config import settings
-from app.external.models import ExternalImport
+from app.external.models import ExternalImport, ExternalLookupCache
 from app.tests import TestClass, TestingSessionLocal, client
 from app.tests.test_record_pages import signed_in
 from app.users.services import UserServices, signJWT
@@ -110,9 +110,11 @@ class TestLOTUS(TestClass):
             assert db.query(ExternalImport).filter_by(provider="lotus").count() == 0
 
         publish = f"{lookup_url}/published"
-        assert client.put(publish, headers=self.curator, json={"wikidata_ids": ["Q1"]}).status_code == 422
-        assert client.put(publish, headers=self.researcher, json={}).status_code == 403
-        done = client.put(publish, headers=self.curator, json={"wikidata_ids": ["Q407334"]})
+        reviewed = found["review_id"]
+        assert client.put(publish, headers=self.curator, json={"wikidata_ids": ["Q407334"]}).status_code == 422
+        assert client.put(publish, headers=self.curator, json={"review_id": reviewed, "wikidata_ids": ["Q1"]}).status_code == 422
+        assert client.put(publish, headers=self.researcher, json={"review_id": reviewed}).status_code == 403
+        done = client.put(publish, headers=self.curator, json={"review_id": reviewed, "wikidata_ids": ["Q407334"]})
         assert done.status_code == 200 and done.json()["published"] == 1
         public = client.get(public_url).json()
         assert [item["name"] for item in public["compounds"]] == ["eucalyptol"]
@@ -122,7 +124,7 @@ class TestLOTUS(TestClass):
             assert (entry.record_type, entry.record_id, entry.confirmed_by) == ("taxon_literature", taxon_id, self.curator_id)
             assert entry.fields == {"compounds": 1, "of": 2}
 
-        assert client.put(publish, headers=self.curator, json={}).json()["published"] == 2  # all, replacing
+        assert client.put(publish, headers=self.curator, json={"review_id": reviewed}).json()["published"] == 2  # all, replacing
         assert len(client.get(public_url).json()["compounds"]) == 2
         assert client.get(lookup_url, headers=self.curator).json()["published_at"]
 
@@ -141,7 +143,8 @@ class TestLOTUS(TestClass):
 
     def test_publishing_needs_a_reviewed_lookup(self, monkeypatch):
         taxon_id = self.taxon(monkeypatch)
-        refused = client.put(f"/api/chemistry/lotus/taxa/{taxon_id}/published", headers=self.curator, json={})
+        refused = client.put(f"/api/chemistry/lotus/taxa/{taxon_id}/published", headers=self.curator,
+                             json={"review_id": "0" * 32})
         assert refused.status_code == 409 and "Look up" in refused.json()["detail"]
         assert client.get("/api/chemistry/lotus/taxa/missing", headers=self.curator).status_code == 404
 
@@ -161,3 +164,27 @@ class TestLOTUS(TestClass):
         monkeypatch.setattr(settings, "EXTERNAL_LOOKUPS", "gbif")
         off = client.get(f"/api/chemistry/lotus/taxa/{genus_species}", headers=self.curator)
         assert off.status_code == 503
+
+    def test_publishing_refuses_a_list_that_changed_after_review(self, monkeypatch):
+        taxon_id = self.taxon(monkeypatch)
+        monkeypatch.setattr(HTTP, wikidata)
+        lookup_url = f"/api/chemistry/lotus/taxa/{taxon_id}"
+        first = client.get(lookup_url, headers=self.curator).json()
+        assert [item["wikidata_id"] for item in first["compounds"]] == ["Q407334", "Q27104536"]
+
+        # The shared cache is refreshed (here: expired and looked up again) and Wikidata now answers differently.
+        changed = {"results": {"bindings": [{**MAIN["results"]["bindings"][2], "compound": uri("Q2")}]}}
+        monkeypatch.setattr(HTTP, lambda url, params=None, headers=None: changed if "query.wikidata" in url else SCHOLARLY)
+        with TestingSessionLocal() as db:
+            row = db.query(ExternalLookupCache).filter_by(provider="lotus").one()
+            row.fetched_at -= timedelta(days=31)
+            db.commit()
+        second = client.get(lookup_url, headers=self.curator).json()
+        assert [item["wikidata_id"] for item in second["compounds"]] == ["Q2"]
+        assert second["review_id"] != first["review_id"]
+
+        stale = client.put(f"{lookup_url}/published", headers=self.curator, json={"review_id": first["review_id"]})
+        assert stale.status_code == 409 and "changed since you reviewed" in stale.json()["detail"]
+        assert client.get(f"/api/chemistry/public/taxa/{taxon_id}/literature-compounds").status_code == 404
+        fresh = client.put(f"{lookup_url}/published", headers=self.curator, json={"review_id": second["review_id"]})
+        assert fresh.status_code == 200 and fresh.json()["published"] == 1

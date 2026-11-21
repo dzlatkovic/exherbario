@@ -7,14 +7,14 @@
 - `occurrence.txt`: one row per released voucher.
   - `occurrenceID` is the voucher's public page, `PUBLIC_BASE_URL/specimens/{id}`, the address printed in its label QR code. Keep `PUBLIC_BASE_URL` fixed once the dataset is registered: GBIF matches records across harvests by this ID.
   - Holding institution, collection and catalogue number; collector number; event date as recorded and as written on the label; name and GBIF taxon with its classification; determination date; type status; linked DOIs (`associatedReferences`); approved photos (`associatedMedia`); licence.
-- `measurementorfact.txt`: released chemistry, as one row per detected or trace measurement for each released voucher linked to the measured sample. Each row gives the compound and measurement basis, the value and unit, the technique and method, and the profile, sample, voucher role, PubChem CID and retention index. Leave it out with `?measurements=false`.
-- `meta.xml` describes the columns, and `eml.xml` describes the dataset: title, abstract, publisher, contact and licence.
+- `measurementorfact.txt`: released chemistry, as one row per detected or trace measurement for each released voucher linked to the measured sample. Each row gives the compound and measurement basis, the value and unit, the technique and method, and the profile, sample, voucher role, PubChem CID and retention index. Values keep the chemistry export's precision. A qualified value keeps its qualifier: `trace`, `<LOQ`, or `<LOQ (0.123456789)` when a number was also recorded, and the remarks begin with the qualifier. Leave the measurements out with `?measurements=false`.
+- `meta.xml` describes the columns, and `eml.xml` describes the dataset: title, abstract, publisher, contact and licence. `eml.xml` validates against GBIF's EML profile 1.3; the tests check this. Its `packageId` combines a stable dataset identifier, derived from the archive URL and its filters, with a version that changes whenever the metadata or records change.
 
 ## What is left out
 
 The archive follows the public catalog's rules. Unreleased vouchers are not included, nor are unapproved photos, or chemistry that is not fully released. Exact coordinates and localities are never exported: a voucher released with `region` gives its country and region, and one released with `withheld` gives no location. `informationWithheld` says which applies. Collector, determiner and verifier names, staff accounts, verbatim labels and storage are never exported.
 
-The archive is built from live records each time it is requested. Deposition snapshots are not read or changed; each published deposition version keeps its own frozen record and archive.
+The archive is built from live records each time it is requested; collections above SQLite's per-query parameter limit export normally, up to 100,000 vouchers per archive. Deposition snapshots are not read or changed; each published deposition version keeps its own frozen record and archive.
 
 ## Settings
 

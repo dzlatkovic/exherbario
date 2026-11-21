@@ -21,13 +21,12 @@ class PublicationService:
     reading, and deleting Publication objects.
     """
     @staticmethod
-    def _record_source(db, publication, source, actor_id):
-        """Log which saved values match the Crossref record the curator looked up, and which were edited."""
+    def _record_source(db, publication, doi, proposal, source, actor_id):
+        """Log, in the caller's transaction, which saved values match the Crossref record the curator looked up.
+        `proposal` is the cached lookup, read before the write began."""
         saved = {"doi": publication.doi, "title": publication.title, "journal": publication.journal,
                  "year": publication.year.strftime("%Y") if publication.year else None,
                  "abstract": publication.abstract}
-        doi = normalize_doi(source.external_id)
-        proposal = peek("crossref", f"work:{doi}")
         proposed = crossref.fields_from(proposal.data, doi) if proposal is not None and proposal.found else {}
         accepted = [name for name in FIELDS if proposed.get(name) is not None and (
             normalize_doi(saved[name]) == proposed[name] if name == "doi" else saved[name] == proposed[name])]
@@ -36,7 +35,6 @@ class PublicationService:
                       fields={"accepted": accepted, "edited": [name for name in FIELDS if name not in accepted]},
                       confirmed_by=actor_id,
                       retrieved_at=proposal.retrieved_at if proposal else parse_retrieved_at(source.retrieved_at))
-        db.commit()
 
     @staticmethod
     def existing_dois(repository) -> dict:
@@ -75,11 +73,22 @@ class PublicationService:
                     key = normalize_doi(doi)
                 except ValueError:
                     key = doi.strip().lower()
+                source_doi = proposal = None
+                if source is not None and actor_id:
+                    # Checked, and the cached lookup read, before anything is written: a bad source never leaves
+                    # an entry behind, and no second session runs inside this write.
+                    source_doi = normalize_doi(source.external_id)
+                    if source_doi != key:
+                        raise ValueError("The Crossref source is for a different DOI than the one being saved.")
+                    proposal = peek("crossref", f"work:{source_doi}")
                 if key in PublicationService.existing_dois(repository):
                     raise PublicationExceptionDoi(message="Publication exists in the database.", code=400)
-                publication = repository.create_publication(doi, year, journal, title, abstract)
-                if source is not None and actor_id:
-                    PublicationService._record_source(db, publication, source, actor_id)
+                publication = Publication(doi, year, journal, title, abstract)
+                db.add(publication)
+                db.flush()
+                if source_doi:
+                    PublicationService._record_source(db, publication, source_doi, proposal, source, actor_id)
+                db.commit()  # the entry and its provenance together, or neither
                 return publication
         except Exception as error:
             raise error
