@@ -4,13 +4,14 @@ a user in the database.
 """
 
 
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, DateTime, String, Boolean, UniqueConstraint
 from app.db import Base, new_id
 
 
 class User(Base):
     """The User model represents a user in the database."""
     __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("orcid", name="uq_users_orcid"),)
     user_id = Column(String(50), primary_key=True, default=new_id, autoincrement=False)
     name = Column(String(50))
     surname = Column(String(50))
@@ -18,6 +19,10 @@ class User(Base):
     password = Column(String(200))
     is_active = Column(Boolean)
     is_superuser = Column(Boolean, default=False)
+    # Set only after ORCID authenticates the person and they confirm the link; never typed in.
+    orcid = Column(String(19))
+    orcid_name = Column(String(200))
+    orcid_linked_at = Column(DateTime)
 
     def __init__(self, name: str, surname: str, email: str, password: str,
                  is_active: bool = True, is_superuser: bool = False):

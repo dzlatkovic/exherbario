@@ -369,3 +369,7 @@ table.grid .number { text-align: right; white-space: nowrap; }
 .lookup .inline-form { margin-top: 0; }
 .lookup-results p { margin: .35rem 0 0; }
 .picker-results li > span .warning-text { display: block; }
+
+/* LOTUS review list: a checkbox beside the compound's name and details */
+.picker-results li > label { display: flex; align-items: flex-start; gap: .6rem; min-width: 0; }
+.picker-results li > label > span { display: grid; min-width: 0; overflow-wrap: anywhere; }

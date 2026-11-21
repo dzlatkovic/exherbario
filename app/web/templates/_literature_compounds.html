@@ -1,0 +1,20 @@
+{#- Curator-published compounds reported in the literature for a taxon (LOTUS via Wikidata). Not measurements. -#}
+{% macro literature_list(literature, taxon_name, limit=40) %}
+<p class="muted small">Natural products that published studies report for this taxon (<em>{{ taxon_name }}</em>). They were not measured on this voucher.</p>
+<ul class="plain-list literature-compounds">
+  {% for compound in literature.compounds %}
+  <li{% if loop.index > limit %} hidden data-more{% endif %}>
+    {% if compound.in_registry %}<a href="/compounds/{{ compound.cid }}">{{ compound.name }}</a>{% else %}{{ compound.name }}{% endif %}
+    <span class="muted small">
+      <a href="https://www.wikidata.org/wiki/{{ compound.wikidata_id }}" rel="noopener">Wikidata</a>
+      {% for reference in compound.references[:3] %} ·
+        {% if reference.doi %}<a href="https://doi.org/{{ reference.doi }}" rel="noopener" title="{{ reference.title or '' }}">{{ reference.year or 'article' }}</a>
+        {% else %}<a href="https://www.wikidata.org/wiki/{{ reference.wikidata_id }}" rel="noopener">{{ reference.year or 'source' }}</a>{% endif %}
+      {% endfor %}{% if compound.references | length > 3 %} · {{ compound.references | length - 3 }} more{% endif %}
+    </span>
+  </li>
+  {% endfor %}
+</ul>
+{% if literature.compounds | length > limit %}<p class="small">{{ literature.compounds | length }} compounds in total. <a href="/api/chemistry/public/taxa/{{ literature.taxon_id }}/literature-compounds">Full list (JSON)</a></p>{% endif %}
+<p class="muted small">Source: <a href="{{ literature.source.url }}" rel="noopener">{{ literature.source.name }}</a>, retrieved {{ literature.retrieved_at.date() }}. {{ literature.source.license }}. Cite: {{ literature.source.citation }}</p>
+{% endmacro %}

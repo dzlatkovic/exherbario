@@ -8,9 +8,9 @@
 
 Ex Herbario (formerly HERBAR) is an open-source, self-hosted platform for university herbaria and research groups. It keeps voucher specimens together with their taxonomy, collection sites, photos, publications and identification history, links them to lab samples and chemical profiles, and publishes citable, verifiable depositions for journal articles.
 
-- **Vouchers:** registration from labels, GBIF name matching, redetermination history, logged corrections and per-record public release.
-- **Chemistry:** GC-MS and LC-MS profiles imported from your own results table, with compounds identified through PubChem and analysis-ready CSV export.
-- **Depositions:** frozen, versioned snapshots with SHA-256 digests, a downloadable ZIP, an offline verifier and optional Zenodo or DataCite DOIs.
+- **Vouchers:** registration from labels, GBIF name matching, redetermination history, logged corrections, per-record public release and a Darwin Core Archive for GBIF.
+- **Chemistry:** GC-MS and LC-MS profiles imported from your own results table, with compounds identified through PubChem, analysis-ready CSV export, and curator-published natural products reported in the literature (LOTUS).
+- **Depositions:** frozen, versioned snapshots with SHA-256 digests, a downloadable ZIP, an offline verifier, optional Zenodo or DataCite DOIs and ORCID-confirmed contributors.
 - **Deployment:** one SQLite database plus two file folders, with checked backups and restores.
 
 The repository, Python package, `herbar.db`, the `X-HERBAR-*` headers and the `herbar-deposition` archive format keep the old name so existing installations and archives keep working.
@@ -43,7 +43,8 @@ Visitors browse released vouchers and published depositions. After signing in, *
 - [Phytochemistry](docs/chemistry.md): samples, preparations, profile import, PubChem compounds and CSV export.
 - [Scientific depositions](docs/depositions.md): publishing, verifying archives, DOIs, corrections and withdrawal.
 - [Database, backups and migrations](docs/operations.md): storage, backup and restore, and upgrade notes.
-- [External lookups](docs/external-lookups.md): optional GBIF, Crossref, ROR and Index Herbariorum lookups, caching and offline use.
+- [External lookups](docs/external-lookups.md): optional GBIF, Crossref, ROR, Index Herbariorum and LOTUS lookups, ORCID iDs, caching and offline use.
+- [Darwin Core Archive](docs/darwin-core.md): publishing released vouchers to GBIF.
 
 ## Tests
 

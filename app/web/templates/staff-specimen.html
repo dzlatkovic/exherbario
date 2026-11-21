@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ record.name ~ ' · ' if record }}Staff record · Ex Herbario{% endblock %}
-{% block head %}<script type="module" src="/assets/herbar/js/specimen.js"></script>{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/specimen.js"></script>{% if curator %}<script type="module" src="/assets/herbar/js/lotus.js"></script>{% endif %}{% endblock %}
 {% block body %}
 {% if not record %}
   <section class="card narrow">
@@ -83,6 +83,17 @@
       </details>
       {% endif %}
     </section>
+
+    {% if curator and record.taxon %}
+    <section class="card" aria-labelledby="lotus-title" id="lotus" data-taxon="{{ record.taxon.taxon_id }}">
+      <h2 id="lotus-title">Literature-reported natural products</h2>
+      <p class="muted small">Compounds that LOTUS (via Wikidata) reports for {{ record.taxon.taxon_name }}, with their references.
+        Review them, then publish to show them on the public pages of this taxon's released vouchers.</p>
+      <button type="button" id="lotus-lookup" class="secondary">Look up in LOTUS</button>
+      <p class="feedback" role="status"></p>
+      <div id="lotus-results"></div>
+    </section>
+    {% endif %}
 
     <section class="card" aria-labelledby="photos-title">
       <h2 id="photos-title">Photographs</h2>

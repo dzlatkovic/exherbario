@@ -6,3 +6,4 @@ from .profile import Profile
 from .measurement import Measurement
 from .compound import Compound, CompoundAlias, CompoundName, MeasurementCorrection
 from .spreadsheet_import import ImportTemplate, SpreadsheetImport
+from .literature import TaxonLiteratureCompound

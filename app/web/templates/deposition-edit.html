@@ -24,6 +24,7 @@
           <legend>Contributors</legend>
           <div id="credit-rows"></div>
           <button type="button" id="add-credit" class="secondary">Add contributor</button>
+          {% if account.orcid %}<button type="button" id="add-me" class="secondary" data-name="{{ account.orcid_name or (account.name ~ ' ' ~ account.surname) | trim }}" data-orcid="{{ account.orcid }}">Add me with my ORCID iD</button>{% endif %}
         </fieldset>
         <fieldset class="stack">
           <legend>Analytical runs</legend>

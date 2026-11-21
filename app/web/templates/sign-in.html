@@ -11,5 +11,8 @@
     <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
     <button class="primary">Sign in</button>
   </form>
+  {% if orcid_sign_in() %}
+  <p class="muted small">Your account has a linked ORCID iD? <a href="/sign-in/orcid?next={{ next | urlencode }}">Sign in with ORCID</a></p>
+  {% endif %}
 </section>
 {% endblock %}

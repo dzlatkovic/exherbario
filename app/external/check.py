@@ -8,6 +8,7 @@ Each provider is queried once, live and without the cache, with a known record. 
 import sys
 import time
 
+from app.chemistry import lotus
 from app.deposition import registries
 from app.external.lookups import enabled_providers, timeout
 from app.publication import crossref
@@ -17,6 +18,7 @@ CHECKS = {
     "crossref": "10.5555/12345678",  # Crossref's own test DOI
     "ror": "University of Belgrade",
     "index_herbariorum": "NY",
+    "lotus": "3120060",  # Achillea millefolium in the GBIF Backbone
 }
 
 
@@ -39,6 +41,12 @@ def check(provider: str) -> str:
         if not any(records):
             raise ValueError("no parsable organization in the answer")
         return f"{records[0]['name']} ({records[0]['ror']})"
+    if provider == "lotus":
+        answer = lotus._fetch(CHECKS["lotus"])
+        if not answer or not answer["compounds"]:
+            raise ValueError("no compounds found for the test taxon")
+        with_doi = sum(1 for item in answer["compounds"] if any(ref["doi"] for ref in item["references"]))
+        return f"{len(answer['compounds'])} compounds for {answer['taxon_name']}, {with_doi} with a DOI reference"
     answer = registries._ih_fetch({"code": CHECKS["index_herbariorum"]}) or {"data": []}  # exact code matches
     records = [registries._ih_record(item) for item in answer["data"]]
     if not any(records):

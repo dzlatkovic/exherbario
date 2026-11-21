@@ -64,6 +64,14 @@
       <p class="small">Download: {% for study_id in studies %}<a href="/api/chemistry/public/export?study_id={{ study_id }}&amp;format=long" download>{{ studies[study_id].title }} (CSV)</a>{{ ', ' if not loop.last }}{% endfor %}</p>
     </section>
     {% endif %}
+
+    {% if literature %}
+    {% from "_literature_compounds.html" import literature_list %}
+    <section class="card" aria-labelledby="literature-compounds-title">
+      <h2 id="literature-compounds-title">Reported in the literature for this taxon</h2>
+      {{ literature_list(literature, taxon.taxon_name) }}
+    </section>
+    {% endif %}
   </div>
 
   <aside class="record-side">

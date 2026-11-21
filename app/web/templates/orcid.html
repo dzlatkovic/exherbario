@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}ORCID iD · Ex Herbario{% endblock %}
+{% block body %}
+<section class="card narrow" aria-labelledby="orcid-title">
+  <h1 id="orcid-title" class="title">ORCID iD</h1>
+  {% if problem %}<p class="notice warning" role="alert">{{ problem }}</p>{% endif %}
+  {% if pending and not problem %}
+  <p>ORCID confirmed that you are:</p>
+  <p class="orcid-id"><strong>{{ pending.name or "(no public name)" }}</strong><br>
+    <a href="{{ orcid_url }}/{{ pending.orcid }}" rel="noopener" target="_blank">{{ orcid_url }}/{{ pending.orcid }}</a></p>
+  <p>Link this iD to your Ex Herbario account <strong>{{ account.email }}</strong>?
+    {% if account.orcid and account.orcid != pending.orcid %}It replaces the iD linked now ({{ account.orcid }}).{% endif %}
+    Your name in Ex Herbario stays as it is.</p>
+  <form method="post" action="/account/orcid/confirm" class="link-row">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <button class="primary">Link this iD</button>
+    <a class="button secondary" href="/researcher">Cancel</a>
+  </form>
+  {% else %}
+  <p><a href="/researcher">Back to My work</a></p>
+  {% endif %}
+</section>
+{% endblock %}

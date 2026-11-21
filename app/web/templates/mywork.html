@@ -64,6 +64,22 @@
   </div>
 
   <aside class="record-side">
+    {% if account.orcid or orcid_enabled %}
+    <section class="card" aria-labelledby="orcid-title">
+      <h2 id="orcid-title">ORCID iD</h2>
+      {% if account.orcid %}
+      <p><a href="{{ orcid_url() }}/{{ account.orcid }}" rel="noopener" target="_blank">{{ orcid_url() }}/{{ account.orcid }}</a>
+        <br><span class="muted small">Confirmed by ORCID{% if account.orcid_name %} for {{ account.orcid_name }}{% endif %} on {{ account.orcid_linked_at.date() }}.</span></p>
+      <form method="post" action="/account/orcid/unlink">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <button class="text-button">Unlink</button>
+      </form>
+      {% else %}
+      <p class="muted small">Link the iD that ORCID confirms is yours. It is offered when you credit yourself in a deposition{% if orcid_sign_in() %}, and you can then sign in with ORCID{% endif %}.</p>
+      <a class="button secondary" href="/account/orcid/link">Link your ORCID iD</a>
+      {% endif %}
+    </section>
+    {% endif %}
     {% if imports %}
     <section class="card" aria-labelledby="imports-title">
       <h2 id="imports-title">Unfinished imports</h2>

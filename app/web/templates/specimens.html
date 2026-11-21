@@ -46,6 +46,7 @@
   <div class="result-summary">
     <p class="muted" role="status">{{ "{:,}".format(results.total) }} specimen{{ '' if results.total == 1 else 's' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
     {% if results.total <= 10000 %}<a class="small" href="{{ export_url }}" download>Download CSV</a>{% endif %}
+    <a class="small" href="/api/dwca.zip" download title="All released vouchers as a Darwin Core Archive, for GBIF and other aggregators">Darwin Core Archive</a>
   </div>
   <ol class="result-list">
     {% for item in results["items"] %}

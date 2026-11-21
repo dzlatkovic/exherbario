@@ -1,9 +1,11 @@
 """Routes for studies, samples, chemical profiles, compounds, imports and exports."""
 
-from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from fastapi.responses import Response
+from pydantic import BaseModel, ConfigDict, Field, constr
 from sqlalchemy.orm import Session
 
+from app.chemistry import lotus
 from app.chemistry.controller import ChemistryController
 from app.chemistry.controller.import_controller import ImportController
 from app.chemistry.repository import ChemistryRepository
@@ -232,3 +234,39 @@ def get_public_profile(profile_id: str, controller: ChemistryController = Depend
 def get_public_specimen_profiles(specimen_id: str,
                                  controller: ChemistryController = Depends(get_chemistry_controller)):
     return controller.get_public_specimen_profiles(specimen_id)
+
+
+class LiteratureSelection(BaseModel):
+    """The reviewed compounds to publish; omit `wikidata_ids` to publish the whole reviewed list."""
+    model_config = ConfigDict(extra="forbid")
+    wikidata_ids: list[constr(pattern=r"^Q[1-9][0-9]{0,11}$")] | None = Field(None, max_length=2000)
+
+
+@chemistry_router.get("/lotus/taxa/{taxon_id}")
+def lookup_literature_compounds(taxon_id: str = Path(max_length=50), _actor: User = Depends(administrator),
+                                db: Session = Depends(get_db)):
+    """Natural products reported in the literature for a taxon (LOTUS via Wikidata), with their references, for a
+    curator to review. Nothing is published until `PUT .../published`."""
+    return lotus.lookup(db, taxon_id)
+
+
+@chemistry_router.put("/lotus/taxa/{taxon_id}/published")
+def publish_literature_compounds(data: LiteratureSelection, taxon_id: str = Path(max_length=50),
+                                 actor: User = Depends(administrator), db: Session = Depends(get_db)):
+    """Show the reviewed compounds on the taxon's public voucher pages, replacing the previous list."""
+    return lotus.publish(db, taxon_id, data.wikidata_ids, actor)
+
+
+@chemistry_router.delete("/lotus/taxa/{taxon_id}/published", status_code=204)
+def withdraw_literature_compounds(taxon_id: str = Path(max_length=50), _actor: User = Depends(administrator),
+                                  db: Session = Depends(get_db)):
+    lotus.withdraw(db, taxon_id)
+
+
+@chemistry_router.get("/public/taxa/{taxon_id}/literature-compounds")
+def public_literature_compounds(taxon_id: str = Path(max_length=50), db: Session = Depends(get_db)):
+    """Curator-published compounds reported in the literature for a taxon; not measurements on any voucher."""
+    found = lotus.published(db, taxon_id)
+    if found is None:
+        raise HTTPException(404, "No literature-reported compounds are published for this taxon.")
+    return found

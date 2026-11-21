@@ -52,7 +52,13 @@ def sign_in_redirect(request: Request):
     return RedirectResponse(f"/sign-in?next={quote(target, safe='')}", status_code=303)
 
 
-from . import catalog_pages, chemistry_pages, curation_pages, staff_pages, work_pages  # noqa: E402  (their pages use render above)
+from . import account_pages, catalog_pages, chemistry_pages, curation_pages, staff_pages, work_pages  # noqa: E402  (their pages use render above)
+from app.config import settings  # noqa: E402
+from app.users import orcid  # noqa: E402
+
+templates.globals["orcid_sign_in"] = lambda: orcid.enabled() and settings.ORCID_SIGN_IN
+templates.globals["orcid_url"] = orcid.base_url
+router.include_router(account_pages.router)
 
 router.include_router(catalog_pages.router)
 router.include_router(chemistry_pages.router)

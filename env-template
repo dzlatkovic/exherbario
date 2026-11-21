@@ -19,7 +19,22 @@ ZENODO_TOKEN=
 
 # Optional lookups that let curators fill forms from external registries. Nothing is written until a curator saves.
 # Remove a provider (or leave the list empty) to keep the instance offline.
-EXTERNAL_LOOKUPS=gbif,crossref,ror,index_herbariorum
+EXTERNAL_LOOKUPS=gbif,crossref,ror,index_herbariorum,lotus
 EXTERNAL_TIMEOUT_SECONDS=15
 EXTERNAL_CONTACT_EMAIL=
 ROR_CLIENT_ID=
+
+# Optional: let researchers link an ORCID iD that ORCID itself confirms (register a Public API client at
+# https://orcid.org/developer-tools with the redirect URI <PUBLIC_BASE_URL>/orcid/callback).
+ORCID_CLIENT_ID=
+ORCID_CLIENT_SECRET=
+ORCID_URL=https://orcid.org
+ORCID_SIGN_IN=true
+
+# Darwin Core Archive of released vouchers (GET /api/dwca.zip), e.g. for registering the collection with GBIF.
+# DWC_LICENSE must be CC0-1.0, CC-BY-4.0 or CC-BY-NC-4.0.
+DWC_DATASET_TITLE=
+DWC_DATASET_DESCRIPTION=
+DWC_PUBLISHER=
+DWC_CONTACT_EMAIL=
+DWC_LICENSE=CC-BY-4.0

@@ -332,6 +332,11 @@ bindForm("publish", async () => {
 });
 
 find("add-credit").addEventListener("click", () => { addCredit(); markDirty(); });
+// Offered when the account has an ORCID iD that ORCID confirmed; the name stays editable.
+document.getElementById("add-me")?.addEventListener("click", (event) => {
+  addCredit({name: event.currentTarget.dataset.name, orcid: event.currentTarget.dataset.orcid});
+  markDirty();
+});
 draftForm.addEventListener("input", markDirty);
 find("choose-study").addEventListener("change", async (event) => {
   const profiles = event.target.value ? (await request(`/api/chemistry/studies/${endpoint(event.target.value)}`)).profiles : [];

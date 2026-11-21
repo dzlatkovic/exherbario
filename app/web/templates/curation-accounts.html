@@ -12,7 +12,7 @@
       <li data-user="{{ user.user_id }}" data-name="{{ user.name }} {{ user.surname }}">
         <div>
           <strong>{{ user.name }} {{ user.surname }}</strong>
-          <span class="muted small">{{ user.email }} · {{ 'Curator' if user.is_superuser else 'Researcher' }}</span>
+          <span class="muted small">{{ user.email }} · {{ 'Curator' if user.is_superuser else 'Researcher' }}{% if user.orcid %} · ORCID <a href="{{ orcid_url() }}/{{ user.orcid }}" rel="noopener" target="_blank">{{ user.orcid }}</a>{% endif %}</span>
         </div>
         <div class="link-row">
           <span class="status-chip{{ ' released' if user.is_active }}">{{ 'Active' if user.is_active else 'Deactivated' }}</span>

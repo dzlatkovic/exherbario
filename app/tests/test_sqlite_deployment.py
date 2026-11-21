@@ -28,6 +28,7 @@ from app.specimen.schemas import SpecimenSchemaUpdate
 from app.specimen.services import SpecimenService
 from app.specimen.tests.unittests.test_specimen_repo import TestSpecimenRepo as SpecimenFixtures
 from app.tests import TestingSessionLocal, client
+from app.users.repository import UserRepository
 from app.users.services import UserServices
 from app.visibility_preview import preview
 from app.weather.models import Weather
@@ -230,6 +231,20 @@ def test_collection_provenance_on_upgraded_sqlite(tmp_path, monkeypatch):
         return SimpleNamespace(field_loc_id=field_loc_id)
 
     monkeypatch.setattr(FieldLocRepository, "create_field_loc", legacy_field_loc)
+
+    def legacy_user(superuser):
+        def create(repository, name, surname, email, password):
+            # Write the account as the 0003 schema stores it; later revisions add ORCID columns.
+            table = Table("users", MetaData(), autoload_with=repository.db.connection())
+            values = dict(user_id=str(uuid4()), name=name, surname=surname, email=email, password=password,
+                          is_active=True, is_superuser=superuser)
+            repository.db.execute(table.insert().values(**values))
+            repository.db.commit()
+            return SimpleNamespace(**values)
+        return create
+
+    monkeypatch.setattr(UserRepository, "create_user", legacy_user(False))
+    monkeypatch.setattr(UserRepository, "create_super_user", legacy_user(True))
     try:
         specimen_data = SpecimenFixtures.create_test_specimen_object()
         specimen_id = str(uuid4())

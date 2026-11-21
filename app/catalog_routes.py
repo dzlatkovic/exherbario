@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import catalog
+from app import catalog, dwca
 from app.db import get_db
 from app.image.exceptions import InvalidImageFileException
 from app.image.models import Image
@@ -43,6 +43,17 @@ class Filters:
 def list_specimens(filters: Filters = Depends(), page: int = Query(1, ge=1, le=1_000_000),
                    size: int = Query(12, ge=1, le=100), db: Session = Depends(get_db)):
     return catalog.find_specimens(db, page=page, size=size, **filters.values)
+
+
+@router.get("/api/dwca.zip", tags=["Catalog"], response_class=Response)
+def darwin_core_archive(holding_institution: str = Query("", max_length=120), collection: str = Query("", max_length=120),
+                        measurements: bool = True, db: Session = Depends(get_db)):
+    """Released vouchers as a Darwin Core Archive (occurrences, with released chemistry as measurements), for GBIF
+    and other aggregators. Same privacy rules as the public catalog. Filter by holding institution and collection
+    to publish one dataset per collection."""
+    archive = dwca.build(db, holding_institution.strip(), collection.strip(), measurements)
+    return Response(archive, media_type="application/zip", headers={
+        "Content-Disposition": 'attachment; filename="dwca.zip"', "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/api/specimen/export", tags=["Catalog"], response_class=Response)

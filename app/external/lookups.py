@@ -87,6 +87,22 @@ def http_get(url: str, params: dict | None = None, headers: dict | None = None):
     return json.loads(body)
 
 
+def http_post_form(url: str, data: dict):
+    """POST a form and read a JSON answer, with the same deadline and size limit as http_get. Errors raise."""
+    deadline = time.monotonic() + CONNECT_TIMEOUT + settings.EXTERNAL_TIMEOUT_SECONDS
+    with requests.post(url, data=data, headers={"User-Agent": user_agent(), "Accept": "application/json"},
+                       timeout=timeout(), stream=True) as response:
+        response.raise_for_status()
+        body = bytearray()
+        for chunk in response.iter_content(64 * 1024):
+            body.extend(chunk)
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError(f"The answer from {url} is larger than expected.")
+            if time.monotonic() > deadline:
+                raise requests.Timeout(f"{url} did not finish answering in time.")
+    return json.loads(body)
+
+
 def _digest(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 

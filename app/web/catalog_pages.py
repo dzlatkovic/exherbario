@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app import catalog
+from app.chemistry import lotus
 from app.chemistry.repository import ChemistryRepository
 from app.db import get_db
 from app.deposition.services import DepositionService
@@ -94,4 +95,4 @@ def specimen(request: Request, specimen_id: str, db: Session = Depends(get_db)):
         location=record["location"], photos=catalog.specimen_photos(db, specimen_id),
         revisions=catalog.specimen_revisions(db, specimen_id),
         publications=catalog.specimen_publications(db, specimen_id),
-        profiles=profiles, studies=studies)
+        profiles=profiles, studies=studies, literature=lotus.published(db, record["specimen"].taxon_id))

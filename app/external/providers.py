@@ -35,6 +35,16 @@ PROVIDERS = {
         "New York Botanical Garden's Virtual Herbarium. https://sweetgum.nybg.org/science/ih/",
         7,  # IH refreshes its API weekly
     ),
+    "lotus": Provider(
+        "lotus", "LOTUS natural products occurrences (via Wikidata)", "https://www.wikidata.org/wiki/Wikidata:WikiProject_Chemistry/Natural_products",
+        "Wikidata: CC0 1.0",
+        "Rutz A, et al. The LOTUS initiative for open knowledge management in natural products research. "
+        "eLife 2022;11:e70780. https://doi.org/10.7554/eLife.70780", 30,
+    ),
+    "orcid": Provider(
+        "orcid", "ORCID", "https://orcid.org/", "Public record data: CC0 1.0",
+        "ORCID iDs are authenticated by ORCID (https://orcid.org)", 0,
+    ),
 }
 
 # How long a "not found" answer is remembered, so a typo does not query the provider on every keystroke.

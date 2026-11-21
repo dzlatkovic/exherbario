@@ -17,6 +17,7 @@ class UserSchema(BaseModel):
     email: str
     is_active: bool
     is_superuser: bool
+    orcid: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

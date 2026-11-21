@@ -16,6 +16,7 @@ from app.chemistry.services import ChemistryService
 from app.chemistry.services.compounds import CompoundRegistry
 from app.db import get_db
 from app.deposition.services import DepositionService
+from app.users import orcid
 from app.users.models import User
 
 from .chemistry_pages import NoPubChem, ROLE_LABELS, RUN_LABELS
@@ -61,7 +62,7 @@ def my_work(request: Request, db: Session = Depends(get_db)):
                          .order_by(SpreadsheetImport.created_at.desc()).limit(10)).all()
     return _web().render(request, "mywork.html", studies=studies, sample_counts=samples, profile_counts=profiles,
                          depositions=DepositionService(db).list_for_owner(actor), imports=imports,
-                         curator=viewer["curator"])
+                         curator=viewer["curator"], account=actor, orcid_enabled=orcid.enabled())
 
 
 @router.get("/researcher/studies/{study_id}")
@@ -135,7 +136,7 @@ def new_deposition(request: Request, db: Session = Depends(get_db)):
     actor, viewer = _actor(request, db)
     if actor is None:
         return _web().sign_in_redirect(request)
-    return _web().render(request, "deposition-edit.html", deposition_id="", curator=viewer["curator"])
+    return _web().render(request, "deposition-edit.html", deposition_id="", curator=viewer["curator"], account=actor)
 
 
 @router.get("/researcher/depositions/{deposition_id}")
@@ -147,4 +148,5 @@ def edit_deposition(request: Request, deposition_id: str, db: Session = Depends(
         DepositionService(db).get_draft(deposition_id[:50], actor)
     except HTTPException:  # unknown and other people's depositions look the same
         return _not_found(request, "Deposition")
-    return _web().render(request, "deposition-edit.html", deposition_id=deposition_id, curator=viewer["curator"])
+    return _web().render(request, "deposition-edit.html", deposition_id=deposition_id, curator=viewer["curator"],
+                         account=actor)
