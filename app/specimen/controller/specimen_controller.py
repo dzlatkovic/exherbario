@@ -173,6 +173,8 @@ class SpecimenController:
             return SpecimenService.update_specimen(specimen_id, specimen, revised_by)
         except (SpecimenNotFoundException, SpecimenExceptionRegNo) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
+        except SpecimenInUseException as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except Exception as error:

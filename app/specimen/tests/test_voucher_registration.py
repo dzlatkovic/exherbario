@@ -1,5 +1,5 @@
 from app.field_loc.models import FieldLoc
-from app.specimen.models import Revision, ScientificCorrection
+from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.tests import TestClass, TestingSessionLocal, client
 from app.tests.test_record_pages import signed_in
 from app.users.services import UserServices, signJWT
@@ -143,3 +143,53 @@ class TestVoucherRegistration(TestClass):
             journal = db.query(ScientificCorrection).filter_by(specimen_id=specimen_id).one()
             assert journal.old_values == {"verbatim_label": label}
             assert journal.new_values == {"verbatim_label": None}
+
+    def test_update_clears_optional_fields_only_when_asked(self):
+        curator = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
+        headers = {"Authorization": "Bearer " + signJWT(curator.user_id, "super_user")["access_token"]}
+        register, change = "/api/specimen/create-new-specimen", "/api/specimen/update-specimen"
+        site = {"country": "Serbia", "region": "Zlatibor", "locality": "Tornik", "gps_lat": 43.7, "gps_long": 19.7,
+                "coordinate_uncertainty_m": 50, "altitude": 1400, "geodetic_datum": "WGS84"}
+        first = client.post(register, headers=headers, json={
+            "holding_type": "local", "reg_no": "L-1", "subnomen": "Achillea millefolium",
+            "collection_date": "1972-05-01", "verbatim_collection_date": "1.V.1972", "field_location": site,
+        }).json()
+        site_id = first["field_loc_id"]
+        second = client.post(register, headers=headers, json={"holding_type": "local", "field_loc_id": site_id}).json()
+        first_id, second_id = ({"specimen_id": voucher["specimen_id"]} for voucher in (first, second))
+
+        assert client.put(change, params=first_id, headers=headers,
+                          json={"collection_date": None}).status_code == 400
+        corrected = client.put(change, params=first_id, headers=headers, json={
+            "collection_date": None, "verbatim_collection_date": "May 1972",
+            "correction_reason": "The label gives only the month",
+        })
+        assert corrected.status_code == 200, corrected.text
+        corrected = corrected.json()
+        assert corrected["collection_date"] is None and corrected["verbatim_collection_date"] == "May 1972"
+        assert corrected["field_loc_id"] == site_id and corrected["reg_no"] == "L-1"
+        with TestingSessionLocal() as db:
+            journal = db.query(ScientificCorrection).filter_by(specimen_id=first["specimen_id"]).one()
+            assert journal.old_values == {"collection_date": "1972-05-01", "verbatim_collection_date": "1.V.1972"}
+            assert journal.new_values == {"collection_date": None, "verbatim_collection_date": "May 1972"}
+
+        cleared = client.put(change, params=second_id, headers=headers,
+                             json={"field_loc_id": "", "correction_reason": "Site assigned in error"})
+        assert cleared.status_code == 200 and cleared.json()["field_loc_id"] is None
+
+        for field in ("reg_no", "subnomen", "taxon_id"):
+            refused = client.put(change, params=first_id, headers=headers,
+                                 json={field: None, "correction_reason": "Clear it"})
+            assert refused.status_code == 400, (field, refused.text)
+
+        study = client.post("/api/chemistry/studies", headers=headers, json={"title": "Site study"}).json()
+        sample = client.post(f"/api/chemistry/studies/{study['id']}/samples", headers=headers, json={
+            "vouchers": [{"specimen_id": first["specimen_id"], "role": "sampled_from_voucher"}],
+            "site_specimen_id": first["specimen_id"], "code": "S1", "plant_part": "leaf", "material_state": "fresh",
+        })
+        assert sample.status_code == 201, sample.text
+        guarded = client.put(change, params=first_id, headers=headers,
+                             json={"field_loc_id": None, "correction_reason": "Wrong site"})
+        assert guarded.status_code == 409, guarded.text
+        with TestingSessionLocal() as db:
+            assert db.get(Specimen, first["specimen_id"]).field_loc_id == site_id

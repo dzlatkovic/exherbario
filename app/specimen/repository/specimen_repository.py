@@ -299,11 +299,29 @@ class SpecimenRepository:
             setattr(specimen, field, value)
         return specimen, revision
 
+    # Fields an update may clear with an explicit null or empty value. Omitted fields stay unchanged.
+    CLEARABLE_FIELDS = {"collection_date", "field_loc_id", "storage_id", "collected_by", "verified_by"}
+    UNCLEARABLE_FIELDS = {
+        "reg_no": "A legacy registration number cannot be removed.",
+        "taxon_id": "Record a new determination instead of clearing the taxon.",
+        "subnomen": "Record a new determination instead of clearing the name.",
+    }
+
     def update_specimen(self, specimen_id: str, specimen: SpecimenSchemaUpdate, revised_by=None):
-        changes = {
-            field: value for field, value in specimen.model_dump(exclude={"correction_reason"}, exclude_unset=True).items()
-            if field in VoucherMetadata.model_fields or value not in (None, "")
-        }
+        changes = {}
+        for field, value in specimen.model_dump(exclude={"correction_reason"}, exclude_unset=True).items():
+            if field not in VoucherMetadata.model_fields and value == "":
+                value = None
+            if value is None and field in self.UNCLEARABLE_FIELDS:
+                raise ValueError(self.UNCLEARABLE_FIELDS[field])
+            changes[field] = value
+        if "field_loc_id" in changes and changes["field_loc_id"] is None:
+            from app.chemistry.models import LabSample
+            if self.db.query(LabSample.id).filter_by(site_specimen_id=specimen_id).first() is not None:
+                raise SpecimenInUseException(
+                    "A lab sample takes its collection site from this voucher. "
+                    "Choose another site instead of clearing it."
+                )
         updated, _ = self._apply_update(specimen_id, changes, revised_by, specimen.correction_reason)
         if updated is not None:
             self._commit_specimen()
