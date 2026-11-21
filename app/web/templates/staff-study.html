@@ -23,7 +23,7 @@
   <details class="form-details first">
     <summary>Import a results table (Excel or CSV)</summary>
     <form id="import-upload" class="stack">
-      <p class="muted small">Upload the table you prepared for the paper: compounds in rows, samples in columns. Next you assign the columns and check every compound.</p>
+      <p class="muted small">Upload the table you prepared for the paper: compounds in rows, one column per sample (a single sample is fine). Next you assign the columns, give the run conditions and check every compound.</p>
       <label>Results table <input name="file" type="file" accept=".xlsx,.csv" required></label>
       <button class="primary">Upload and continue</button>
       <p class="feedback" role="status"></p>
@@ -108,26 +108,10 @@
         {% endfor %}
       </ul>
       {% endif %}
-      <details class="form-details">
-        <summary>Upload a CSV run</summary>
-        <form class="stack upload-run" data-preparation="{{ preparation.id }}">
-          <div class="form-grid">
-            <label>Run code <input name="run_code" required maxlength="80"></label>
-            <label>Analytical method <input name="analytical_method" required maxlength="120"></label>
-            <label>Measurement basis <select name="measurement_basis" class="basis">
-              <option value="peak_area_percent">Peak-area percentage</option>
-              <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
-            </select></label>
-            <label>Unit <input name="unit" value="%" required maxlength="40"></label>
-            {% include "_run_fields.html" %}
-          </div>
-          <label>CSV file <input name="file" type="file" accept=".csv,text/csv" required></label>
-          <p class="muted small">UTF-8 with <span class="mono">feature,value,confidence</span> and optional identifier and evidence columns.</p>
-          <button class="secondary">Upload run</button>
-          <p class="feedback" role="status"></p>
-          <p class="notice warning upload-warnings" hidden></p>
-        </form>
-      </details>
+      {% if not runs.get(preparation.id) %}
+      <p class="muted small">No runs yet. Use <a href="#add-title">Import a results table</a>: a column headed
+        <span class="mono">{{ sample.code }}</span> is attached to this preparation{% if preparations[sample.id] | length > 1 %} once you choose it in the import{% endif %}.</p>
+      {% endif %}
     </div>
     {% endfor %}
 

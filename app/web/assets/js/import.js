@@ -15,7 +15,10 @@ const IMPORT_ROLES = [
   ["ignore", "Ignore"], ["name", "Compound name"], ["sample", "Sample values"], ["sd", "SD of a sample"],
   ["rt", "RT (min)"], ["ri_exp", "Experimental RI"], ["ri_ref", "Reference RI"], ["ri_ref_source", "RI reference source"],
   ["id_basis", "Identification basis"], ["id_level", "Identification level"], ["cid", "PubChem CID"],
-  ["cas", "CAS"], ["inchikey", "InChIKey"],
+  ["cas", "CAS"], ["inchikey", "InChIKey"], ["n", "Replicates (n)"],
+  ["library_match", "MS library match (GC-MS)"], ["library_score", "Library match score (GC-MS)"],
+  ["mz_obs", "Observed m/z (LC-MS)"], ["adduct", "Adduct (LC-MS)"], ["mass_error_ppm", "Mass error, ppm (LC-MS)"],
+  ["msms_match", "MS/MS match (LC-MS)"],
 ];
 const importState = {record: null, sheets: [], columns: [], rowOverrides: {}, review: [], study: null};
 
@@ -39,6 +42,15 @@ function guessRole(header, previousRole) {
   const text = header.toLowerCase();
   if (!text) return "ignore";
   if (/^(no\.?|#|nr\.?|peak)$/.test(text)) return "ignore";
+  // Evidence headers that also contain words like "name" or "match" come first.
+  if (/m\/z|\bmz\b|precursor/.test(text)) return "mz_obs";
+  if (/adduct|\bion\b/.test(text)) return "adduct";
+  if (/ppm|mass error|mass accuracy|δ ?m|Δ ?m/i.test(text)) return "mass_error_ppm";
+  if (/ms\/ms|msms|ms2|fragment/.test(text)) return "msms_match";
+  const retentionIndex = /\b(ri|ki|ai|lri)\b|retention ind/.test(text);
+  if (!retentionIndex && /score|\bsi\b|\brsi\b|match factor|similarity/.test(text)) return "library_score";
+  if (!retentionIndex && /library|\bnist\b|wiley|\bhit\b/.test(text)) return "library_match";
+  if (/^n$|replicates?|^n ?=/.test(text)) return "n";
   if (/compound|component|constituent|name/.test(text)) return "name";
   if (/\bcas\b/.test(text)) return "cas";
   if (/\bcid\b/.test(text)) return "cid";

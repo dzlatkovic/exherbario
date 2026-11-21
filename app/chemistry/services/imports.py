@@ -26,8 +26,11 @@ from .profile_import import CSV_COLUMNS, check_values, parse_evidence
 from .spreadsheet import (MAX_BYTES, MAX_ROWS, MAX_SAMPLES, PREVIEW_ROWS, cell_ref, evidence_text, is_summary,
                           parse_number, parse_value, read_table)
 
+# Row-level columns, validated exactly as the per-run CSV validates them (technique-specific ones included).
 EVIDENCE_ROLES = {"rt": "rt_min", "ri_exp": "ri_exp", "ri_ref": "ri_ref", "ri_ref_source": "ri_ref_source",
-                  "id_basis": "id_basis", "id_level": "id_level", "cid": "cid", "cas": "cas", "inchikey": "inchikey"}
+                  "id_basis": "id_basis", "id_level": "id_level", "cid": "cid", "cas": "cas", "inchikey": "inchikey",
+                  "n": "n", "library_match": "library_match", "library_score": "library_score",
+                  "mz_obs": "mz_obs", "adduct": "adduct", "mass_error_ppm": "mass_error_ppm", "msms_match": "msms_match"}
 CONFIDENCE_BY_LEVEL = {1: "identified", 2: "annotated", 3: "tentative", 4: "unknown"}
 MATCH_BATCH = 25
 DECIDED = {"confirmed", "unidentified"}

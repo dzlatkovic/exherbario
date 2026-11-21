@@ -170,3 +170,60 @@ class TestSpreadsheetImport(TestClass):
                            files={"file": ("table.ods", b"x", "application/octet-stream")}).status_code == 422
         assert client.post(f"{BASE}/studies/{study}/imports", headers=owner,
                            files={"file": ("table.xlsx", b"not a zip", "application/octet-stream")}).status_code == 422
+
+    def test_lc_ms_and_library_evidence_columns(self, tmp_path, monkeypatch):
+        """The results-table import records every evidence field the per-run CSV accepts."""
+        monkeypatch.chdir(tmp_path)
+        owner, study, (first, _) = self.setup_study()
+        header = ["Compound", "m/z", "Adduct", "Δm (ppm)", "MS/MS", "MSI level", "n", "S1"]
+        created = self.upload(owner, study, workbook([
+            header,
+            ["Chlorogenic acid", 353.0878, "[M-H]-", -1.4, "191.0556; 179.0344", 2, 3, 41.2],
+            ["Luteolin 7-O-glucoside", 447.0933, "[M-H]-", "0,9", "285.0405", 2, 3, "tr"],
+        ]))
+        imports = f"{BASE}/imports/{created['id']}"
+        roles = ["name", "mz_obs", "adduct", "mass_error_ppm", "msms_match", "id_level", "n", "sample"]
+        lc = {"technique": "LC-MS/MS", "measurement_basis": "concentration", "unit": "mg/g DW",
+              "analytical_method": "UHPLC-ESI-MS/MS, C18", "run_metadata": {"column": "C18", "ionisation_mode": "ESI-"}}
+        assignment = {"sheet": "Table 2", "header_row": 1, "settings": lc,
+                      "columns": [{"index": index, "role": role} for index, role in enumerate(roles)]}
+        response = client.put(f"{imports}/assignment", headers=owner, json=assignment)
+        assert response.status_code == 200, response.text
+        assert response.json()["preview"]["errors"] == []
+        for number in (2, 3):
+            assert client.put(f"{imports}/rows/{number}/compound", headers=owner,
+                              json={"action": "unidentified"}).status_code == 200
+        confirmed = client.post(f"{imports}/confirm", headers=owner)
+        assert confirmed.status_code == 201, confirmed.text
+        profile_id = confirmed.json()["profiles"][0]["id"]
+        with TestingSessionLocal() as db:
+            rows = {row.feature: row for row in db.query(Measurement).filter_by(profile_id=profile_id)}
+        acid = rows["Chlorogenic acid"]
+        assert (acid.mz_obs, acid.adduct, acid.mass_error_ppm, acid.msms_match, acid.id_level, acid.n, acid.value) == (
+            353.0878, "[M-H]-", -1.4, "191.0556; 179.0344", 2, 3, 41.2)
+        assert (rows["Luteolin 7-O-glucoside"].mass_error_ppm, rows["Luteolin 7-O-glucoside"].qualifier) == (0.9, "trace")
+
+        # LC-MS evidence is refused for a GC run, as in the per-run CSV.
+        again = self.upload(owner, study, workbook([header, ["Chlorogenic acid", 353.0878, "[M-H]-", -1.4, "", 2, 3, 41.2]]))
+        refused = client.put(f"{BASE}/imports/{again['id']}/assignment", headers=owner,
+                             json={**assignment, "settings": SETTINGS}).json()["preview"]["errors"]
+        assert any("adduct" in error and "mz_obs" in error and "GC-MS" in error for error in refused)
+
+    def test_gc_ms_library_columns(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        owner, study, (first, _) = self.setup_study()
+        created = self.upload(owner, study, workbook([
+            ["Compound", "RI exp", "NIST hit", "Match score", "S1"],
+            ["α-Pinene", 932, "alpha-Pinene", 94, 12.4],
+        ]))
+        imports = f"{BASE}/imports/{created['id']}"
+        roles = ["name", "ri_exp", "library_match", "library_score", "sample"]
+        response = client.put(f"{imports}/assignment", headers=owner, json={
+            "sheet": "Table 2", "header_row": 1, "settings": SETTINGS,
+            "columns": [{"index": index, "role": role} for index, role in enumerate(roles)]})
+        assert response.status_code == 200 and response.json()["preview"]["errors"] == []
+        assert client.put(f"{imports}/rows/2/compound", headers=owner, json={"action": "unidentified"}).status_code == 200
+        profile_id = client.post(f"{imports}/confirm", headers=owner).json()["profiles"][0]["id"]
+        with TestingSessionLocal() as db:
+            row = db.query(Measurement).filter_by(profile_id=profile_id).one()
+        assert (row.library_match, row.library_score, row.ri_exp) == ("alpha-Pinene", 94, 932)

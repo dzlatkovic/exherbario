@@ -1,6 +1,6 @@
-// Study page: samples with their vouchers, preparations, CSV runs and the start of a results-table import.
-import {VOUCHER_ROLES, bindForm, bindPutButtons, bindRunFields, endpoint, filledFields, find, node, request,
-        requiredSelection, runMetadata, selectOptions, voucherLabel, voucherPicker} from "./core.js";
+// Study page: samples with their vouchers, preparations, and the start of a results-table import.
+import {VOUCHER_ROLES, bindForm, bindPutButtons, endpoint, filledFields, find, node, request,
+        requiredSelection, selectOptions, voucherLabel, voucherPicker} from "./core.js";
 
 const studyId = find("study").dataset.study;
 const reload = () => window.location.reload();
@@ -65,30 +65,6 @@ for (const form of document.querySelectorAll("form.add-preparation")) {
     await request(`/api/chemistry/samples/${endpoint(form.dataset.sample)}/preparations`, {method: "POST", json: filledFields(data)});
     reload();
     return "Preparation added.";
-  });
-}
-
-for (const form of document.querySelectorAll("form.upload-run")) {
-  bindRunFields(form);
-  form.querySelector(".basis").addEventListener("change", (event) => {
-    form.elements.unit.value = event.target.value === "peak_area_percent" ? "%" : "";
-  });
-  bindForm(form, async (data) => {
-    for (const name of [...data.keys()].filter((key) => key.startsWith("run."))) data.delete(name);
-    data.set("run_metadata", JSON.stringify(runMetadata(form)));
-    const profile = await request(`/api/chemistry/preparations/${endpoint(form.dataset.preparation)}/profiles`,
-      {method: "POST", multipart: data});
-    if (profile.warnings?.length) {
-      const warnings = form.querySelector(".upload-warnings");
-      warnings.textContent = profile.warnings.join(" ");
-      warnings.hidden = false;
-      const open = node("a", `Open run ${profile.run_code}`);
-      open.href = `/researcher/profiles/${endpoint(profile.id)}`;
-      warnings.append(" ", open);
-      return "Uploaded with warnings.";
-    }
-    window.location.assign(`/researcher/profiles/${endpoint(profile.id)}`);
-    return "Uploaded.";
   });
 }
 

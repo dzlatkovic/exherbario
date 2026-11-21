@@ -39,6 +39,8 @@ class TestWorkPages(TestClass):
         study_page = researcher.get(f"/researcher/studies/{study}").text
         assert f'href="/researcher/profiles/{profile_id}"' in study_page and "R-1" in study_page
         assert "/visibility" not in study_page  # release is for curators
+        # Results come in through the table import only; the per-run CSV stays an API route.
+        assert 'id="import-upload"' in study_page and "upload-run" not in study_page and "Upload a CSV run" not in study_page
         profile = researcher.get(f"/researcher/profiles/{profile_id}")
         assert profile.status_code == 200 and "α-Pinene" in profile.text and 'id="correct"' in profile.text
         wizard = researcher.get(f"/researcher/studies/{study}/imports/{imported['id']}")
