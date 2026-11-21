@@ -222,3 +222,86 @@ export function confirmAction(title, body, action = "Confirm") {
     dialog.showModal();
   });
 }
+
+/**
+ * A taxon lookup inside `root` (.taxon-query, .taxon-search, .feedback, .taxon-results, .taxon-choice).
+ * Lists taxa already in this herbarium first, then GBIF names; choosing a GBIF name imports it with its parents.
+ * Calls onPick({taxon_id, name, rank, authority}) with the local taxon, or onPick(null) when the choice is cleared.
+ */
+export function taxonPicker(root, onPick) {
+  const query = root.querySelector(".taxon-query");
+  const feedback = root.querySelector(".feedback");
+  const list = root.querySelector(".taxon-results");
+  const choice = root.querySelector(".taxon-choice");
+
+  function choose(taxon, note = "") {
+    list.replaceChildren();
+    const change = node("button", "Change", "text-button");
+    change.type = "button";
+    change.addEventListener("click", () => { choice.replaceChildren(); choice.hidden = true; query.hidden = false;
+      root.querySelector(".taxon-search").hidden = false; query.focus(); onPick(null); });
+    choice.replaceChildren(node("strong", taxon.name), node("span", taxon.rank, "muted small"), change);
+    choice.hidden = false;
+    query.hidden = true;
+    root.querySelector(".taxon-search").hidden = true;
+    status(feedback, note);
+    onPick(taxon);
+  }
+
+  function row(title, detail, label, action) {
+    const item = node("li");
+    const text = node("span");
+    text.append(node("strong", title), node("span", detail, "muted small"));
+    const use = node("button", label, "secondary");
+    use.type = "button";
+    use.addEventListener("click", async () => {
+      use.disabled = true;
+      try { await action(); } catch (error) { status(feedback, error.message, true); use.disabled = false; }
+    });
+    item.append(text, use);
+    return item;
+  }
+
+  async function search() {
+    const term = query.value.trim();
+    if (term.length < 2) return status(feedback, "Type at least two letters of the name.", true);
+    status(feedback, "Searching…");
+    list.replaceChildren();
+    const local = (await request(`/api/taxonomy?query=${endpoint(term)}&size=8`)).items;
+    const known = new Set(local.map((taxon) => taxon.gbif_key));
+    if (local.length) list.append(node("li", "In this herbarium", "list-heading"));
+    for (const taxon of local) {
+      list.append(row(taxon.name, `${taxon.rank} · GBIF ${taxon.gbif_key}`, "Use",
+        async () => choose({taxon_id: taxon.taxon_id, name: taxon.name, rank: taxon.rank})));
+    }
+    let remote = [];
+    try {
+      remote = (await request(`/api/taxonomy/gbif-search?q=${endpoint(term)}`)).filter((item) => !known.has(item.gbif_key));
+    } catch (error) {
+      status(feedback, error.message, true);
+      return;
+    }
+    if (remote.length) list.append(node("li", "From GBIF", "list-heading"));
+    for (const item of remote) {
+      const detail = [item.rank, item.status !== "accepted" && item.status, item.family || item.phylum, item.kingdom]
+        .filter(Boolean).join(" · ");
+      list.append(row(item.name, detail, item.taxon_id ? "Use" : "Add and use", async () => {
+        const taxon = await request(`/api/taxonomy/import-from-gbif?gbif_key=${endpoint(item.gbif_key)}`, {method: "POST"});
+        choose(taxon, taxon.note || (item.taxon_id ? "" : `Added ${taxon.name} and its parent taxa from GBIF.`));
+      }));
+    }
+    status(feedback, local.length || remote.length ? "" : "No match here or in GBIF. Check the spelling.", !(local.length || remote.length));
+  }
+
+  root.querySelector(".taxon-search").addEventListener("click", () => search().catch((error) => status(feedback, error.message, true)));
+  query.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      search().catch((error) => status(feedback, error.message, true));
+    }
+  });
+  return {
+    clear() { choice.replaceChildren(); choice.hidden = true; query.hidden = false; root.querySelector(".taxon-search").hidden = false;
+      list.replaceChildren(); status(feedback); },
+  };
+}

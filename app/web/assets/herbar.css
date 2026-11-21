@@ -97,6 +97,7 @@ dd { margin: 0; }
 .card, .panel, .hero { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius);
   padding: clamp(1rem, 3.5vw, 1.5rem); min-width: 0; }
 .card.narrow { max-width: 26rem; margin: 2rem auto; }
+#register-section { scroll-margin-top: 4.5rem; }
 .hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .hero-content { flex: 1 1 28rem; min-width: 0; }
 .hero-facts, .facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem 1.25rem; margin: 1rem 0 .25rem; }
@@ -355,3 +356,10 @@ table.grid .number { text-align: right; white-space: nowrap; }
 .progress progress::-webkit-progress-value { background: var(--accent); border-radius: 2px; transition: width .3s ease; }
 .progress progress::-moz-progress-bar { background: var(--accent); border-radius: 2px; }
 .progress p { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* Taxon lookup */
+.taxon-picker { display: grid; gap: .4rem; }
+.taxon-choice { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem .75rem; padding: .6rem .8rem;
+  border: 1px solid #8cc7a366; border-radius: var(--radius-small); background: var(--accent-tint); }
+.picker-results li.list-heading { display: block; padding: .5rem 0 0; background: none; border: 0; color: var(--muted);
+  font-size: .8125rem; font-weight: 500; }

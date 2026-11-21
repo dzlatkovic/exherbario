@@ -4,35 +4,85 @@
 {% block header %}{% include "_curation_header.html" %}{% endblock %}
 {% block body %}
 <div class="record-grid">
-  <section class="card" aria-labelledby="find-title">
+  <section class="card" id="register-section" aria-labelledby="register-title">
+    <h2 id="register-title">Register a voucher</h2>
+    <form id="register" class="stack">
+      <fieldset class="form-grid">
+        <legend>Voucher identity</legend>
+        <label>Holding <select name="holding_type"><option value="local">Held locally</option><option value="external">Held externally</option></select></label>
+        <label>Holding institution <input name="holding_institution" maxlength="120"></label>
+        <label>Collection name <input name="collection" maxlength="120"></label>
+        <label>Accession <input name="accession" maxlength="100"></label>
+      </fieldset>
+      <fieldset class="stack">
+        <legend>Identification</legend>
+        {% with picker_id = "register-taxon" %}{% include "_taxon_picker.html" %}{% endwith %}
+        <p class="muted small">Search local taxonomy and GBIF. Choose “Add and use” to import a GBIF match and its parent taxa.</p>
+        <div class="form-grid">
+          <label>Name as recorded on the label <input name="subnomen" maxlength="200"></label>
+          <label>Determiner <input name="determiner_name" maxlength="200"></label>
+          <label>Determination date <input name="determination_date" type="date"></label>
+          <label>Type status <select name="type_status"><option value="">Unspecified</option>
+            {% for value in type_statuses %}<option value="{{ value }}">{{ value | capitalize }}</option>{% endfor %}
+          </select></label>
+        </div>
+      </fieldset>
+      <fieldset class="form-grid">
+        <legend>Collection event</legend>
+        <label>Collector <input name="collector_name" maxlength="200"></label>
+        <label>Collector’s field number <input name="collector_number" maxlength="100"></label>
+        <label>Collection date <input name="collection_date" type="date"></label>
+        <label>Date as written on the label <input name="verbatim_collection_date" maxlength="100" placeholder="e.g. May 1972"></label>
+      </fieldset>
+      <fieldset class="stack">
+        <legend>Collection location</legend>
+        <label>Field site <select name="field_loc_id" id="registration-site">
+          <option value="">Unknown or unrecorded</option>
+          <option value="new">Enter a new location…</option>
+          {% if locations %}<optgroup label="Saved field locations">{% for site in locations %}
+            <option value="{{ site.field_loc_id }}">{{ site.locality }} · {{ site.region }} · {{ site.country }}{% if site.gps_lat is not none and site.gps_long is not none %} ({{ site.gps_lat }}, {{ site.gps_long }}){% endif %}</option>
+          {% endfor %}</optgroup>{% endif %}
+        </select></label>
+        <fieldset id="new-location" class="form-grid" hidden disabled>
+          <legend>New field site</legend>
+          <label>Country (required) <input name="site.country" required maxlength="100"></label>
+          <label>Region (required) <input name="site.region" required maxlength="150"></label>
+          <label class="full">Locality (required) <input name="site.locality" required maxlength="500"></label>
+          <label>Altitude (m) <input name="site.altitude" type="number"></label>
+          <label>Habitat <input name="site.habitat" maxlength="255"></label>
+          <label>Latitude (decimal degrees) <input name="site.gps_lat" type="number" min="-90" max="90" step="any"></label>
+          <label>Longitude (decimal degrees) <input name="site.gps_long" type="number" min="-180" max="180" step="any"></label>
+          <label>Coordinate uncertainty (m) <input name="site.coordinate_uncertainty_m" type="number" min="0" max="20037509"></label>
+          <label>Geodetic datum <input name="site.geodetic_datum" maxlength="20" placeholder="e.g. WGS84"></label>
+          <label class="full">Georeference source <input name="site.georeference_source" maxlength="200"></label>
+        </fieldset>
+      </fieldset>
+      <label>Verbatim label <textarea name="verbatim_label" maxlength="10000" rows="3"></textarea></label>
+      <details class="form-details">
+        <summary>Registration and storage details</summary>
+        <div class="form-grid">
+          <label>Legacy registration number <input name="reg_no" maxlength="40"></label>
+          <label>Registration date (defaults to today) <input type="date" name="reg_date"></label>
+          <label>Verifier <input name="verifier_name" maxlength="200"></label>
+          {% if storage %}<label>Storage box <select name="storage_id"><option value="">Unassigned</option>
+            {% for slot in storage %}<option value="{{ slot.storage_id }}">{{ slot.box }}{% if slot.room %} · room {{ slot.room }}{% endif %}{% if slot.shelf %} · shelf {{ slot.shelf }}{% endif %}</option>{% endfor %}
+          </select></label>{% endif %}
+        </div>
+      </details>
+      <button class="primary">Register voucher</button>
+      <p class="feedback" role="status"></p>
+    </form>
+  </section>
+  <aside class="card" aria-labelledby="find-title">
     <h2 id="find-title">Find a voucher</h2>
-    <p class="muted small">Searches every voucher, private ones included. Open one to release it, redetermine it or manage its photos.</p>
     <div id="voucher-picker" class="picker">
-      <div class="inline-form">
+      <div class="stack">
         <label>Name, accession or ID <input class="picker-query" type="search" maxlength="100" autocomplete="off"></label>
         <button type="button" class="secondary picker-search">Search</button>
       </div>
       <p class="feedback" role="status"></p>
       <ul class="picker-results"></ul>
     </div>
-  </section>
-  <section class="card" id="register-section" aria-labelledby="register-title">
-    <h2 id="register-title">Register a voucher</h2>
-    <form id="register" class="stack">
-      <div class="form-grid">
-        <label>Holding <select name="holding_type"><option value="local">Held locally</option><option value="external">Held externally</option></select></label>
-        <label>Holding institution <input name="holding_institution" maxlength="120"></label>
-        <label>Collection <input name="collection" maxlength="120"></label>
-        <label>Accession <input name="accession" maxlength="100"></label>
-        <label>Name as recorded <input name="subnomen" maxlength="200"></label>
-        <label>Determiner <input name="determiner_name" maxlength="200"></label>
-        <label>Determination date <input name="determination_date" type="date"></label>
-        <label>Collector <input name="collector_name" maxlength="200"></label>
-      </div>
-      <label>Verbatim label <textarea name="verbatim_label" maxlength="10000" rows="3"></textarea></label>
-      <button class="primary">Register voucher</button>
-      <p class="feedback" role="status"></p>
-    </form>
-  </section>
+  </aside>
 </div>
 {% endblock %}

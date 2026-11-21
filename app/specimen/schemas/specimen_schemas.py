@@ -6,6 +6,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, UUID4, constr, model_validator
 
+from app.field_loc.schemas import FieldLocSchemaIn
+
 
 PersonName = constr(strip_whitespace=True, min_length=1, max_length=200)
 CollectionName = constr(strip_whitespace=True, min_length=1, max_length=120)
@@ -59,14 +61,17 @@ class SpecimenSchemaIn(VoucherMetadata):
     taxon_id: str | None = None
     subnomen: constr(max_length=200) | None = None
     field_loc_id: str | None = None
+    field_location: FieldLocSchemaIn | None = None
     storage_id: str | None = None
     collected_by: str | None = None
     verified_by: str | None = None
 
     @model_validator(mode="after")
-    def holding_or_legacy_number(self):
+    def validate_registration(self):
         if not self.holding_type and not self.reg_no:
             raise ValueError("Choose local or external holding, or supply a legacy registration number.")
+        if self.field_loc_id and self.field_location is not None:
+            raise ValueError("Choose a saved field location or enter a new location.")
         return self
 
 

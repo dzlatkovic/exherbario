@@ -1,0 +1,11 @@
+{#- A taxon lookup: local taxa first, then GBIF names. Sets the hidden taxon_id; see taxonPicker in core.js. -#}
+<div class="taxon-picker" id="{{ picker_id }}">
+  <div class="inline-form">
+    <label>Taxon <input class="taxon-query" type="search" maxlength="100" autocomplete="off" placeholder="Genus or species name"></label>
+    <button type="button" class="secondary taxon-search">Search</button>
+  </div>
+  <div class="taxon-choice" hidden></div>
+  <p class="feedback" role="status"></p>
+  <ul class="taxon-results picker-results"></ul>
+  <input type="hidden" name="taxon_id">
+</div>

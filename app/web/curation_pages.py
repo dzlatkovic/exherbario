@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deposition.services import DepositionService
+from app.field_loc.models import FieldLoc
+from app.specimen.schemas.specimen_schemas import TYPE_STATUSES
+from app.storage.models import Storage
 from app.users.models import User
 
 router = APIRouter(include_in_schema=False)
@@ -40,8 +43,13 @@ def review(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/curation/vouchers")
-def vouchers(request: Request):
-    return _curation(request, "vouchers")
+def vouchers(request: Request, db: Session = Depends(get_db)):
+    viewer = _web().viewer(request)
+    if not viewer or not viewer["curator"]:
+        return _curation(request, "vouchers")
+    locations = db.scalars(select(FieldLoc).order_by(FieldLoc.country, FieldLoc.region, FieldLoc.locality)).all()
+    storage = db.scalars(select(Storage).order_by(Storage.room, Storage.shelf, Storage.box)).all()
+    return _curation(request, "vouchers", locations=locations, storage=storage, type_statuses=TYPE_STATUSES)
 
 
 @router.get("/curation/directories")

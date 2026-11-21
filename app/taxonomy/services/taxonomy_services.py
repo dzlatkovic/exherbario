@@ -10,6 +10,10 @@ from app.taxonomy.repository import TaxonomyRepository
 from app.taxonomy.schemas import TaxonomySchemaIn, TAXON_DICT, TaxonRank
 from pygbif import species
 
+# GBIF names are shared across kingdoms (Porella is also a bryozoan); a herbarium needs these.
+HERBARIUM_KINGDOMS = ("Plantae", "Fungi", "Chromista", "Protozoa")
+STATUS_ORDER = {"ACCEPTED": 0, "DOUBTFUL": 1}
+
 
 class TaxonomyService:
     @staticmethod
@@ -104,6 +108,49 @@ class TaxonomyService:
                 return TaxonomyService._add_taxon(repo, data, rank, parent_id)
         except IntegrityError as error:
             raise TaxonomyServiceException(message="The GBIF taxon could not be stored.", code=409) from error
+
+    @staticmethod
+    def search_gbif(query: str, limit: int = 10):
+        """Names from the GBIF backbone for a lookup field, accepted names first, marked when already imported."""
+        try:
+            found = species.name_suggest(q=query, limit=40, timeout=(5, 20))
+        except RequestException as error:
+            raise GBIFServiceException(message="GBIF can't be reached right now. Taxa already in this herbarium "
+                                               "are still listed.", code=502) from error
+        if not isinstance(found, list):
+            raise GBIFServiceException(message="GBIF returned an unexpected answer.", code=502)
+        rows = [item for item in found if isinstance(item, dict) and item.get("key") is not None
+                and item.get("kingdom") in HERBARIUM_KINGDOMS and item.get("rank") in TAXON_DICT
+                and isinstance(item.get("scientificName"), str)]
+        rows.sort(key=lambda item: STATUS_ORDER.get(item.get("status"), 2))
+        rows = rows[:limit]
+        with SessionLocal() as db:
+            repository = TaxonomyRepository(db)
+            local = {str(item["key"]): repository.read_taxon_by_gbif_key(str(item["key"])) for item in rows}
+        return [{
+            "gbif_key": str(item["key"]), "name": item["scientificName"], "canonical_name": item.get("canonicalName"),
+            "rank": item["rank"].lower(), "status": (item.get("status") or "").lower(),
+            "kingdom": item.get("kingdom"), "phylum": item.get("phylum"), "family": item.get("family"),
+            "taxon_id": local[str(item["key"])].taxon_id if local[str(item["key"])] else None,
+        } for item in rows]
+
+    @staticmethod
+    def import_from_gbif(gbif_key: str):
+        """Add a GBIF taxon with its missing parents and return the local record. A synonym is linked to
+        its accepted name, so the determination points at the current concept; the note says so."""
+        key = str(gbif_key)
+        data = TaxonomyService._fetch_taxon(key)
+        note = None
+        if data.get("synonym") and data.get("acceptedKey"):
+            key = str(data["acceptedKey"])
+            note = (f"{data['scientificName']} is a synonym in GBIF; the accepted name "
+                    f"{data.get('accepted') or key} was linked instead.")
+        TaxonomyService.build_taxonomic_tree(key)
+        with SessionLocal() as db:
+            taxon = TaxonomyRepository(db).read_taxon_by_gbif_key(key)
+        if taxon is None:
+            raise TaxonomyServiceException(message="The GBIF taxon could not be added.", code=409)
+        return taxon, note
 
     @staticmethod
     def build_taxonomic_tree(gbif_key: str):

@@ -52,6 +52,25 @@ class TaxonomyController:
             raise HTTPException(status_code=500, detail=str(error)) from error
 
     @staticmethod
+    def search_gbif(query: str):
+        try:
+            return TaxonomyService.search_gbif(query)
+        except GBIFServiceException as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+
+    @staticmethod
+    def import_from_gbif(gbif_key: str):
+        try:
+            taxon, note = TaxonomyService.import_from_gbif(gbif_key)
+        except (TaxonDoesNotExistException,
+                TaxonAlreadyExistException,
+                GBIFServiceException,
+                TaxonomyServiceException) as error:
+            raise HTTPException(status_code=error.code, detail=error.message) from error
+        return {"taxon_id": taxon.taxon_id, "name": taxon.taxon_name, "rank": taxon.taxon_rank.value,
+                "authority": taxon.authority, "gbif_key": taxon.gbif_key, "note": note}
+
+    @staticmethod
     def build_taxonomic_tree(gbif_key: str):
         try:
             return TaxonomyService.build_taxonomic_tree(gbif_key)

@@ -75,7 +75,9 @@ class SpecimenRepository:
             specimen.taxon_id, specimen.field_loc_id, specimen.storage_id,
             specimen.collected_by, specimen.verified_by,
         )
-        record = Specimen(**specimen.model_dump())
+        record = Specimen(**specimen.model_dump(exclude={"field_location"}))
+        if specimen.field_location is not None:
+            record.field_loc = FieldLoc(**specimen.field_location.model_dump())
         self.db.add(record)
         self._commit_specimen()
         self.db.refresh(record)

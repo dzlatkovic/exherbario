@@ -5,7 +5,8 @@
 <header class="page-header with-actions">
   <h1 class="title">My work</h1>
   <div class="link-row">
-    <a class="button primary" href="/researcher/depositions/new">New deposition</a>
+    {% if curator %}<a class="button primary" href="/curation/vouchers#register-section">Register a voucher</a>{% endif %}
+    <a class="button {{ 'secondary' if curator else 'primary' }}" href="/researcher/depositions/new">New deposition</a>
   </div>
 </header>
 {% endblock %}
@@ -85,7 +86,6 @@
         <p class="feedback" role="status"></p>
         <ul class="picker-results"></ul>
       </div>
-      {% if curator %}<p class="small"><a href="/curation/vouchers#register-section">Register a voucher</a></p>{% endif %}
     </section>
   </aside>
 </div>

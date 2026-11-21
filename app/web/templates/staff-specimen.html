@@ -71,11 +71,7 @@
       <details class="form-details">
         <summary>Redetermine</summary>
         <form id="redetermine" class="stack">
-          <div class="inline-form">
-            <label>Taxon <input id="taxon-query" type="search" maxlength="100" autocomplete="off" placeholder="Search the taxonomy"></label>
-            <button type="button" id="taxon-search" class="secondary">Search</button>
-          </div>
-          <label>Choose taxon <select name="taxon_id" required><option value="">Search first</option></select></label>
+          {% with picker_id = "redetermine-taxon" %}{% include "_taxon_picker.html" %}{% endwith %}
           <div class="form-grid">
             <label>Name as recorded <input name="subnomen" maxlength="200"></label>
             <label>Determiner <input name="determiner_name" maxlength="200"></label>
@@ -127,12 +123,13 @@
     <section class="card" aria-labelledby="collection-title">
       <h2 id="collection-title">Collection</h2>
       <dl class="facts single">
-        {% if specimen.collection_date or specimen.verbatim_collection_date %}<div><dt>Collected</dt><dd>{{ specimen.collection_date or '' }}{% if specimen.verbatim_collection_date %} <span class="muted">({{ specimen.verbatim_collection_date }})</span>{% endif %}</dd></div>{% endif %}
+        {% if specimen.collection_date or specimen.verbatim_collection_date %}<div><dt>Collected</dt><dd>{{ specimen.collection_date or specimen.verbatim_collection_date }}{% if specimen.collection_date and specimen.verbatim_collection_date %} <span class="muted">({{ specimen.verbatim_collection_date }})</span>{% endif %}</dd></div>{% endif %}
         {% if record.collector or specimen.collector_number %}<div><dt>Collector</dt><dd>{{ record.collector or '' }} {{ specimen.collector_number or '' }}</dd></div>{% endif %}
         {% if location %}
           <div><dt>Site</dt><dd>{{ location.locality }}<br><span class="muted">{{ location.region }}, {{ location.country }}</span></dd></div>
           {% if location.altitude is not none %}<div><dt>Altitude</dt><dd>{{ location.altitude }} m</dd></div>{% endif %}
-          {% if location.gps_lat is not none and location.gps_long is not none %}<div><dt>Coordinates</dt><dd class="mono">{{ location.gps_lat }}, {{ location.gps_long }}{% if location.coordinate_uncertainty_m %} ± {{ location.coordinate_uncertainty_m }} m{% endif %}{% if location.geodetic_datum %} · {{ location.geodetic_datum }}{% endif %}</dd></div>{% endif %}
+          {% if location.gps_lat is not none and location.gps_long is not none %}<div><dt>Coordinates</dt><dd class="mono">{{ location.gps_lat }}, {{ location.gps_long }}{% if location.coordinate_uncertainty_m is not none %} ± {{ location.coordinate_uncertainty_m }} m{% endif %}{% if location.geodetic_datum %} · {{ location.geodetic_datum }}{% endif %}</dd></div>{% endif %}
+          {% if location.georeference_source %}<div><dt>Georeference source</dt><dd>{{ location.georeference_source }}</dd></div>{% endif %}
           {% if location.habitat %}<div><dt>Habitat</dt><dd>{{ location.habitat }}</dd></div>{% endif %}
         {% endif %}
         {% if record.storage %}<div><dt>Storage</dt><dd>Box {{ record.storage.box }}{% if record.storage.room %} · room {{ record.storage.room }}{% endif %}{% if record.storage.shelf %} · shelf {{ record.storage.shelf }}{% endif %}</dd></div>{% endif %}

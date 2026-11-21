@@ -1,9 +1,51 @@
+from app.field_loc.models import FieldLoc
 from app.specimen.models import Revision, ScientificCorrection
 from app.tests import TestClass, TestingSessionLocal, client
+from app.tests.test_record_pages import signed_in
 from app.users.services import UserServices, signJWT
 
 
 class TestVoucherRegistration(TestClass):
+    def test_register_collection_event_and_reuse_its_site(self):
+        curator = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
+        headers = {"Authorization": "Bearer " + signJWT(curator.user_id, "super_user")["access_token"]}
+        register = "/api/specimen/create-new-specimen"
+        site = {"country": "Ecuador", "region": "Pichincha", "locality": "River bank",
+                "gps_lat": 0, "gps_long": -78.4, "coordinate_uncertainty_m": 0, "altitude": 2150,
+                "geodetic_datum": "WGS84", "georeference_source": "Field notebook", "habitat": "Wet meadow"}
+        event = {"holding_type": "local", "holding_institution": "EX", "collection": "Herbarium",
+                 "accession": "V-1", "collector_name": "A. Vega", "collector_number": "AV 23",
+                 "collection_date": "1972-05-04", "verbatim_collection_date": "4.V.1972"}
+        created = client.post(register, headers=headers, json={**event, "field_location": site})
+        assert created.status_code == 200, created.text
+        voucher = created.json()
+        assert {key: voucher[key] for key in event} == event
+        site_id = voucher["field_loc_id"]
+        with TestingSessionLocal() as db:
+            saved = db.get(FieldLoc, site_id)
+            assert {key: getattr(saved, key) for key in site} == site
+
+        admin = signed_in("curator@example.org")
+        form = admin.get("/curation/vouchers").text
+        for field in ("collection_date", "verbatim_collection_date", "collector_number", "site.locality", "taxon_id"):
+            assert f'name="{field}"' in form
+        assert f'value="{site_id}">River bank' in form
+        record = admin.get(f"/researcher/specimens/{voucher['specimen_id']}").text
+        for value in ("4.V.1972", "1972-05-04", "AV 23", "River bank", "Field notebook", "± 0 m"):
+            assert value in record
+
+        duplicate = client.post(register, headers=headers, json={**event, "field_location": {**site, "locality": "Hill"}})
+        assert duplicate.status_code == 409, duplicate.text
+        both = client.post(register, headers=headers, json={"holding_type": "local", "field_loc_id": site_id, "field_location": site})
+        assert both.status_code == 422, both.text
+        later = client.post(register, headers=headers, json={"holding_type": "local", "field_loc_id": site_id,
+                                                            "verbatim_collection_date": "May 1972"})
+        assert later.status_code == 200, later.text
+        assert later.json()["field_loc_id"] == site_id
+        assert later.json()["collection_date"] is None and later.json()["verbatim_collection_date"] == "May 1972"
+        with TestingSessionLocal() as db:
+            assert db.query(FieldLoc).count() == 1
+
     def test_register_local_and_external_vouchers(self):
         curator = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
         headers = {"Authorization": "Bearer " + signJWT(curator.user_id, "super_user")["access_token"]}

@@ -22,7 +22,7 @@ python -m uvicorn app.main:app --reload
 
 The bootstrap command creates the first administrator and prompts for a password. In Swagger, log in with `POST /api/users/login` and paste the returned `access_token` into **Authorize**. [Open Swagger](http://127.0.0.1:8000/docs)
 
-The [research workspace](http://127.0.0.1:8000/researcher) uses the same sign-in. It guides you through voucher registration or selection, study and sample setup, CSV upload, draft validation, preview, and publication. A researcher can save the draft and share its internal deposition ID with a curator. Curators can open that draft, review its linked records, and publish the approved preview.
+The [web app](http://127.0.0.1:8000/) uses the same accounts. Visitors browse released specimens and published depositions. After signing in, **My work** lists your studies, depositions and unfinished imports: add samples and runs on a study's page, import a results table with the step-by-step import page, and build a deposition by choosing runs and vouchers by name. Researchers submit a draft for review; curators review it under **Curation**, publish it, and manage vouchers, directories and accounts there.
 
 ## Explore the API
 
@@ -32,7 +32,9 @@ The [research workspace](http://127.0.0.1:8000/researcher) uses the same sign-in
 
 ## Register one voucher
 
-In Swagger, authenticate as a curator and call `POST /api/specimen/create-new-specimen`. For a voucher held locally, the minimum JSON body is `{"holding_type": "local"}`. Use `external` for a voucher held elsewhere.
+Sign in as a curator and choose **My work → Register a voucher**. Enter the collector, field number and collection date from the label. For a partial date such as “May 1972”, use **Date as written on the label** and leave the exact date blank. Choose a saved field site or enter a new one on the form. Under **Identification**, search for the taxon and choose **Use** for a local match or **Add and use** for a GBIF match. Transcribe the name printed on the label separately.
+
+In Swagger, authenticate as a curator and call `POST /api/specimen/create-new-specimen`. For a voucher held locally, the minimum JSON body is `{"holding_type": "local"}`. Use `external` for a voucher held elsewhere. Supply `field_loc_id` to reuse a field site or `field_location` to save a new site together with the voucher.
 
 ```json
 {
@@ -47,6 +49,7 @@ In Swagger, authenticate as a curator and call `POST /api/specimen/create-new-sp
   "subnomen": "Achillea cf. millefolium",
   "collector_number": "FC 1234",
   "verbatim_collection_date": "mid-June 2024",
+  "field_location": {"country": "Serbia", "region": "Niš", "locality": "Suva Planina"},
   "type_status": "isotype"
 }
 ```
