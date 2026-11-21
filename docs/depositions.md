@@ -1,0 +1,28 @@
+# Scientific depositions
+
+Publishing, verifying, citing, correcting and withdrawing depositions. Back to the [README](../README.md).
+
+## Publishing
+
+A curator first registers the institution whose namespace holds the accessions. Use `POST /api/institutions` with a `code` such as `EXU` and the institution `name`. Add the `index_herbariorum_code` and `ror_id` where they exist, so citations resolve to a known institution. `GET /api/institutions` lists registered codes. A code, Index Herbariorum code or ROR ID cannot be reassigned to another institution.
+
+1. An authenticated researcher creates a draft with `POST /api/depositions`. Supply a registered institution code, then add the title, license and contributor names and roles, with an optional `orcid` for each contributor. Select `profile_ids` for analytical profiles, `specimen_ids` for vouchers cited without analytical data, or both. Description and rights statements are optional. Ex Herbario reserves an accession in that institution's namespace. Use `PUT /api/depositions/{id}/draft` with the returned `draft_revision` as `expected_revision` to edit.
+2. Review `GET /api/depositions/{id}/draft/preview` before release. It shows the exact proposed public snapshot. Profiles must belong to studies available to the draft owner. Each voucher, study, and profile must be released through its existing visibility control. The preview uses the voucher's approved regional projection and keeps verbatim labels, exact locations, original sample collection-event text, and account IDs private. Scientific determiner and collector names are included only when the draft enables `include_determiner_names` or `include_collector_names`. Collector numbers and type status are always included. Review contributor names and remaining free text before approval.
+3. A curator calls `POST /api/depositions/{id}/publish` with the preview's `draft_revision` and `snapshot_sha256`. If the underlying records or files have changed, review a new preview. Retry the same request to get the same version. The returned `identifier` is the version's public page under `PUBLIC_BASE_URL`, and `url` is its JSON record.
+
+Each published version freezes the metadata, voucher determination, sample and preparation links, methods, measurements, credits, rights, and file digests. It stores a bounded copy of each source file with the snapshot in the database, in the same transaction. The original uploads remain in local storage. Exports of legacy sources are marked `legacy-reconstructed`. Published files remain available if live records or files later change.
+
+Share the public page at `/depositions/{institution}/{accession}/versions/{number}`. It shows the citation, licenses and credits, voucher and sample relationships, methods, files, and any correction or withdrawal notice. The **Download version ZIP** link packages the frozen `deposition.json`, source files under `files/`, and a versioned `manifest.json` with sizes and SHA-256 digests. Later DOI links and status notices appear on the page while the archived version bytes stay fixed. Withdrawal disables downloads for that version.
+
+Verify a downloaded ZIP from a checkout with Python 3.12. Use the snapshot SHA-256 shown on the public page to compare against the published digest.
+
+```powershell
+python -m app.deposition.verify_archive .\deposition-v1.zip --snapshot-sha256 <digest>
+```
+
+The verifier runs offline without the server, database, or installed Python dependencies. Omitting the expected digest still checks the archive's internal consistency.
+
+- Get a dataset DOI by mirroring the version to Zenodo. Set `ZENODO_TOKEN` to a token with the `deposit:write` and `deposit:actions` scopes. Rehearse with `ZENODO_URL=https://sandbox.zenodo.org`, then run `python -m app.deposition.mirror_zenodo EXU <accession> 1 --curator curator@example.org`. Add `--dry-run` to review the Zenodo metadata first. Zenodo receives the same ZIP that Ex Herbario serves, and Ex Herbario records the DOI it returns. An institution with its own DataCite membership can register a DOI from `GET /api/depositions/public/{institution}/{accession}/versions/{number}/datacite.json`. Record that DOI with `PUT /api/depositions/{id}/versions/{number}/doi` and `{"doi": "10.…", "agency": "datacite"}`. The public page then cites the DOI.
+- Link a bare article DOI with `PUT /api/depositions/{id}/versions/{number}/article-doi`. Article links are attached to the cited version without editing its snapshot.
+- Create a correction by sending a complete new draft with `expected_revision: null` and a `correction_reason`, then preview and publish it. The accession stays the same and the version-specific URL changes. Earlier versions remain citable and indicate that they were superseded.
+- Withdraw a published version with `POST /api/depositions/{id}/versions/{number}/withdraw` and a public `reason`. Its URL returns a 410 notice with citation identity and linked DOIs. File downloads are withdrawn and the frozen records remain in the archive. Withdrawing release from a live voucher or profile leaves the immutable deposition in place. Use the version withdrawal action for the published record.
