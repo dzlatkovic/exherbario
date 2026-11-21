@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ values.q ~ ' · ' if values.q }}Depositions · Ex Herbario{% endblock %}
+{% block title %}{{ values.q ~ ' · ' if values.q }}Published datasets · Ex Herbario{% endblock %}
 {% block header %}
 <header class="page-header">
   {{ catalog_tabs('depositions') }}
-  <h1 class="title">Depositions</h1>
-  <p class="muted">Citable, versioned datasets of vouchers and their analytical data. Each entry opens its latest version; earlier versions are linked from there.</p>
+  <h1 class="title">Published datasets</h1>
+  <p class="muted">Citable, versioned depositions of vouchers and their analytical data. Each entry opens its latest version; earlier versions are linked from there.</p>
 </header>
 {% endblock %}
 {% block body %}

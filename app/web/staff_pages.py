@@ -4,7 +4,7 @@ import qrcode
 from fastapi import APIRouter, Depends, Request
 from markupsafe import Markup
 from qrcode.image.svg import SvgPathImage
-from sqlalchemy import select, true
+from sqlalchemy import func, select, true
 from sqlalchemy.orm import Session
 
 from app import catalog
@@ -55,8 +55,12 @@ def _record(db: Session, specimen_id: str, viewer: dict):
                # Other researchers' studies stay private; curators see every study.
                true() if viewer["curator"] else Study.owner_id == viewer["id"])
         .order_by(Study.title, LabSample.code)).all()
+    # Other vouchers recorded at the same site, so a correction to it is not a surprise.
+    site_shared = db.scalar(select(func.count()).select_from(Specimen).where(
+        Specimen.field_loc_id == specimen.field_loc_id, Specimen.specimen_id != specimen.specimen_id,
+    )) if specimen.field_loc_id else 0
     return {
-        "specimen": specimen, "taxon": taxon, "location": specimen.field_loc,
+        "specimen": specimen, "taxon": taxon, "location": specimen.field_loc, "site_shared": site_shared,
         "storage": db.get(Storage, specimen.storage_id) if specimen.storage_id else None,
         "name": (taxon.taxon_name if taxon else None) or specimen.subnomen or "Unidentified specimen",
         "collector": _person(db, specimen.collected_by, specimen.collector_name),

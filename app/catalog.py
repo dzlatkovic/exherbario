@@ -65,6 +65,9 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", accessi
     entries = []
     for specimen, taxon_name, common_name, location in db.execute(query):
         visible_location = public_location(specimen, location) or {}
+        matched = _matched_on(q, (("common name", common_name), ("name as recorded", specimen.subnomen),
+                                  ("accession", specimen.accession), ("registration number", specimen.reg_no),
+                                  ("accepted name", taxon_name)))
         entries.append({
             "specimen_id": specimen.specimen_id,
             "reg_no": specimen.reg_no,
@@ -78,8 +81,17 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", accessi
             "locality": None,
             "region": visible_location.get("region"),
             "country": visible_location.get("country"),
+            "matched_on": matched,
         })
     return {"items": entries, "total": total, "page": page, "size": size}
+
+
+def _matched_on(q: str, fields):
+    """The first searched field that contains the query, so a result can say why it was found."""
+    needle = q.strip().casefold()
+    if not needle:
+        return None
+    return next((label for label, value in fields if value and needle in value.casefold()), None)
 
 
 def specimen_details(db: Session, specimen_id: str):

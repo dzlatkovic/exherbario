@@ -3,8 +3,20 @@
 {% block head %}<script type="module" src="/assets/herbar/js/curation-vouchers.js"></script>{% endblock %}
 {% block header %}{% include "_curation_header.html" %}{% endblock %}
 {% block body %}
-<div class="record-grid">
-  <section class="card" id="register-section" aria-labelledby="register-title">
+<div class="record-grid voucher-workspace">
+  <section class="card voucher-find" aria-labelledby="find-title">
+    <h2 id="find-title">Find a voucher</h2>
+    <div id="voucher-picker" class="picker">
+      <div class="stack">
+        <label>Name, accession or ID <input class="picker-query" type="search" maxlength="100" autocomplete="off"></label>
+        <button type="button" class="secondary picker-search">Search</button>
+      </div>
+      <p class="feedback" role="status"></p>
+      <ul class="picker-results"></ul>
+    </div>
+    <a class="button primary narrow-only" href="#register-section">Register a voucher</a>
+  </section>
+  <section class="card voucher-register" id="register-section" aria-labelledby="register-title">
     <h2 id="register-title">Register a voucher</h2>
     <form id="register" class="stack">
       <fieldset class="form-grid">
@@ -73,16 +85,5 @@
       <p class="feedback" role="status"></p>
     </form>
   </section>
-  <aside class="card" aria-labelledby="find-title">
-    <h2 id="find-title">Find a voucher</h2>
-    <div id="voucher-picker" class="picker">
-      <div class="stack">
-        <label>Name, accession or ID <input class="picker-query" type="search" maxlength="100" autocomplete="off"></label>
-        <button type="button" class="secondary picker-search">Search</button>
-      </div>
-      <p class="feedback" role="status"></p>
-      <ul class="picker-results"></ul>
-    </div>
-  </aside>
 </div>
 {% endblock %}

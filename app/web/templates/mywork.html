@@ -5,8 +5,9 @@
 <header class="page-header with-actions">
   <h1 class="title">My work</h1>
   <div class="link-row">
+    {% if studies %}<a class="button {{ 'secondary' if curator else 'primary' }}" href="#new-study">New study</a>{% endif %}
     {% if curator %}<a class="button primary" href="/curation/vouchers#register-section">Register a voucher</a>{% endif %}
-    <a class="button {{ 'secondary' if curator else 'primary' }}" href="/researcher/depositions/new">New deposition</a>
+    <a class="button secondary" href="/researcher/depositions/new">New deposition</a>
   </div>
 </header>
 {% endblock %}
@@ -28,18 +29,28 @@
         </a></li>
         {% endfor %}
       </ul>
-      {% else %}
-        {{ empty_state("No studies yet.", "A study groups the samples, preparations and analytical runs of one piece of work.") }}
       {% endif %}
-      <details class="form-details">
-        <summary>New study</summary>
+      {% set study_form %}
         <form id="create-study" class="stack">
           <label>Title <input name="title" required maxlength="200"></label>
           <label>Description <textarea name="description" rows="2" maxlength="4000"></textarea></label>
-          <button class="secondary">Create study</button>
+          <button class="{{ 'secondary' if studies else 'primary' }}">Create study</button>
           <p class="feedback" role="status"></p>
         </form>
+      {% endset %}
+      {% if studies %}
+      <details class="form-details" id="new-study">
+        <summary>New study</summary>
+        {{ study_form }}
       </details>
+      {% else %}
+      <div class="first-study" id="new-study">
+        <h3>Create your first study</h3>
+        <p class="muted">Bringing analytical results? Start here. A study groups the samples, preparations and analytical runs of one piece of work.
+          The study page then guides you through adding samples linked to their vouchers, preparations and your results table.</p>
+        {{ study_form }}
+      </div>
+      {% endif %}
     </section>
 
     <section class="card" aria-labelledby="depositions-title">
@@ -58,7 +69,8 @@
         {% endfor %}
       </ul>
       {% else %}
-        {{ empty_state("No depositions yet.", "A deposition publishes vouchers and analytical profiles as a citable, versioned dataset.", "/researcher/depositions/new", "New deposition") }}
+        {% if studies %}{{ empty_state("No depositions yet.", "A deposition publishes vouchers and analytical profiles as a citable, versioned dataset.", "/researcher/depositions/new", "New deposition") }}
+        {% else %}{{ empty_state("No depositions yet.", "Once a study has results, a deposition publishes its vouchers and analytical profiles as a citable, versioned dataset.") }}{% endif %}
       {% endif %}
     </section>
   </div>

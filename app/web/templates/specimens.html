@@ -45,15 +45,16 @@
 {% if results.total %}
   <div class="result-summary">
     <p class="muted" role="status">{{ "{:,}".format(results.total) }} specimen{{ '' if results.total == 1 else 's' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
-    {% if results.total <= 10000 %}<a class="small" href="{{ export_url }}" download>Download CSV</a>{% endif %}
-    <a class="small" href="/api/dwca.zip" download title="All released vouchers as a Darwin Core Archive, for GBIF and other aggregators">Darwin Core Archive</a>
+    {% if results.total <= 10000 %}<a class="small" href="{{ export_url }}" download>Download these results (CSV)</a>{% endif %}
+    <a class="small" href="/api/dwca.zip" download title="Every released voucher, whatever the search, as a Darwin Core Archive for GBIF and other aggregators">Download full catalog (Darwin Core)</a>
   </div>
   <ol class="result-list">
     {% for item in results["items"] %}
     <li>
       <a class="result" href="/specimens/{{ item.specimen_id }}">
-        <span class="result-name">{{ item.name }}</span>
+        <span class="result-name">{{ item.name }}{% if item.common_name %} <span class="common-name">{{ item.common_name }}</span>{% endif %}</span>
         {% if item.subnomen and item.subnomen != item.name %}<span class="muted small">as recorded: {{ item.subnomen }}</span>{% endif %}
+        {% if item.matched_on == 'registration number' and item.accession %}<span class="muted small">matched registration number {{ item.reg_no }}</span>{% endif %}
         <span class="result-meta">
           <span class="mono">{{ item.accession or item.reg_no or 'No accession' }}</span>
           {% if item.holding_institution %}<span>{{ item.holding_institution }}{% if item.collection %} · {{ item.collection }}{% endif %}</span>{% endif %}

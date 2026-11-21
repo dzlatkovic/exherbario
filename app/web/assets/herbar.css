@@ -373,3 +373,28 @@ table.grid .number { text-align: right; white-space: nowrap; }
 /* LOTUS review list: a checkbox beside the compound's name and details */
 .picker-results li > label { display: flex; align-items: flex-start; gap: .6rem; min-width: 0; }
 .picker-results li > label > span { display: grid; min-width: 0; overflow-wrap: anywhere; }
+
+/* Staff record: release state beside the name, with its control right under it */
+.title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem .9rem; }
+.title-row .title { margin-bottom: 0; }
+.record-header .visibility-control { max-width: 36rem; border-top: 0; padding-top: 0; margin-top: .25rem; }
+
+/* Voucher workspace: search comes first in the page; on wide screens registration sits on the left as before.
+   On narrow screens the registration form opens from a button (a #register-section link, so it works without scripts). */
+@media (min-width: 56rem) {
+  .voucher-workspace .voucher-register { grid-column: 1; grid-row: 1; }
+  .voucher-workspace .voucher-find { grid-column: 2; grid-row: 1; }
+  .narrow-only { display: none; }
+}
+@media (max-width: 55.99rem) {
+  .voucher-workspace .voucher-register:not(:target) { display: none; }
+  .voucher-find .narrow-only { margin-top: 1rem; width: 100%; justify-content: center; }
+}
+
+/* My work: an empty study list offers the first study inline */
+.first-study { padding: 1rem 1.1rem; border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+.first-study h3 { margin-top: 0; }
+
+/* Catalog results: a recorded common name beside the scientific name */
+.result-name .common-name { font-style: normal; font-weight: 400; color: var(--muted); }
+.result-name .common-name::before { content: "· "; }
