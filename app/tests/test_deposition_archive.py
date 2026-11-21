@@ -42,10 +42,11 @@ def test_verifier_detects_changed_bytes_and_unexpected_entries(tmp_path):
         verify_archive(path)
 
 
-def test_research_workspace_and_assets_are_served():
-    screen = client.get("/researcher")
-    assert screen.status_code == 200
-    for heading in ("Register a voucher", "Upload a CSV profile", "Validate and preview", "Publish version"):
-        assert heading in screen.text
-    assert client.get("/assets/herbar/herbar.css").status_code == 200
-    assert client.get("/assets/herbar/researcher.js").status_code == 200
+def test_research_workspace_requires_sign_in_and_assets_are_served():
+    screen = client.get("/researcher", follow_redirects=False)
+    assert screen.status_code == 303 and screen.headers["location"] == "/sign-in?next=%2Fresearcher"
+    assert "Sign in" in client.get("/sign-in").text
+    for asset in ("herbar.css", "js/core.js", "js/mywork.js", "js/study.js", "js/import.js", "js/deposition.js",
+                  "js/profile.js", "js/specimen.js", "fonts/fonts.css", "fonts/fira-sans-latin-400-normal.woff2",
+                  "fonts/fira-mono-greek-400-normal.woff2", "fonts/OFL.txt"):
+        assert client.get(f"/assets/herbar/{asset}").status_code == 200, asset

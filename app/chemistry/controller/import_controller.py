@@ -29,6 +29,9 @@ class ImportController:
         record, sheets = self.service.create(study_id, file.file, file.filename, actor)
         return {**import_summary(record), "sheets": _sheets({name: rows[:20] for name, rows in sheets.items()})}
 
+    def list_for_study(self, study_id: str, actor: User):
+        return [import_summary(record) for record in self.service.list_for_study(study_id, actor)]
+
     def get(self, import_id: str, actor: User):
         record, sheets = self.service.sheet_preview(import_id, actor)
         _, preview = self.service.preview(import_id, actor)

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ study.title }} · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/study.js"></script>{% endblock %}
+{% block body %}
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher">My work</a></nav>
+<header class="record-header" id="study" data-study="{{ study.id }}">
+  <p class="overline">Study</p>
+  <h1 class="title plain">{{ study.title }}</h1>
+  {% if study.description %}<p class="lead">{{ study.description }}</p>{% endif %}
+  <p class="link-row small">
+    {% if study.is_public %}<span class="status-chip released">Released</span><a href="/studies/{{ study.id }}">Public page</a>
+      <a href="/api/chemistry/public/export?study_id={{ study.id }}&amp;format=long" download>Long CSV</a>
+      <a href="/api/chemistry/public/export?study_id={{ study.id }}&amp;format=wide" download>Wide CSV</a>
+    {% else %}<span class="status-chip">Private</span>{% endif %}
+    {% if curator %}<button type="button" class="text-button" data-put="/api/chemistry/studies/{{ study.id }}/visibility"
+      data-body='{"is_public": {{ 'false' if study.is_public else 'true' }}}'
+      data-confirm="{{ 'Withdraw this study from public view?' if study.is_public else 'Release this study? Profiles appear publicly only when they and all their vouchers are released too.' }}">{{ 'Withdraw study' if study.is_public else 'Release study' }}</button>{% endif %}
+  </p>
+</header>
+
+<section class="card" aria-labelledby="add-title">
+  <h2 id="add-title">Add data</h2>
+  <details class="form-details first">
+    <summary>Import a results table (Excel or CSV)</summary>
+    <form id="import-upload" class="stack">
+      <p class="muted small">Upload the table you prepared for the paper: compounds in rows, samples in columns. Next you assign the columns and check every compound.</p>
+      <label>Results table <input name="file" type="file" accept=".xlsx,.csv" required></label>
+      <button class="primary">Upload and continue</button>
+      <p class="feedback" role="status"></p>
+    </form>
+    {% if imports %}
+    <p class="small">Unfinished: {% for record in imports %}<a href="/researcher/studies/{{ study.id }}/imports/{{ record.id }}">{{ record.source_name }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>
+    {% endif %}
+  </details>
+  <details class="form-details">
+    <summary>Add a sample</summary>
+    <form id="create-sample" class="stack">
+      <fieldset class="stack">
+        <legend>Vouchers</legend>
+        <div id="sample-vouchers"></div>
+        <div id="sample-voucher-picker" class="picker">
+          <div class="inline-form">
+            <label>Add a voucher <input class="picker-query" type="search" maxlength="100" autocomplete="off" placeholder="Name, accession or ID"></label>
+            <button type="button" class="secondary picker-search">Search</button>
+          </div>
+          <p class="feedback" role="status"></p>
+          <ul class="picker-results"></ul>
+        </div>
+      </fieldset>
+      <div class="form-grid">
+        <label>Sample code <input name="code" required maxlength="80"></label>
+        <label>Plant part <select name="plant_part" required>
+          <option value="leaf">Leaf</option><option value="flower">Flower</option><option value="inflorescence">Inflorescence</option>
+          <option value="aerial parts">Aerial parts</option><option value="stem">Stem</option><option value="root">Root</option>
+          <option value="rhizome">Rhizome</option><option value="bark">Bark</option><option value="fruit">Fruit</option>
+          <option value="seed">Seed</option><option value="whole plant">Whole plant</option><option value="other">Other</option>
+        </select></label>
+        <label>Plant part details <input name="plant_part_note" maxlength="200"></label>
+        <label>Material <select name="material_state" required>
+          <option value="fresh">Fresh</option><option value="air-dried">Air-dried</option>
+          <option value="oven-dried">Oven-dried</option><option value="freeze-dried">Freeze-dried</option>
+        </select></label>
+        <label>Collection date <input name="collection_date" type="date"></label>
+        <label>Phenological stage <input name="phenological_stage" maxlength="100"></label>
+        <label>Collection site <select name="site" id="sample-site">
+          <option value="">Not recorded</option><option value="voucher">Same as a linked voucher</option>
+          <option value="field_location">Its own field location</option>
+        </select></label>
+        <label id="site-voucher-field" hidden>Site voucher <select name="site_specimen_id"></select></label>
+        <label id="site-location-field" hidden>Field location ID <input name="field_loc_id" maxlength="50"></label>
+      </div>
+      <label>Drying <textarea name="drying_notes" maxlength="1000" rows="2"></textarea></label>
+      <label>Storage <textarea name="storage_notes" maxlength="1000" rows="2"></textarea></label>
+      <label>Collection notes (private) <input name="collection_notes" maxlength="200"></label>
+      <button class="primary">Add sample</button>
+      <p class="feedback" role="status"></p>
+    </form>
+  </details>
+</section>
+
+{% if samples %}
+  {% for sample in samples %}
+  <section class="card sample-card" aria-labelledby="sample-{{ loop.index }}">
+    <div class="section-head">
+      <h2 id="sample-{{ loop.index }}">Sample {{ sample.code }}</h2>
+      <span class="muted small">{{ sample.plant_part }}{% if sample.plant_part_note %} ({{ sample.plant_part_note }}){% endif %}{% if sample.material_state %} · {{ sample.material_state }}{% endif %}</span>
+    </div>
+    <ul class="plain-list compact">
+      {% for voucher in vouchers[sample.id] %}
+        <li><span><a href="/researcher/specimens/{{ voucher.id }}"><em>{{ voucher.name }}</em></a> <span class="mono small">{{ voucher.accession or '' }}</span> <span class="muted small">· {{ voucher.role }}</span></span>
+          {% if voucher.redetermined %}<span class="warning-text small">Redetermined since this sample was linked.</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% if sample.collection_date or sample.phenological_stage or sample.drying_notes %}
+    <p class="muted small">{% if sample.collection_date %}Collected {{ sample.collection_date }}{% endif %}{% if sample.phenological_stage %} · {{ sample.phenological_stage }}{% endif %}{% if sample.drying_notes %} · {{ sample.drying_notes }}{% endif %}</p>
+    {% endif %}
+
+    {% for preparation in preparations[sample.id] %}
+    <div class="preparation">
+      <h3>{{ preparation.kind | replace('_', ' ') | capitalize }} {{ preparation.batch_code }}
+        <span class="muted small">· {{ preparation.method_reference }}{% if preparation.yield_percent is not none %} · yield {{ '%g' | format(preparation.yield_percent) }}%{% endif %}</span></h3>
+      {% if runs.get(preparation.id) %}
+      <ul class="run-list">
+        {% for profile in runs[preparation.id] %}
+          <li><a href="/researcher/profiles/{{ profile.id }}">Run {{ profile.run_code }}</a>
+            <span class="muted small">{{ profile.technique or 'Technique not recorded' }} · {{ profile.source_name }}</span>
+            <span class="status-chip{% if profile.is_public %} released{% endif %}">{{ 'Released' if profile.is_public else 'Private' }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <details class="form-details">
+        <summary>Upload a CSV run</summary>
+        <form class="stack upload-run" data-preparation="{{ preparation.id }}">
+          <div class="form-grid">
+            <label>Run code <input name="run_code" required maxlength="80"></label>
+            <label>Analytical method <input name="analytical_method" required maxlength="120"></label>
+            <label>Measurement basis <select name="measurement_basis" class="basis">
+              <option value="peak_area_percent">Peak-area percentage</option>
+              <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
+            </select></label>
+            <label>Unit <input name="unit" value="%" required maxlength="40"></label>
+            {% include "_run_fields.html" %}
+          </div>
+          <label>CSV file <input name="file" type="file" accept=".csv,text/csv" required></label>
+          <p class="muted small">UTF-8 with <span class="mono">feature,value,confidence</span> and optional identifier and evidence columns.</p>
+          <button class="secondary">Upload run</button>
+          <p class="feedback" role="status"></p>
+          <p class="notice warning upload-warnings" hidden></p>
+        </form>
+      </details>
+    </div>
+    {% endfor %}
+
+    <details class="form-details">
+      <summary>Add a preparation</summary>
+      <form class="stack add-preparation" data-sample="{{ sample.id }}">
+        <div class="form-grid">
+          <label>Batch code <input name="batch_code" required maxlength="80"></label>
+          <label>Type <select name="kind"><option value="essential_oil">Essential oil</option><option value="extract">Extract</option></select></label>
+          <label>Plant material (g) <input name="plant_material_mass_g" type="number" min="0" step="any"></label>
+          <label>Yield (% w/w) <input name="yield_percent" type="number" min="0" max="100" step="any"></label>
+        </div>
+        <label>Method reference <input name="method_reference" required maxlength="500"></label>
+        <label>Method and parameters <input name="method_parameters" maxlength="1000" placeholder="e.g. hydrodistillation, Clevenger apparatus, 3 h"></label>
+        <button class="secondary">Add preparation</button>
+        <p class="feedback" role="status"></p>
+      </form>
+    </details>
+  </section>
+  {% endfor %}
+{% else %}
+  {{ empty_state("No samples yet.", "Add a sample linked to its vouchers, then a preparation, then upload or import the analytical results.") }}
+{% endif %}
+{% endblock %}

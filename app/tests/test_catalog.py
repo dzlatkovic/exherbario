@@ -85,7 +85,7 @@ class TestCatalog(TestClass):
         assert client.get(f"{photo}/content").status_code == 404
         assert client.get(f"{voucher}/revisions").status_code == 404
         assert "New determination" not in client.get("/api/specimen/export").text
-        assert client.get("/").json() == {"message": "In Progress"}
+        assert "Find a voucher specimen" in client.get("/").text
 
     def test_researcher_reads_and_curator_controls(self):
         specimen = SpecimenFixtures.create_test_specimen()
@@ -117,7 +117,7 @@ class TestCatalog(TestClass):
             "/api/chemistry/public/studies/{study_id}", "/api/chemistry/public/profiles/{profile_id}",
             "/api/chemistry/public/specimens/{specimen_id}/profiles", "/api/chemistry/public/compounds/{cid}",
             "/api/chemistry/public/export",
-            "/api/depositions/public/{institution}/{accession}/versions/{number}",
+            "/api/depositions/public", "/api/depositions/public/{institution}/{accession}/versions/{number}",
             "/api/depositions/public/{institution}/{accession}/versions/{number}/archive.zip",
             "/api/depositions/public/{institution}/{accession}/versions/{number}/datacite.json",
             "/api/institutions",

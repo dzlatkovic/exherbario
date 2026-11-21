@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ study.title ~ ' · ' if study }}Study · HERBAR{% endblock %}
+{% block body %}
+{% if not study %}
+  <section class="card narrow">
+    <h1 class="title">Study unavailable</h1>
+    <p class="muted">This study does not exist or has no released profiles.</p>
+    <a class="button secondary" href="/specimens">Search specimens</a>
+  </section>
+{% else %}
+<header class="record-header">
+  <p class="overline">Study</p>
+  <h1 class="title plain">{{ study.title }}</h1>
+  {% if study.description %}<p class="lead">{{ study.description }}</p>{% endif %}
+  <p class="link-row small">
+    <span class="muted">{{ rows | length }} released profile{{ '' if rows | length == 1 else 's' }}</span>
+    <a href="/api/chemistry/public/export?study_id={{ study.id }}&amp;format=long" download>Long CSV</a>
+    <a href="/api/chemistry/public/export?study_id={{ study.id }}&amp;format=wide" download>Wide CSV</a>
+  </p>
+</header>
+<ol class="result-list">
+  {% for row in rows %}
+  <li>
+    <a class="result" href="/profiles/{{ row.profile.id }}">
+      <span class="result-name">Sample {{ row.sample.code }} · run {{ row.profile.run_code }}</span>
+      <span class="result-meta">
+        {% if row.profile.technique %}<span>{{ row.profile.technique }}</span>{% endif %}
+        <span>{{ row.sample.plant_part }}{% if row.sample.material_state %}, {{ row.sample.material_state }}{% endif %}</span>
+        <span>{{ row.preparation.kind | replace('_', ' ') | capitalize }}{% if row.preparation.yield_percent is not none %} · yield {{ '%g' | format(row.preparation.yield_percent) }}%{% endif %}</span>
+      </span>
+      <span class="result-meta">
+        {% for voucher in row.vouchers %}<span><em>{{ voucher.name }}</em> <span class="mono">{{ voucher.accession or '' }}</span> ({{ voucher.role | lower }}){% if voucher.redetermined %} · redetermined{% endif %}</span>{% endfor %}
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+{% endblock %}

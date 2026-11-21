@@ -44,6 +44,9 @@ class SpecimenSchema(VoucherMetadata):
     storage_id: str | None = None
     collected_by: str | None = None
     verified_by: str | None = None
+    # Release state, so staff screens can show and change it.
+    is_public: bool | None = None
+    public_location: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

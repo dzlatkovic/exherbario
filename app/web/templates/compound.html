@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ compound.title ~ ' · ' if compound }}Compound · HERBAR{% endblock %}
+{% block body %}
+{% if not compound %}
+  <section class="card narrow">
+    <h1 class="title">Compound not registered</h1>
+    <p class="muted">HERBAR has no measurement linked to this PubChem CID.</p>
+  </section>
+{% else %}
+<header class="record-header">
+  <p class="overline">Compound · CID {{ compound.cid }}</p>
+  <h1 class="title plain">{{ compound.title }}</h1>
+  {% if compound.iupac_name %}<p class="muted break">{{ compound.iupac_name }}</p>{% endif %}
+</header>
+<section class="card compound-card">
+  <img class="structure" src="{{ compound.structure_image }}" alt="Structure of {{ compound.title }}" width="240" height="240">
+  <dl class="facts">
+    {% if compound.molecular_formula %}<div><dt>Formula</dt><dd>{{ compound.molecular_formula }}</dd></div>{% endif %}
+    {% if compound.monoisotopic_mass %}<div><dt>Monoisotopic mass</dt><dd class="mono">{{ '%.4f' | format(compound.monoisotopic_mass) }}</dd></div>{% endif %}
+    {% if compound.inchikey %}<div><dt>InChIKey</dt><dd class="mono break">{{ compound.inchikey }}</dd></div>{% endif %}
+    {% if compound.smiles %}<div><dt>SMILES</dt><dd class="mono break">{{ compound.smiles }}</dd></div>{% endif %}
+    {% if compound.cas_numbers %}<div><dt>CAS (from PubChem synonyms)</dt><dd class="mono">{{ compound.cas_numbers | join(', ') }}</dd></div>{% endif %}
+    {% if synonyms %}<div><dt>Synonyms</dt><dd>{{ synonyms | join(' · ') }}</dd></div>{% endif %}
+  </dl>
+  <p class="small"><a href="https://pubchem.ncbi.nlm.nih.gov/compound/{{ compound.cid }}" rel="external">View on PubChem</a>
+    <span class="muted"> · retrieved {{ compound.retrieved_at.date() }}</span></p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ record.name ~ ' · ' if record }}Staff record · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/specimen.js"></script>{% endblock %}
+{% block body %}
+{% if not record %}
+  <section class="card narrow">
+    <h1 class="title">Specimen not found</h1>
+    <a class="button secondary" href="/researcher">Back to my work</a>
+  </section>
+{% else %}
+{% set specimen = record.specimen %}
+{% set location = record.location %}
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher">My work</a></nav>
+<header class="record-header" id="record" data-specimen="{{ specimen.specimen_id }}">
+  <p class="overline">Staff record{% if specimen.type_status %} · {{ specimen.type_status }}{% endif %}</p>
+  <h1 class="title">{{ record.name }}</h1>
+  <p class="record-id"><span class="mono">{{ specimen.accession or specimen.reg_no or 'No accession' }}</span>
+    {% if specimen.holding_institution %}· {{ specimen.holding_institution }}{% endif %}
+    {% if specimen.collection %}· {{ specimen.collection }}{% endif %}</p>
+  <p class="link-row small">
+    {% if specimen.is_public %}
+      <span class="status-chip released">Released · {{ 'region shown' if specimen.public_location == 'region' else 'locality withheld' }}</span>
+      <a href="/specimens/{{ specimen.specimen_id }}">Public page</a>
+    {% else %}<span class="status-chip">Private</span>{% endif %}
+    <a href="/researcher/specimens/{{ specimen.specimen_id }}/label">Print label</a>
+    <span class="muted mono">{{ specimen.specimen_id }}</span>
+  </p>
+</header>
+
+<div class="record-grid">
+  <div class="record-main">
+    {% if curator %}
+    <section class="card" aria-labelledby="release-title">
+      <h2 id="release-title">Release</h2>
+      <form id="release" class="stack">
+        <div class="form-grid">
+          <label>Visibility <select name="is_public">
+            <option value="false"{% if not specimen.is_public %} selected{% endif %}>Private</option>
+            <option value="true"{% if specimen.is_public %} selected{% endif %}>Released</option>
+          </select></label>
+          <label>Public locality <select name="public_location">
+            <option value="withheld"{% if specimen.public_location != 'region' %} selected{% endif %}>Withheld</option>
+            <option value="region"{% if specimen.public_location == 'region' %} selected{% endif %}>Country and region</option>
+          </select></label>
+        </div>
+        <button class="secondary">Save release</button>
+        <p class="feedback" role="status"></p>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="card" aria-labelledby="identification-title">
+      <h2 id="identification-title">Identification</h2>
+      <dl class="facts">
+        <div><dt>Name as recorded</dt><dd>{{ specimen.subnomen or '—' }}</dd></div>
+        <div><dt>Taxonomy</dt><dd>{% if record.taxon %}{{ record.taxon.taxon_name }}{% if record.taxon.authority %} {{ record.taxon.authority }}{% endif %}{% else %}—{% endif %}</dd></div>
+        {% if specimen.determiner_name %}<div><dt>Determiner</dt><dd>{{ specimen.determiner_name }}</dd></div>{% endif %}
+        {% if specimen.determination_date %}<div><dt>Determined</dt><dd>{{ specimen.determination_date }}</dd></div>{% endif %}
+        {% if record.verifier %}<div><dt>Verified by</dt><dd>{{ record.verifier }}</dd></div>{% endif %}
+      </dl>
+      {% if record.revisions %}
+      <h3>Earlier determinations</h3>
+      <ol class="timeline">
+        {% for revision, taxon_name in record.revisions %}
+          <li><span>{{ revision.prev_subnomen or taxon_name or 'Undetermined' }}</span>
+            <span class="muted small">{% if revision.prev_determiner_name %}{{ revision.prev_determiner_name }}{% endif %}{% if revision.prev_determination_date %} · {{ revision.prev_determination_date }}{% endif %} · replaced {{ revision.timestamp.date() if revision.timestamp }}</span></li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+      {% if curator %}
+      <details class="form-details">
+        <summary>Redetermine</summary>
+        <form id="redetermine" class="stack">
+          <div class="inline-form">
+            <label>Taxon <input id="taxon-query" type="search" maxlength="100" autocomplete="off" placeholder="Search the taxonomy"></label>
+            <button type="button" id="taxon-search" class="secondary">Search</button>
+          </div>
+          <label>Choose taxon <select name="taxon_id" required><option value="">Search first</option></select></label>
+          <div class="form-grid">
+            <label>Name as recorded <input name="subnomen" maxlength="200"></label>
+            <label>Determiner <input name="determiner_name" maxlength="200"></label>
+            <label>Determination date <input name="determination_date" type="date"></label>
+          </div>
+          <button class="primary">Save determination</button>
+          <p class="feedback" role="status"></p>
+        </form>
+      </details>
+      {% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="photos-title">
+      <h2 id="photos-title">Photographs</h2>
+      {% if record.photos %}
+      <div class="gallery">
+        {% for photo in record.photos %}
+          <figure class="photo">
+            <a href="/api/image/{{ photo.image_id }}/original"><img src="/api/image/{{ photo.image_id }}/original" alt="{{ photo.image_type.value if photo.image_type else 'Photograph' }} photograph" loading="lazy"></a>
+            <figcaption>
+              <span class="status-chip{% if photo.is_public %} released{% endif %}">{{ 'Approved' if photo.is_public else 'Not public' }}</span>
+              <span class="muted small">{{ photo.image_type.value if photo.image_type }}</span>
+              {% if curator %}<button type="button" class="text-button photo-visibility" data-image="{{ photo.image_id }}" data-public="{{ 'false' if photo.is_public else 'true' }}">{{ 'Withdraw' if photo.is_public else 'Approve' }}</button>{% endif %}
+            </figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="muted">No photographs yet.</p>
+      {% endif %}
+      {% if curator %}
+      <details class="form-details">
+        <summary>Upload a photograph</summary>
+        <form id="upload-photo" class="stack">
+          <div class="form-grid">
+            <label>Type <select name="image_type"><option value="herbarium">Herbarium sheet</option><option value="field">Field</option>
+              <option value="macro">Macro</option><option value="microscope">Microscope</option></select></label>
+            <label>JPEG image <input name="file" type="file" accept="image/jpeg" required></label>
+          </div>
+          <button class="secondary">Upload</button>
+          <p class="feedback" role="status"></p>
+        </form>
+      </details>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="record-side">
+    <section class="card" aria-labelledby="collection-title">
+      <h2 id="collection-title">Collection</h2>
+      <dl class="facts single">
+        {% if specimen.collection_date or specimen.verbatim_collection_date %}<div><dt>Collected</dt><dd>{{ specimen.collection_date or '' }}{% if specimen.verbatim_collection_date %} <span class="muted">({{ specimen.verbatim_collection_date }})</span>{% endif %}</dd></div>{% endif %}
+        {% if record.collector or specimen.collector_number %}<div><dt>Collector</dt><dd>{{ record.collector or '' }} {{ specimen.collector_number or '' }}</dd></div>{% endif %}
+        {% if location %}
+          <div><dt>Site</dt><dd>{{ location.locality }}<br><span class="muted">{{ location.region }}, {{ location.country }}</span></dd></div>
+          {% if location.altitude is not none %}<div><dt>Altitude</dt><dd>{{ location.altitude }} m</dd></div>{% endif %}
+          {% if location.gps_lat is not none and location.gps_long is not none %}<div><dt>Coordinates</dt><dd class="mono">{{ location.gps_lat }}, {{ location.gps_long }}{% if location.coordinate_uncertainty_m %} ± {{ location.coordinate_uncertainty_m }} m{% endif %}{% if location.geodetic_datum %} · {{ location.geodetic_datum }}{% endif %}</dd></div>{% endif %}
+          {% if location.habitat %}<div><dt>Habitat</dt><dd>{{ location.habitat }}</dd></div>{% endif %}
+        {% endif %}
+        {% if record.storage %}<div><dt>Storage</dt><dd>Box {{ record.storage.box }}{% if record.storage.room %} · room {{ record.storage.room }}{% endif %}{% if record.storage.shelf %} · shelf {{ record.storage.shelf }}{% endif %}</dd></div>{% endif %}
+        {% if specimen.holding_type %}<div><dt>Holding</dt><dd>{{ 'Held locally' if specimen.holding_type == 'local' else 'Held externally' }}</dd></div>{% endif %}
+        {% if specimen.reg_no %}<div><dt>Registration number</dt><dd class="mono">{{ specimen.reg_no }}</dd></div>{% endif %}
+      </dl>
+      {% if specimen.verbatim_label %}<h3>Verbatim label</h3><pre>{{ specimen.verbatim_label }}</pre>{% endif %}
+    </section>
+    {% if record.studies %}
+    <section class="card" aria-labelledby="use-title">
+      <h2 id="use-title">Research use</h2>
+      <ul class="plain-list">
+        {% for study_id, title, role, code in record.studies %}
+          <li><span>{{ title }}</span><span class="muted small">Sample {{ code }} · {{ role | replace('_', ' ') }}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% if record.publications %}
+    <section class="card" aria-labelledby="literature-title">
+      <h2 id="literature-title">Literature</h2>
+      <ul class="plain-list">
+        {% for publication in record.publications %}
+          <li><span>{{ publication.title }}</span><span class="muted small">{{ publication.journal }}{% if publication.year %}, {{ publication.year }}{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

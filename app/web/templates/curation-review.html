@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Review · Curation · HERBAR{% endblock %}
+{% block header %}{% include "_curation_header.html" %}{% endblock %}
+{% block body %}
+<section class="card" aria-labelledby="review-title">
+  <h2 id="review-title">Submitted for review</h2>
+  {% if queue %}
+  <p class="muted small">Oldest first. Each opens the deposition editor, where you can check its records, preview the snapshot and publish.</p>
+  <ul class="result-list">
+    {% for item in queue %}
+    <li><a class="result" href="/researcher/depositions/{{ item.id }}">
+      <span class="result-name">{{ item.title }}</span>
+      <span class="result-meta">
+        <span>{{ item.owner }}</span>
+        <span class="mono">{{ item.institution }} {{ item.accession[:8] }}…</span>
+        <span>Submitted <time datetime="{{ item.submitted_at }}">{{ item.submitted_at[:10] }}</time></span>
+        {% if item.latest_version %}<span class="status-chip">Correction to version {{ item.latest_version }}</span>{% endif %}
+      </span>
+      {% if item.correction_reason %}<span class="muted small">{{ item.correction_reason }}</span>{% endif %}
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    {{ empty_state("Nothing is waiting for review.", "Researchers submit drafts from their deposition page.") }}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,35 @@ def register_institution(data: RegisterInstitution, actor: User = Depends(curato
 @router.post("", status_code=201)
 def create_deposition(data: CreateDeposition, actor: User = Depends(researcher), service=Depends(get_service)):
     return service.create(data, actor)
+
+
+@router.get("")
+def list_depositions(actor: User = Depends(researcher), service=Depends(get_service)):
+    """The signed-in account's depositions and drafts."""
+    return service.list_for_owner(actor)
+
+
+@router.get("/public")
+def list_public_depositions(q: str = Query("", max_length=200), page: int = Query(1, ge=1, le=1_000_000),
+                            size: int = Query(20, ge=1, le=100), service=Depends(get_service)):
+    """Published depositions at their latest version. Drafts are never listed."""
+    return service.list_public(q=q, page=page, size=size)
+
+
+@router.get("/review")
+def review_queue(actor: User = Depends(curator), service=Depends(get_service)):
+    """Drafts their owners submitted for curator review, oldest first."""
+    return service.list_review()
+
+
+@router.post("/{deposition_id}/submission")
+def submit_for_review(deposition_id: str, actor: User = Depends(researcher), service=Depends(get_service)):
+    return service.submit(deposition_id, actor)
+
+
+@router.delete("/{deposition_id}/submission")
+def withdraw_submission(deposition_id: str, actor: User = Depends(researcher), service=Depends(get_service)):
+    return service.withdraw_submission(deposition_id, actor)
 
 
 @router.get("/{deposition_id}/draft")

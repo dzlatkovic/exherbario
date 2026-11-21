@@ -71,7 +71,8 @@ class TaxonomyController:
         except TaxonDoesNotExistException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
         except IntegrityError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
+            raise HTTPException(409, "Specimens, determinations or lower taxa still refer to this taxon, "
+                                     "so it can't be deleted.") from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 

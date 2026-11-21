@@ -4,13 +4,15 @@ from datetime import datetime, timezone
 from hashlib import sha256
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, undefer
 
 from app.db import lock_for_update, new_id
 
 from .archive import build_archive, snapshot_digest
 from .datacite import datacite_metadata
+from app.users.models import User
+
 from .models import (
     Deposition, DepositionArticle, DepositionDOI, DepositionFile, DepositionVersion, DepositionWithdrawal, Institution,
 )
@@ -38,7 +40,89 @@ class DepositionService:
             "id": deposition.id, "institution": deposition.institution, "accession": deposition.accession,
             "latest_version": deposition.latest_version or None,
             "draft_revision": deposition.draft_revision, "draft": deposition.draft,
+            "submitted_at": deposition.submitted_at.isoformat() + "Z" if deposition.submitted_at else None,
         }
+
+    def list_for_owner(self, actor):
+        """The actor's depositions, most recently published first; drafts without a version come first."""
+        depositions = self.db.scalars(select(Deposition).where(Deposition.owner_id == actor.user_id)).all()
+        numbers = {item.id: item.latest_version for item in depositions if item.latest_version}
+        latest = {version.deposition_id: version for version in self.db.scalars(
+            select(DepositionVersion).where(DepositionVersion.deposition_id.in_(list(numbers))))
+            if version.number == numbers[version.deposition_id]} if numbers else {}
+        rows = []
+        for item in depositions:
+            version = latest.get(item.id)
+            title = ((item.draft or {}).get("title") if item.draft else None) or (version.snapshot.get("title") if version else None)
+            rows.append({
+                "id": item.id, "institution": item.institution, "accession": item.accession,
+                "title": title or "Untitled deposition", "latest_version": item.latest_version or None,
+                "has_draft": bool(item.draft_revision), "published_at": version.published_at if version else None,
+                "in_review": item.submitted_at is not None,
+            })
+        return sorted(rows, key=lambda row: (row["latest_version"] is not None, -(row["published_at"].timestamp())
+                                             if row["published_at"] else 0, row["title"].casefold()))
+
+    def list_public(self, *, q="", page=1, size=20):
+        """Published depositions at their latest version, newest first. Drafts never appear here."""
+        title = DepositionVersion.snapshot["title"].as_string()
+        statement = (
+            select(Deposition, DepositionVersion, title, Institution.name, DepositionDOI.doi, DepositionWithdrawal.reason)
+            .join(DepositionVersion, (DepositionVersion.deposition_id == Deposition.id)
+                  & (DepositionVersion.number == Deposition.latest_version))
+            .join(Institution, Institution.code == Deposition.institution)
+            .outerjoin(DepositionDOI, (DepositionDOI.deposition_id == Deposition.id)
+                       & (DepositionDOI.version == DepositionVersion.number))
+            .outerjoin(DepositionWithdrawal, (DepositionWithdrawal.deposition_id == Deposition.id)
+                       & (DepositionWithdrawal.version == DepositionVersion.number))
+        )
+        if q.strip():
+            term = q.strip()
+            statement = statement.where(or_(title.icontains(term, autoescape=True),
+                                            Deposition.accession.icontains(term, autoescape=True),
+                                            Institution.name.icontains(term, autoescape=True),
+                                            DepositionDOI.doi.icontains(term, autoescape=True)))
+        total = self.db.scalar(select(func.count()).select_from(statement.subquery()))
+        rows = self.db.execute(statement.order_by(DepositionVersion.published_at.desc(), Deposition.id)
+                               .offset((page - 1) * size).limit(size)).all()
+        return {"total": total, "page": page, "size": size, "items": [{
+            "title": title_text, "institution": deposition.institution, "institution_name": institution_name,
+            "accession": deposition.accession, "version": version.number,
+            "published_at": version.published_at.isoformat() + "Z",
+            "path": f"/depositions/{deposition.institution}/{deposition.accession}/versions/{version.number}",
+            "dataset_doi": doi, "status": "withdrawn" if withdrawn else "published",
+        } for deposition, version, title_text, institution_name, doi, withdrawn in rows]}
+
+    def submit(self, deposition_id, actor):
+        deposition = self._deposition(deposition_id, actor, for_update=True)
+        if deposition.draft is None:
+            raise HTTPException(409, "Save a draft before submitting it for review.")
+        if deposition.submitted_at is None:
+            deposition.submitted_at = utc_now()
+            self.db.commit()
+        return self._draft_summary(deposition)
+
+    def withdraw_submission(self, deposition_id, actor):
+        deposition = self._deposition(deposition_id, actor, for_update=True)
+        deposition.submitted_at = None
+        self.db.commit()
+        return self._draft_summary(deposition)
+
+    def list_review(self):
+        """Drafts submitted for review, oldest first, for curators."""
+        rows = self.db.execute(
+            select(Deposition, User).join(User, User.user_id == Deposition.owner_id)
+            .where(Deposition.submitted_at.is_not(None), Deposition.draft.is_not(None))
+            .order_by(Deposition.submitted_at, Deposition.id)
+        ).all()
+        return [{
+            "id": deposition.id, "institution": deposition.institution, "accession": deposition.accession,
+            "title": (deposition.draft or {}).get("title") or "Untitled deposition",
+            "owner": f"{owner.name} {owner.surname}".strip(), "owner_email": owner.email,
+            "submitted_at": deposition.submitted_at.isoformat() + "Z",
+            "latest_version": deposition.latest_version or None,
+            "correction_reason": (deposition.draft or {}).get("correction_reason"),
+        } for deposition, owner in rows]
 
     def list_institutions(self):
         return [self._institution(row) for row in self.db.scalars(select(Institution).order_by(Institution.code))]
@@ -98,13 +182,14 @@ class DepositionService:
                 {
                     "profile": {"id": profile.id, "name": profile.source_name, "is_public": profile.is_public},
                     "study": {"id": study.id, "title": study.title, "is_public": study.is_public},
-                    "voucher": {
-                        "id": voucher.specimen_id, "name": voucher.subnomen or (taxon.taxon_name if taxon else None),
-                        "accession": voucher.accession or voucher.reg_no, "is_public": voucher.is_public,
-                        "public_location": voucher.public_location,
-                    },
+                    # Every voucher linked to the profile's sample; all must be released before publication.
+                    "vouchers": [{
+                        "id": voucher.specimen_id, "role": link.role,
+                        "name": voucher.subnomen or taxon_name, "accession": voucher.accession or voucher.reg_no,
+                        "is_public": bool(voucher.is_public), "public_location": voucher.public_location,
+                    } for link, voucher, taxon_name in links],
                 }
-                for profile, _, _, study, voucher, taxon in records.values()
+                for profile, _, _, study, links in records.values()
             ],
             "unavailable": len(profile_ids) - len(records) + len(specimen_ids) - len(vouchers),
         }
@@ -166,6 +251,7 @@ class DepositionService:
         deposition.latest_version = version.number
         deposition.draft = None
         deposition.draft_revision = None
+        deposition.submitted_at = None
         self.db.add(version)
         self.db.flush()
         self.db.add_all(DepositionFile(deposition_id=deposition.id, version=version.number,

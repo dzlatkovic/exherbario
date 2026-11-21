@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Import {{ record.source_name }} · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/import.js"></script>{% endblock %}
+{% block body %}
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher/studies/{{ study.id }}">{{ study.title }}</a></nav>
+<header class="record-header" id="import" data-import="{{ record.id }}" data-study="{{ study.id }}">
+  <p class="overline">Results table import</p>
+  <h1 class="title plain">{{ record.source_name }}</h1>
+  <p class="muted small">Assign the columns, check the preview, review every compound, then confirm. Nothing becomes a run until you confirm.</p>
+</header>
+<p id="import-status" class="notice" role="status" hidden></p>
+<section class="card" id="import-work">
+  <form id="import-assign" class="stack">
+    <div class="form-grid">
+      <label>Sheet <select name="sheet" id="import-sheet"></select></label>
+      <label>Header row <input name="header_row" id="import-header-row" type="number" min="1" value="1" required></label>
+      <label>Saved layout <select id="import-template"><option value="">None</option></select></label>
+    </div>
+    <div class="table-scroll"><table id="import-grid" class="grid"></table></div>
+    <h3>Columns</h3>
+    <div class="table-scroll"><table id="import-columns" class="grid"></table></div>
+    <h3>Settings for all sample columns</h3>
+    <div class="form-grid">
+      {% include "_run_fields.html" %}
+      <label>Measurement basis <select name="measurement_basis">
+        <option value="peak_area_percent">Peak-area percentage</option>
+        <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
+      </select></label>
+      <label>Unit <input name="unit" value="%" required maxlength="40"></label>
+      <label>Analytical method <input name="analytical_method" required maxlength="120"></label>
+      <label>Reference RI column polarity <select name="ri_ref_polarity">
+        <option value="">Not stated</option><option value="non-polar">Non-polar</option>
+        <option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
+      </select></label>
+      <label>RI tolerance <input name="ri_tolerance" type="number" min="1" max="500" value="20"></label>
+      <label>Save this layout as <input name="save_template" maxlength="120" placeholder="optional"></label>
+    </div>
+    <button class="secondary">Preview</button>
+    <p class="feedback" role="status"></p>
+  </form>
+  <div id="import-preview" class="stack" hidden>
+    <div id="import-problems" class="notice warning" hidden></div>
+    <div id="import-notes" class="notice" hidden></div>
+    <div class="table-scroll"><table id="import-samples" class="grid"></table></div>
+    <div id="import-excluded"></div>
+    <h3>PubChem assignments</h3>
+    <p class="muted">Check every compound. Accept the proposed match, pick another candidate, search by name, CAS,
+      CID or InChIKey, switch to the stereo-unspecified parent, or mark the row unidentified.</p>
+    <div class="link-row">
+      <button type="button" id="import-match" class="secondary">Look up remaining names in PubChem</button>
+      <button type="button" id="import-accept-all" class="secondary">Accept all proposed matches</button>
+    </div>
+    <p id="import-match-status" class="feedback" role="status"></p>
+    <div class="table-scroll"><table id="import-review" class="grid"></table></div>
+    <button type="button" id="import-confirm" class="primary">Confirm import</button>
+    <p id="import-confirm-status" class="feedback" role="status"></p>
+  </div>
+</section>
+{% endblock %}

@@ -103,6 +103,13 @@ class ImportService:
             raise ChemistryError(500, "Could not store the uploaded spreadsheet.") from error
         return record, sheets
 
+    def list_for_study(self, study_id: str, actor: User):
+        self.chemistry._study_for_actor(study_id, actor)
+        query = select(SpreadsheetImport).where(SpreadsheetImport.study_id == study_id)
+        if not actor.is_superuser:
+            query = query.where(SpreadsheetImport.owner_id == actor.user_id)
+        return self.db.scalars(query.order_by(SpreadsheetImport.created_at.desc())).all()
+
     def sheet_preview(self, import_id: str, actor: User):
         record = self._import_for_actor(import_id, actor, draft=False)
         return record, {name: rows[:PREVIEW_ROWS] for name, rows in self._table(record).items()}

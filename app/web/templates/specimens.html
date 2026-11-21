@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ values.q ~ ' · ' if values.q }}Specimens · HERBAR{% endblock %}
+{% block header %}
+<header class="page-header">
+  {{ catalog_tabs('specimens') }}
+  <h1 class="title">Specimens</h1>
+</header>
+{% endblock %}
+{% block body %}
+<form class="filters" method="get" action="/specimens" role="search">
+  <div class="search-bar">
+    <label class="visually-hidden" for="q">Plant name, accession or registration number</label>
+    <input id="q" name="q" type="search" value="{{ values.q }}" maxlength="150"
+           placeholder="Plant name or accession">
+    <button class="primary">Search</button>
+  </div>
+  <details class="filter-details"{% if advanced %} open{% endif %}>
+    <summary>Filters</summary>
+    <div class="form-grid">
+      {% if facets.holding_institutions %}
+      <label>Holding institution <select name="holding_institution">
+        <option value="">Any</option>
+        {% for value in facets.holding_institutions %}<option{% if value == values.holding_institution %} selected{% endif %}>{{ value }}</option>{% endfor %}
+      </select></label>
+      {% endif %}
+      {% if facets.collections %}
+      <label>Collection <select name="collection">
+        <option value="">Any</option>
+        {% for value in facets.collections %}<option{% if value == values.collection %} selected{% endif %}>{{ value }}</option>{% endfor %}
+      </select></label>
+      {% endif %}
+      <label>Region <input name="region" value="{{ values.region }}" maxlength="80"></label>
+      <label>Collected from <input name="start_date" type="date" value="{{ values.start_date }}"></label>
+      <label>Collected until <input name="end_date" type="date" value="{{ values.end_date }}"></label>
+    </div>
+    <div class="link-row filter-actions">
+      <button class="secondary">Apply filters</button>
+      {% if filtered %}<a href="{{ clear_url }}">Clear filters</a>{% endif %}
+    </div>
+  </details>
+</form>
+
+{% if problem %}<p class="notice warning" role="alert">{{ problem }}</p>{% endif %}
+
+{% if results.total %}
+  <div class="result-summary">
+    <p class="muted" role="status">{{ "{:,}".format(results.total) }} specimen{{ '' if results.total == 1 else 's' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
+    {% if results.total <= 10000 %}<a class="small" href="{{ export_url }}" download>Download CSV</a>{% endif %}
+  </div>
+  <ol class="result-list">
+    {% for item in results["items"] %}
+    <li>
+      <a class="result" href="/specimens/{{ item.specimen_id }}">
+        <span class="result-name">{{ item.name }}</span>
+        {% if item.subnomen and item.subnomen != item.name %}<span class="muted small">as recorded: {{ item.subnomen }}</span>{% endif %}
+        <span class="result-meta">
+          <span class="mono">{{ item.accession or item.reg_no or 'No accession' }}</span>
+          {% if item.holding_institution %}<span>{{ item.holding_institution }}{% if item.collection %} · {{ item.collection }}{% endif %}</span>{% endif %}
+          {% if item.collection_date %}<span>{{ item.collection_date }}</span>{% endif %}
+          {% if item.region %}<span>{{ item.region }}{% if item.country %}, {{ item.country }}{% endif %}</span>{% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+  {% if pages > 1 %}
+  <nav class="pager" aria-label="Pages">
+    {% if previous_url %}<a class="button secondary" href="/specimens{{ previous_url }}" rel="prev">Previous</a>{% endif %}
+    {% if next_url %}<a class="button secondary" href="/specimens{{ next_url }}" rel="next">Next</a>{% endif %}
+  </nav>
+  {% endif %}
+{% elif filtered %}
+  {{ empty_state("No matches for these filters.", "Check the spelling, or search with fewer filters.", clear_url, "Clear filters") }}
+{% else %}
+  {{ empty_state("No specimens have been released yet.", "Released vouchers will appear here.") }}
+{% endif %}
+{% endblock %}

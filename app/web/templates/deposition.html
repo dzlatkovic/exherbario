@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ record.title if record else 'Deposition unavailable' }} · HERBAR{% endblock %}
+{% block head %}{% if manage %}<script type="module" src="/assets/herbar/js/version.js"></script>{% endif %}{% endblock %}
 {% macro voucher_facts(voucher) %}
   {% set determination = voucher.determination %}
   <div><dt>Holding institution</dt><dd>{{ voucher.holding_institution or 'Unrecorded' }}</dd></div>
@@ -21,7 +22,6 @@
   'cultivated_from': 'Cultivated from the voucher', 'reference_for_commercial_material': 'Reference for commercial material',
 } %}
 {% block body %}
-<main id="main" class="frame">
   {% if problem %}
     <section class="hero">
       <h1>Deposition unavailable</h1>
@@ -140,8 +140,36 @@
             <code class="break">python -m app.deposition.verify_archive &lt;ZIP&gt; --snapshot-sha256 {{ record.snapshot_sha256 }}</code>
           </details>
         {% endif %}
+        {% if manage %}
+        <section id="manage-version" class="manage" data-deposition="{{ manage }}" data-version="{{ record.version }}" aria-labelledby="manage-title">
+          <h2 id="manage-title">Manage this version</h2>
+          <p class="muted small">Curators only. These links are added to the version's record; its frozen snapshot does not change.</p>
+          <form id="link-article" class="stack">
+            <label>Article DOI <input name="doi" required maxlength="200" placeholder="10.3390/plants…" autocomplete="off"></label>
+            <button class="secondary">Link article</button>
+            <p class="feedback" role="status"></p>
+          </form>
+          {% if not record.dataset_doi %}
+          <form id="dataset-doi" class="stack">
+            <label>Dataset DOI <input name="doi" required maxlength="200" placeholder="10.5281/zenodo…" autocomplete="off"></label>
+            <label>Registered with <select name="agency"><option value="zenodo">Zenodo</option><option value="datacite">DataCite</option><option value="crossref">Crossref</option><option value="other">Other</option></select></label>
+            <label>Record page <input name="record_url" type="url" maxlength="500" placeholder="https://…"></label>
+            <p class="muted small">A version has one dataset DOI, and it can't be changed once registered.</p>
+            <button class="secondary">Register dataset DOI</button>
+            <p class="feedback" role="status"></p>
+          </form>
+          {% endif %}
+          {% if not record.withdrawal %}
+          <form id="withdraw-version" class="stack">
+            <label>Reason for withdrawal <textarea name="reason" required maxlength="1000" rows="3"></textarea></label>
+            <p class="muted small">The version stays at its address with this notice in place of its data. This can't be undone.</p>
+            <button class="danger">Withdraw version {{ record.version }}</button>
+            <p class="feedback" role="status"></p>
+          </form>
+          {% endif %}
+        </section>
+        {% endif %}
       </aside>
     </div>
   {% endif %}
-</main>
 {% endblock %}

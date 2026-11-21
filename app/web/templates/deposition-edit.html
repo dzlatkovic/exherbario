@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Deposition' if deposition_id else 'New deposition' }} · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/deposition.js"></script>{% endblock %}
+{% block body %}
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher">My work</a></nav>
+<header class="record-header" id="deposition" data-deposition="{{ deposition_id }}" data-curator="{{ 'true' if curator else 'false' }}">
+  <p class="overline">Deposition</p>
+  <h1 class="title plain" id="deposition-title">{{ 'Deposition' if deposition_id else 'New deposition' }}</h1>
+  <p id="draft-selection" class="record-id" aria-live="polite"></p>
+</header>
+
+<div class="record-grid">
+  <div class="record-main">
+    <section class="card" aria-labelledby="draft-title">
+      <h2 id="draft-title">Draft</h2>
+      <form id="save-draft" class="stack">
+        <div class="form-grid">
+          <label>Institution <select name="institution" required><option value="">Loading…</option></select></label>
+          <label>License <input name="license" maxlength="200" placeholder="e.g. CC BY 4.0"></label>
+        </div>
+        <label>Title <input name="title" maxlength="200"></label>
+        <label>Description <textarea name="description" rows="3" maxlength="10000"></textarea></label>
+        <fieldset id="credits">
+          <legend>Contributors</legend>
+          <div id="credit-rows"></div>
+          <button type="button" id="add-credit" class="secondary">Add contributor</button>
+        </fieldset>
+        <fieldset class="stack">
+          <legend>Analytical runs</legend>
+          <ul id="profile-list" class="picker-results"></ul>
+          <div class="form-grid">
+            <label>Study <select id="choose-study"><option value="">Select a study</option></select></label>
+            <label>Run <select id="choose-profile"><option value="">Select a run</option></select></label>
+          </div>
+          <button type="button" id="attach-profile" class="secondary">Add run</button>
+        </fieldset>
+        <fieldset class="stack">
+          <legend>Vouchers without analytical runs</legend>
+          <ul id="voucher-list" class="picker-results"></ul>
+          <div id="draft-voucher-picker" class="picker">
+            <div class="inline-form">
+              <label>Add a voucher <input class="picker-query" type="search" maxlength="100" autocomplete="off" placeholder="Name, accession or ID"></label>
+              <button type="button" class="secondary picker-search">Search</button>
+            </div>
+            <p class="feedback" role="status"></p>
+            <ul class="picker-results"></ul>
+          </div>
+        </fieldset>
+        <details>
+          <summary class="small">More options</summary>
+          <div class="stack">
+            <label>Rights statement <textarea name="rights_statement" rows="2" maxlength="2000"></textarea></label>
+            <label class="check"><input name="include_collector_names" type="checkbox"> Include recorded collector names</label>
+            <label class="check"><input name="include_determiner_names" type="checkbox"> Include recorded determiner names</label>
+            <label>Run IDs <textarea name="profile_ids" rows="2" spellcheck="false"></textarea></label>
+            <label>Voucher IDs <textarea name="specimen_ids" rows="2" spellcheck="false"></textarea></label>
+          </div>
+        </details>
+        <label id="correction-field" hidden>Reason for this correction <textarea name="correction_reason" rows="2" maxlength="1000"></textarea></label>
+        <button class="primary">Save draft</button>
+        <p class="feedback" role="status"></p>
+      </form>
+    </section>
+  </div>
+
+  <aside class="record-side">
+    <section class="card" aria-labelledby="review-title">
+      <h2 id="review-title">Review and publish</h2>
+      <p id="inputs-status" class="feedback" role="status"></p>
+      <div id="release-inputs"></div>
+      <form id="validate" class="stack">
+        <button class="secondary" disabled>Validate and preview</button>
+        <p class="feedback" role="status"></p>
+      </form>
+      <section id="preview" class="preview" hidden aria-labelledby="preview-title">
+        <h3 id="preview-title">Public snapshot</h3>
+        <div id="preview-summary"></div>
+        <details><summary class="small">Inspect the complete snapshot</summary><pre id="preview-json"></pre></details>
+        <form id="publish" class="stack" {% if not curator %}hidden{% endif %}>
+          <label class="check"><input name="approved" type="checkbox" required> I reviewed this snapshot for public release.</label>
+          <button class="primary">Publish version</button>
+          <p class="feedback" role="status"></p>
+        </form>
+      </section>
+      {% if not curator %}
+      <section id="submission" class="submission" aria-labelledby="submission-title" hidden>
+        <h3 id="submission-title">Curator review</h3>
+        <p id="submission-text" class="muted small"></p>
+        <button type="button" id="submit-review" class="primary">Submit for review</button>
+        <button type="button" id="take-back" class="secondary" hidden>Take back</button>
+        <p class="feedback" role="status"></p>
+      </section>
+      {% endif %}
+      <p id="publication-result" class="notice" role="status" hidden></p>
+    </section>
+  </aside>
+</div>
+<dialog id="confirm-release" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+  <form method="dialog" class="stack">
+    <h2 id="confirm-title">Release record</h2>
+    <p id="confirm-body">This makes the selected record available through the public archive.</p>
+    <div class="link-row">
+      <button value="cancel" class="secondary" autofocus>Cancel</button>
+      <button value="release" class="primary">Release record</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

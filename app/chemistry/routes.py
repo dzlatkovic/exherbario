@@ -110,6 +110,12 @@ def create_import(study_id: str, file: UploadFile = File(...), actor: User = Dep
     return controller.create(study_id, file, actor)
 
 
+@chemistry_router.get("/studies/{study_id}/imports")
+def list_study_imports(study_id: str, actor: User = Depends(authenticated),
+                       controller: ImportController = Depends(get_import_controller)):
+    return controller.list_for_study(study_id, actor)
+
+
 @chemistry_router.get("/imports/{import_id}")
 def get_import(import_id: str, actor: User = Depends(authenticated),
                controller: ImportController = Depends(get_import_controller)):

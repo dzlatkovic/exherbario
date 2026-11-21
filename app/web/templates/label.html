@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Label · {{ record.name }} · HERBAR{% endblock %}
+{% block body %}
+{% set specimen = record.specimen %}
+{% set location = record.location %}
+<div class="screen-only link-row label-actions">
+  <a href="/researcher/specimens/{{ specimen.specimen_id }}">‹ Staff record</a>
+  <span class="muted small">Print with your browser (Ctrl+P). Only the label is printed.</span>
+</div>
+<article class="herbarium-label">
+  <header>
+    <p class="label-institution">{{ specimen.holding_institution or 'Herbarium' }}{% if specimen.collection %} · {{ specimen.collection }}{% endif %}</p>
+    <p class="label-accession">{{ specimen.accession or specimen.reg_no or '' }}</p>
+  </header>
+  <p class="label-name"><em>{{ record.taxon.taxon_name if record.taxon else (specimen.subnomen or 'Undetermined') }}</em>
+    {% if record.taxon and record.taxon.authority %}{{ record.taxon.authority }}{% endif %}</p>
+  {% if record.taxon and specimen.subnomen and specimen.subnomen != record.taxon.taxon_name %}<p>As recorded: {{ specimen.subnomen }}</p>{% endif %}
+  {% if location %}
+    <p>{{ location.country }}{% if location.region %}, {{ location.region }}{% endif %}: {{ location.locality }}</p>
+    <p>{% if location.altitude is not none %}{{ location.altitude }} m{% endif %}{% if location.gps_lat is not none and location.gps_long is not none %} · {{ location.gps_lat }}, {{ location.gps_long }}{% endif %}</p>
+    {% if location.habitat %}<p>{{ location.habitat }}</p>{% endif %}
+  {% endif %}
+  <footer>
+    <div>
+      {% if specimen.collection_date or specimen.verbatim_collection_date %}<p>Collected {{ specimen.collection_date or specimen.verbatim_collection_date }}</p>{% endif %}
+      {% if record.collector or specimen.collector_number %}<p>Leg. {{ record.collector or '' }} {{ specimen.collector_number or '' }}</p>{% endif %}
+      {% if specimen.determiner_name %}<p>Det. {{ specimen.determiner_name }}{% if specimen.determination_date %}, {{ specimen.determination_date }}{% endif %}</p>{% endif %}
+    </div>
+    <figure class="label-qr" aria-label="QR code linking to the public record">{{ qr_svg }}<figcaption>{{ public_url }}</figcaption></figure>
+  </footer>
+</article>
+{% endblock %}

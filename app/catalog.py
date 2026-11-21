@@ -61,7 +61,7 @@ def find_specimens(db: Session, *, q="", reg_no="", taxon="", region="", accessi
         query = query.where(Specimen.collection_date <= end_date)
 
     total = db.scalar(select(func.count()).select_from(query.subquery()))
-    query = query.order_by(Specimen.reg_no, Specimen.specimen_id).offset((page - 1) * size).limit(size)
+    query = query.order_by(Specimen.reg_no, Specimen.accession, Specimen.specimen_id).offset((page - 1) * size).limit(size)
     entries = []
     for specimen, taxon_name, common_name, location in db.execute(query):
         visible_location = public_location(specimen, location) or {}
@@ -128,5 +128,25 @@ def specimen_publications(db: Session, specimen_id: str):
         .join(SpecimenPublication, SpecimenPublication.publication_id == Publication.pub_id)
         .join(Specimen, Specimen.specimen_id == SpecimenPublication.specimen_id)
         .where(SpecimenPublication.specimen_id == specimen_id, Specimen.is_public.is_(True))
+        .order_by(Publication.year.desc(), Publication.pub_id)
+    ).all()
+
+
+def public_facets(db: Session):
+    """Holding institutions and collections of released specimens, for search filters."""
+    def distinct(column):
+        return [value for value in db.scalars(
+            select(column).where(Specimen.is_public.is_(True), column.is_not(None)).distinct().order_by(column))]
+    return {"holding_institutions": distinct(Specimen.holding_institution),
+            "collections": distinct(Specimen.collection),
+            "total": db.scalar(select(func.count()).where(Specimen.is_public.is_(True)))}
+
+
+def specimen_publications_any(db: Session, specimen_id: str):
+    """Literature linked to a voucher, whether or not it is released (for signed-in staff)."""
+    return db.scalars(
+        select(Publication)
+        .join(SpecimenPublication, SpecimenPublication.publication_id == Publication.pub_id)
+        .where(SpecimenPublication.specimen_id == specimen_id)
         .order_by(Publication.year.desc(), Publication.pub_id)
     ).all()

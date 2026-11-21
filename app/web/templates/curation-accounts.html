@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Accounts · Curation · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/accounts.js"></script>{% endblock %}
+{% block header %}{% include "_curation_header.html" %}{% endblock %}
+{% block body %}
+<div class="record-grid">
+  <section class="card" aria-labelledby="accounts-title">
+    <h2 id="accounts-title">Accounts</h2>
+    <p class="muted small">Researchers manage their own studies and depositions. Curators also release records, publish depositions and manage this area. Deactivate an account to stop it signing in while keeping everything it recorded.</p>
+    <ul class="entry-list" id="accounts">
+      {% for user in users %}
+      <li data-user="{{ user.user_id }}" data-name="{{ user.name }} {{ user.surname }}">
+        <div>
+          <strong>{{ user.name }} {{ user.surname }}</strong>
+          <span class="muted small">{{ user.email }} · {{ 'Curator' if user.is_superuser else 'Researcher' }}</span>
+        </div>
+        <div class="link-row">
+          <span class="status-chip{{ ' released' if user.is_active }}">{{ 'Active' if user.is_active else 'Deactivated' }}</span>
+          {% if user.user_id == viewer.id %}
+            <span class="muted small">You</span>
+          {% else %}
+            <button type="button" class="text-button" data-active="{{ 'false' if user.is_active else 'true' }}">{{ 'Deactivate' if user.is_active else 'Reactivate' }}</button>
+            <button type="button" class="text-button" data-delete>Delete</button>
+          {% endif %}
+        </div>
+        <p class="feedback" role="status"></p>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="card" aria-labelledby="new-account-title">
+    <h2 id="new-account-title">New account</h2>
+    <form id="new-account" class="stack">
+      <div class="form-grid">
+        <label>Given name <input name="name" required maxlength="100" autocomplete="off"></label>
+        <label>Family name <input name="surname" required maxlength="100" autocomplete="off"></label>
+        <label class="full">Email <input name="email" type="email" required maxlength="200" autocomplete="off"></label>
+        <label>Temporary password <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label>Role <select name="role"><option value="researcher">Researcher</option><option value="curator">Curator</option></select></label>
+      </div>
+      <p class="muted small">Give the person the temporary password through a separate channel.</p>
+      <button class="primary">Create account</button>
+      <p class="feedback" role="status"></p>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -7,6 +7,7 @@ and handles any exceptions that may occur during these operations.
 """
 
 from fastapi import HTTPException, Response
+from sqlalchemy.exc import IntegrityError
 
 from app.field_loc.schemas import FieldLocSchemaUpdate
 from app.field_loc.services import FieldLocService
@@ -95,6 +96,9 @@ class FieldLocController:
                                     f"{field_loc_id} deleted.", status_code=200)
         except (FieldLocNotFoundException, FieldLocExceptionCode) as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
+        except IntegrityError as error:
+            raise HTTPException(409, "Specimens, samples or correction records still refer to this field location, "
+                                     "so it can't be deleted.") from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 

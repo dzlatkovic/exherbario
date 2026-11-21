@@ -363,4 +363,4 @@ class SpecimenRepository:
                 Specimen.accession.icontains(keyword, autoescape=True),
                 Specimen.reg_no.icontains(keyword, autoescape=True),
             ))
-        return paginate(self.db, query.order_by(Specimen.reg_no, Specimen.specimen_id), params=params)
+        return paginate(self.db, query.order_by(Specimen.reg_no, Specimen.accession, Specimen.specimen_id), params=params)

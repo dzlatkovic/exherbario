@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ kind_label }} · Curation · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/directories.js"></script>{% endblock %}
+{% block header %}{% include "_curation_header.html" %}{% endblock %}
+{% block body %}
+<nav class="chip-row" aria-label="Directories">
+  {% for key, label in directories %}
+  <a class="chip" href="/curation/directories/{{ key }}"{% if key == kind %} aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+<section id="directory" class="card" data-kind="{{ kind }}" aria-labelledby="directory-title">
+  <div class="section-head">
+    <h2 id="directory-title">{{ kind_label }}</h2>
+    <button type="button" id="add-entry" class="secondary">Add</button>
+  </div>
+  <p id="directory-note" class="muted small"></p>
+  <form id="directory-search" class="search-bar" role="search" hidden>
+    <label class="visually-hidden" for="directory-query">Filter</label>
+    <input id="directory-query" type="search" maxlength="100" autocomplete="off">
+    <button class="secondary">Search</button>
+  </form>
+  <form id="entry-form" class="stack entry-form" hidden>
+    <h3 id="entry-title">Add</h3>
+    <div id="entry-fields" class="form-grid"></div>
+    <div class="link-row">
+      <button class="primary">Save</button>
+      <button type="button" id="entry-cancel" class="secondary">Cancel</button>
+    </div>
+    <p class="feedback" role="status"></p>
+  </form>
+  <p id="directory-status" class="feedback" role="status"></p>
+  <ul id="directory-list" class="entry-list"></ul>
+</section>
+{% endblock %}

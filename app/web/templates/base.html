@@ -2,22 +2,73 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121614">
   <title>{% block title %}HERBAR{% endblock %}</title>
+  <link rel="preload" href="/assets/herbar/fonts/fira-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="/assets/herbar/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/herbar/fonts/fonts.css">
   <link rel="stylesheet" href="/assets/herbar/herbar.css">
   {% block head %}{% endblock %}
 </head>
+{%- macro empty_state(title, message="", action_url="", action_label="") -%}
+  <div class="empty-state" role="status">
+    <p class="empty-title">{{ title }}</p>
+    {% if message %}<p class="muted">{{ message }}</p>{% endif %}
+    {% if action_url %}<a class="button secondary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+  </div>
+{%- endmacro -%}
+{%- macro catalog_tabs(current) -%}
+  {#- Signed-in navigation shows one Catalog entry, so its two lists are tabs inside it. -#}
+  {%- if viewer -%}
+  <nav class="tabs" aria-label="Catalog">
+    <a href="/specimens"{% if current == 'specimens' %} aria-current="page"{% endif %}>Specimens</a>
+    <a href="/depositions"{% if current == 'depositions' %} aria-current="page"{% endif %}>Depositions</a>
+  </nav>
+  {%- endif -%}
+{%- endmacro -%}
+{%- set path = path | default('') -%}
+{#- Each entry: address, label, and the other address prefixes that mark it current. -#}
+{%- if viewer -%}
+  {%- set navigation = [("/specimens", "Catalog", ["/depositions"]), ("/researcher", "My work", [])] -%}
+  {%- if viewer.curator -%}{%- set navigation = navigation + [("/curation", "Curation", [])] -%}{%- endif -%}
+{%- else -%}
+  {%- set navigation = [("/specimens", "Specimens", []), ("/depositions", "Depositions", [])] -%}
+{%- endif -%}
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="masthead">
     <div class="frame masthead-inner">
-      <a class="wordmark" href="/researcher">HERBAR</a>
-      <nav aria-label="Site">
-        <a href="/researcher">Research workspace</a>
-        <a href="/docs">API</a>
+      <a class="wordmark" href="/">HERBAR</a>
+      <nav class="site-nav" aria-label="Site">
+        {% for url, label, also in navigation %}
+          {%- set current = namespace(on=path == url or path.startswith(url ~ '/')) -%}
+          {%- for prefix in also %}{% if path == prefix or path.startswith(prefix ~ '/') %}{% set current.on = true %}{% endif %}{% endfor -%}
+          <a href="{{ url }}"{% if current.on %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
       </nav>
+      {% if viewer %}
+        <details class="account-menu">
+          <summary aria-label="Account"><span class="avatar" aria-hidden="true">{{ viewer.name[:1] | upper }}</span><span class="account-name">{{ viewer.name }}</span></summary>
+          <div class="menu-panel">
+            <p class="menu-heading">{{ viewer.name }}</p>
+            <p class="muted small">{{ viewer.email }} · {{ 'Curator' if viewer.curator else 'Researcher' }}</p>
+            <a href="/docs">API documentation</a>
+            <form method="post" action="/sign-out">
+              <input type="hidden" name="csrf_token" value="{{ csrf }}">
+              <button class="text-button">Sign out</button>
+            </form>
+          </div>
+        </details>
+      {% elif path != '/sign-in' %}
+        <a class="button secondary compact" href="/sign-in?next={{ path | urlencode }}">Sign in</a>
+      {% endif %}
     </div>
   </header>
-  {% block body %}{% endblock %}
+  <main id="main" class="frame page">
+    {% block header %}{% endblock %}
+    {% block body %}{% endblock %}
+  </main>
 </body>
 </html>

@@ -211,13 +211,18 @@ class TestSampleVouchers(TestClass):
         sample_id = client.post(study_url + "/samples", headers=owner, json=sample_payload(
             [(first, "sampled_from_voucher"), (second, "same_population")], site_specimen_id=first)).json()["id"]
         profile_id = self.add_profile(owner, curator, sample_id)
-        for specimen_id in (first, second):
-            release_voucher(curator, specimen_id)
+        release_voucher(curator, first)
         created = client.post("/api/depositions", headers=owner, json={
             "institution": "EXU", "title": "Two vouchers", "license": "CC BY 4.0",
             "contributors": [{"name": "F. Scientist", "role": "analyst"}], "profile_ids": [profile_id]})
         assert created.status_code == 201, created.text
         path = f"/api/depositions/{created.json()['id']}"
+        inputs = client.get(f"{path}/draft/inputs", headers=owner)
+        assert inputs.status_code == 200, inputs.text
+        assert [(item["id"], item["role"], item["is_public"]) for item in inputs.json()["inputs"][0]["vouchers"]] == [
+            (first, "sampled_from_voucher", True), (second, "same_population", False)]
+        assert client.get(f"{path}/draft/preview", headers=curator).status_code == 409
+        release_voucher(curator, second)
         preview = client.get(f"{path}/draft/preview", headers=curator)
         assert preview.status_code == 200, preview.text
         snapshot = preview.json()["snapshot"]

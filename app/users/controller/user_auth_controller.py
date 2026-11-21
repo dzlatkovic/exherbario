@@ -1,4 +1,7 @@
-"""Bearer authentication backed by the current user record."""
+"""Bearer authentication backed by the current user record.
+
+Browsers may authenticate with the session cookie instead; unsafe requests then need the CSRF header.
+"""
 
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPBearer
@@ -6,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.users.models import User
 from app.users.services import UserServices, decodeJWT
+from app.users.session import SAFE_METHODS, SESSION_COOKIE, csrf_valid
 
 
 class JWTBearer(HTTPBearer):
@@ -18,8 +22,14 @@ class JWTBearer(HTTPBearer):
         return HTTPException(status_code=403, detail="Not authenticated")
 
     async def __call__(self, request: Request) -> User:
-        credentials = await super().__call__(request)
-        payload = decodeJWT(credentials.credentials) if credentials else None
+        if request.headers.get("Authorization") or not request.cookies.get(SESSION_COOKIE):
+            credentials = await super().__call__(request)
+            token = credentials.credentials if credentials else None
+        else:
+            token = request.cookies[SESSION_COOKIE]
+            if request.method not in SAFE_METHODS and not csrf_valid(request):
+                raise HTTPException(status_code=403, detail="Missing or invalid CSRF token. Reload the page.")
+        payload = decodeJWT(token) if token else None
         if not payload or not isinstance(payload.get("user_id"), str):
             raise HTTPException(status_code=403, detail="Invalid or expired token.")
 

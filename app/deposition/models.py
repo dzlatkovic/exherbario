@@ -28,6 +28,8 @@ class Deposition(Base):
     draft = Column(JSON(none_as_null=True))
     draft_revision = Column(String(50))
     latest_version = Column(Integer, nullable=False, default=0)
+    # Set when the owner asks a curator to review the draft; cleared on publication or when the owner takes it back.
+    submitted_at = Column(DateTime)
 
 
 class DepositionVersion(Base):

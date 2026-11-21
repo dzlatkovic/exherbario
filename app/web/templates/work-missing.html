@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ what }} not found · HERBAR{% endblock %}
+{% block body %}
+<section class="card narrow">
+  <h1 class="title">{{ what }} not found</h1>
+  <p class="muted">It does not exist, or your account cannot open it.</p>
+  <a class="button secondary" href="/researcher">Back to my work</a>
+</section>
+{% endblock %}

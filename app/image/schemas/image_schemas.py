@@ -20,6 +20,7 @@ class ImageSchema(BaseModel):
     height: int
     upload_date: date
     sha256: str | None = None
+    is_public: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

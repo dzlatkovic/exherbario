@@ -4,6 +4,7 @@ which provides API endpoints for managing publications.
 """
 
 from fastapi import HTTPException, Response
+from sqlalchemy.exc import IntegrityError
 
 from app.publication.schemas import PublicationSchemaUpdate
 from app.publication.services import PublicationService
@@ -69,6 +70,9 @@ class PublicationController:
                                     f"{pub_id} deleted.", status_code=200)
         except PublicationNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
+        except IntegrityError as error:
+            raise HTTPException(409, "Specimens or authors are still linked to this publication. "
+                                     "Remove those links first.") from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 

@@ -87,6 +87,9 @@ class UserController:
         try:
             UserServices.delete_user_by_id(user_id)
             return Response(content=f"User with the id: {user_id} is deleted from the database.")
+        except IntegrityError as error:
+            raise HTTPException(409, "This account owns or recorded data, so it can't be deleted. "
+                                     "Deactivate it instead.") from error
         except Exception as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 

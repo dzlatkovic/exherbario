@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}HERBAR · Herbarium and specimen-linked research data{% endblock %}
+{% block body %}
+<section class="home-search" aria-labelledby="home-title">
+  <p class="overline">Herbarium catalog</p>
+  <h1 id="home-title" class="title">Find a voucher specimen</h1>
+  <p class="muted">Search released herbarium vouchers and the analytical data linked to them.</p>
+  <form class="search-bar" method="get" action="/specimens" role="search">
+    <label class="visually-hidden" for="home-q">Plant name, accession or registration number</label>
+    <input id="home-q" name="q" type="search" maxlength="150" autocomplete="off"
+           placeholder="Plant name or accession">
+    <button class="primary">Search</button>
+  </form>
+  {% if released %}
+    <p class="muted small">{{ "{:,}".format(released) }} released specimen{{ '' if released == 1 else 's' }} · <a href="/specimens">Browse all</a> · <a href="/depositions">Published depositions</a></p>
+  {% else %}
+    <p class="muted small">No specimens have been released yet. · <a href="/depositions">Published depositions</a></p>
+  {% endif %}
+</section>
+{% endblock %}

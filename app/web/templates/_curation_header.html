@@ -1,0 +1,8 @@
+<header class="page-header">
+  <h1 class="title">Curation</h1>
+  <nav class="tabs" aria-label="Curation">
+    {% for key, label in tabs %}
+    <a href="/curation{{ '' if key == 'review' else '/' ~ key }}"{% if key == tab %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+</header>

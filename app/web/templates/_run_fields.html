@@ -1,0 +1,28 @@
+<label>Technique <select name="technique" class="technique" required>
+  <option value="GC-MS">GC-MS</option><option value="GC-FID">GC-FID</option>
+  <option value="LC-MS">LC-MS</option><option value="LC-MS/MS">LC-MS/MS</option>
+  <option value="HPLC-DAD">HPLC-DAD</option>
+</select></label>
+<fieldset class="form-grid run-fields full">
+  <legend>Run</legend>
+  <label>Column <input name="run.column" maxlength="200"></label>
+  <label data-for="gc">Column polarity <select name="run.polarity_class">
+    <option value="non-polar">Non-polar</option><option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
+  </select></label>
+  <label data-for="gc">Stationary phase <input name="run.stationary_phase" maxlength="200"></label>
+  <label data-for="gc">Temperature programme <input name="run.temperature_programme" maxlength="1000"></label>
+  <label data-for="gc">Carrier gas <input name="run.carrier_gas" maxlength="100"></label>
+  <label data-for="gc">Alkane reference series <input name="run.alkane_series" maxlength="200"></label>
+  <label data-for="gc">RI type <select name="run.ri_type">
+    <option value="">Not stated</option>
+    <option value="linear_temperature_programmed">Linear, temperature-programmed (van den Dool &amp; Kratz)</option>
+    <option value="isothermal_kovats">Isothermal (Kováts)</option>
+  </select></label>
+  <label data-for="lc">Mobile phase <input name="run.mobile_phase" maxlength="500"></label>
+  <label data-for="lc">Gradient <input name="run.gradient" maxlength="1000"></label>
+  <label data-for="lc">Ionisation mode <select name="run.ionisation_mode">
+    <option value="">Not stated</option><option>ESI+</option><option>ESI-</option><option>APCI+</option>
+    <option>APCI-</option><option>APPI+</option><option>APPI-</option>
+  </select></label>
+  <label data-for="lc">Mass analyser <input name="run.mass_analyser" maxlength="100"></label>
+</fieldset>

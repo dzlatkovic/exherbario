@@ -6,6 +6,7 @@ necessary actions on the storage data.
 
 
 from fastapi import HTTPException, Response
+from sqlalchemy.exc import IntegrityError
 from starlette.responses import JSONResponse
 
 from app.storage.schemas import StorageSchemaUpdate
@@ -68,6 +69,8 @@ class StorageController:
                             status_code=200)
         except StorageNotFoundException as error:
             raise HTTPException(status_code=error.code, detail=error.message) from error
+        except IntegrityError as error:
+            raise HTTPException(409, "Specimens are still stored in this box. Move them to another box first.") from error
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
 

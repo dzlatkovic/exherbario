@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}My work · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/mywork.js"></script>{% endblock %}
+{% block header %}
+<header class="page-header with-actions">
+  <h1 class="title">My work</h1>
+  <div class="link-row">
+    <a class="button primary" href="/researcher/depositions/new">New deposition</a>
+  </div>
+</header>
+{% endblock %}
+{% block body %}
+<div class="record-grid">
+  <div class="record-main">
+    <section class="card" aria-labelledby="studies-title">
+      <div class="section-head"><h2 id="studies-title">Studies</h2></div>
+      {% if studies %}
+      <ul class="result-list">
+        {% for study in studies %}
+        <li><a class="result" href="/researcher/studies/{{ study.id }}">
+          <span class="result-name">{{ study.title }}</span>
+          <span class="result-meta">
+            <span>{{ sample_counts.get(study.id, 0) }} sample{{ '' if sample_counts.get(study.id, 0) == 1 else 's' }}</span>
+            <span>{{ profile_counts.get(study.id, 0) }} profile{{ '' if profile_counts.get(study.id, 0) == 1 else 's' }}</span>
+            {% if study.is_public %}<span class="status-chip released">Released</span>{% endif %}
+          </span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty_state("No studies yet.", "A study groups the samples, preparations and analytical runs of one piece of work.") }}
+      {% endif %}
+      <details class="form-details">
+        <summary>New study</summary>
+        <form id="create-study" class="stack">
+          <label>Title <input name="title" required maxlength="200"></label>
+          <label>Description <textarea name="description" rows="2" maxlength="4000"></textarea></label>
+          <button class="secondary">Create study</button>
+          <p class="feedback" role="status"></p>
+        </form>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="depositions-title">
+      <h2 id="depositions-title">Depositions</h2>
+      {% if depositions %}
+      <ul class="result-list">
+        {% for item in depositions %}
+        <li><a class="result" href="/researcher/depositions/{{ item.id }}">
+          <span class="result-name">{{ item.title }}</span>
+          <span class="result-meta">
+            <span class="mono">{{ item.institution }} {{ item.accession[:8] }}…</span>
+            {% if item.latest_version %}<span>Version {{ item.latest_version }} published {{ item.published_at.date() }}</span>{% endif %}
+            {% if item.has_draft %}<span class="status-chip">{{ 'Draft correction' if item.latest_version else 'Draft' }}{{ ' · in review' if item.in_review }}</span>{% endif %}
+          </span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty_state("No depositions yet.", "A deposition publishes vouchers and analytical profiles as a citable, versioned dataset.", "/researcher/depositions/new", "New deposition") }}
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="record-side">
+    {% if imports %}
+    <section class="card" aria-labelledby="imports-title">
+      <h2 id="imports-title">Unfinished imports</h2>
+      <ul class="plain-list">
+        {% for record, title in imports %}
+          <li><a href="/researcher/studies/{{ record.study_id }}/imports/{{ record.id }}">{{ record.source_name }}</a>
+            <span class="muted small">{{ title }} · {{ record.created_at.date() }}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    <section class="card" aria-labelledby="vouchers-title">
+      <h2 id="vouchers-title">Vouchers</h2>
+      <div id="voucher-picker" class="picker">
+        <div class="inline-form">
+          <label>Find a voucher <input class="picker-query" type="search" maxlength="100" autocomplete="off"
+            placeholder="Name, accession or ID"></label>
+          <button type="button" class="secondary picker-search">Search</button>
+        </div>
+        <p class="feedback" role="status"></p>
+        <ul class="picker-results"></ul>
+      </div>
+      {% if curator %}<p class="small"><a href="/curation/vouchers#register-section">Register a voucher</a></p>{% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

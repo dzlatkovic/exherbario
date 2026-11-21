@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Vouchers · Curation · HERBAR{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/curation-vouchers.js"></script>{% endblock %}
+{% block header %}{% include "_curation_header.html" %}{% endblock %}
+{% block body %}
+<div class="record-grid">
+  <section class="card" aria-labelledby="find-title">
+    <h2 id="find-title">Find a voucher</h2>
+    <p class="muted small">Searches every voucher, private ones included. Open one to release it, redetermine it or manage its photos.</p>
+    <div id="voucher-picker" class="picker">
+      <div class="inline-form">
+        <label>Name, accession or ID <input class="picker-query" type="search" maxlength="100" autocomplete="off"></label>
+        <button type="button" class="secondary picker-search">Search</button>
+      </div>
+      <p class="feedback" role="status"></p>
+      <ul class="picker-results"></ul>
+    </div>
+  </section>
+  <section class="card" id="register-section" aria-labelledby="register-title">
+    <h2 id="register-title">Register a voucher</h2>
+    <form id="register" class="stack">
+      <div class="form-grid">
+        <label>Holding <select name="holding_type"><option value="local">Held locally</option><option value="external">Held externally</option></select></label>
+        <label>Holding institution <input name="holding_institution" maxlength="120"></label>
+        <label>Collection <input name="collection" maxlength="120"></label>
+        <label>Accession <input name="accession" maxlength="100"></label>
+        <label>Name as recorded <input name="subnomen" maxlength="200"></label>
+        <label>Determiner <input name="determiner_name" maxlength="200"></label>
+        <label>Determination date <input name="determination_date" type="date"></label>
+        <label>Collector <input name="collector_name" maxlength="200"></label>
+      </div>
+      <label>Verbatim label <textarea name="verbatim_label" maxlength="10000" rows="3"></textarea></label>
+      <button class="primary">Register voucher</button>
+      <p class="feedback" role="status"></p>
+    </form>
+  </section>
+</div>
+{% endblock %}

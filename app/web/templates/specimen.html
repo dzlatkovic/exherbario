@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ record.name ~ ' · ' if record }}Specimen · HERBAR{% endblock %}
+{% block body %}
+{% if not record %}
+  <section class="card narrow">
+    <h1 class="title">Specimen unavailable</h1>
+    <p class="muted">This record does not exist or has not been released.</p>
+    <a class="button secondary" href="/specimens">Search specimens</a>
+  </section>
+{% else %}
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/specimens">Specimens</a>
+  {% if viewer %}<span class="muted"> · </span><a class="no-arrow" href="/researcher/specimens/{{ specimen.specimen_id }}">Staff record</a>{% endif %}</nav>
+<header class="record-header">
+  {% if specimen.type_status %}<p class="overline">{{ specimen.type_status }}</p>{% endif %}
+  <h1 class="title">{{ record.name }}</h1>
+  {% if taxon and taxon.common_name %}<p class="muted">{{ taxon.common_name }}</p>{% endif %}
+  <p class="record-id"><span class="mono">{{ specimen.accession or specimen.reg_no or 'No accession' }}</span>
+    {% if specimen.holding_institution %}· {{ specimen.holding_institution }}{% endif %}
+    {% if specimen.collection %}· {{ specimen.collection }}{% endif %}</p>
+</header>
+
+<div class="record-grid{% if not (revisions or publications) %} single{% endif %}">
+  <div class="record-main">
+    {% if photos %}
+    <section class="card" aria-labelledby="photos-title">
+      <h2 id="photos-title">Photographs</h2>
+      <div class="gallery">
+        {% for photo in photos %}
+          <a href="/api/image/{{ photo.image_id }}/content"><img src="/api/image/{{ photo.image_id }}/content"
+             alt="Photograph of {{ record.name }}{% if photo.image_type %} ({{ photo.image_type }}){% endif %}" loading="lazy"></a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card" aria-labelledby="facts-title">
+      <h2 id="facts-title">Voucher</h2>
+      <dl class="facts">
+        {% if specimen.subnomen %}<div><dt>Name as recorded</dt><dd>{{ specimen.subnomen }}</dd></div>{% endif %}
+        {% if taxon %}<div><dt>Taxonomy</dt><dd>{{ taxon.taxon_name }}{% if taxon.authority %} {{ taxon.authority }}{% endif %}
+          {% if taxon.gbif_key %}· <a href="https://www.gbif.org/species/{{ taxon.gbif_key }}" rel="external">GBIF</a>{% endif %}</dd></div>{% endif %}
+        {% if specimen.determination_date %}<div><dt>Determined</dt><dd>{{ specimen.determination_date }}</dd></div>{% endif %}
+        {% if specimen.collection_date %}<div><dt>Collected</dt><dd>{{ specimen.collection_date }}</dd></div>{% endif %}
+        {% if specimen.collector_number %}<div><dt>Collector number</dt><dd>{{ specimen.collector_number }}</dd></div>{% endif %}
+        {% if location %}<div><dt>Region</dt><dd>{{ location.region or '' }}{% if location.region and location.country %}, {% endif %}{{ location.country or '' }}</dd></div>{% endif %}
+        {% if specimen.reg_no and specimen.accession %}<div><dt>Registration number</dt><dd class="mono">{{ specimen.reg_no }}</dd></div>{% endif %}
+        <div><dt>Record link</dt><dd class="mono break">/specimens/{{ specimen.specimen_id }}</dd></div>
+      </dl>
+    </section>
+
+    {% if profiles %}
+    <section class="card" aria-labelledby="chemistry-title">
+      <h2 id="chemistry-title">Analytical profiles</h2>
+      <ul class="plain-list">
+        {% for profile, preparation, sample in profiles %}
+          {% set study = studies[sample.study_id] %}
+          <li>
+            <a href="/profiles/{{ profile.id }}">Sample {{ sample.code }} · run {{ profile.run_code }}</a>
+            <span class="muted small"><a href="/studies/{{ study.id }}">{{ study.title }}</a> · {{ sample.plant_part }}{% if profile.technique %} · {{ profile.technique }}{% endif %}
+              · {{ preparation.kind | replace('_', ' ') }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="small">Download: {% for study_id in studies %}<a href="/api/chemistry/public/export?study_id={{ study_id }}&amp;format=long" download>{{ studies[study_id].title }} (CSV)</a>{{ ', ' if not loop.last }}{% endfor %}</p>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="record-side">
+    {% if revisions %}
+    <section class="card" aria-labelledby="history-title">
+      <h2 id="history-title">Determination history</h2>
+      <ol class="timeline">
+        {% for revision in revisions %}
+          <li><span>{{ revision.previous_subnomen or revision.previous_name or 'Undetermined' }}</span>
+            <span class="muted small">replaced {{ revision.timestamp.date() if revision.timestamp else '' }}</span></li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% endif %}
+    {% if publications %}
+    <section class="card" aria-labelledby="literature-title">
+      <h2 id="literature-title">Literature</h2>
+      <ul class="plain-list">
+        {% for publication in publications %}
+          <li><span>{{ publication.title }}</span>
+            <span class="muted small">{{ publication.journal }}{% if publication.year %}, {{ publication.year }}{% endif %}
+            {% if publication.doi %}· <a href="https://doi.org/{{ publication.doi }}" rel="external">DOI</a>{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ values.q ~ ' · ' if values.q }}Depositions · HERBAR{% endblock %}
+{% block header %}
+<header class="page-header">
+  {{ catalog_tabs('depositions') }}
+  <h1 class="title">Depositions</h1>
+  <p class="muted">Citable, versioned datasets of vouchers and their analytical data. Each entry opens its latest version; earlier versions are linked from there.</p>
+</header>
+{% endblock %}
+{% block body %}
+<form class="filters" method="get" action="/depositions" role="search">
+  <div class="search-bar">
+    <label class="visually-hidden" for="q">Title, institution, accession or DOI</label>
+    <input id="q" name="q" type="search" value="{{ values.q }}" maxlength="200" placeholder="Title, accession or DOI">
+    <button class="primary">Search</button>
+  </div>
+</form>
+
+{% if results.total %}
+  <div class="result-summary">
+    <p class="muted" role="status">{{ "{:,}".format(results.total) }} deposition{{ '' if results.total == 1 else 's' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
+  </div>
+  <ol class="result-list">
+    {% for item in results["items"] %}
+    <li>
+      <a class="result" href="{{ item.path }}">
+        <span class="result-name">{{ item.title }}</span>
+        <span class="result-meta">
+          <span>{{ item.institution_name }}</span>
+          <span class="mono">{{ item.institution }} {{ item.accession[:8] }}…</span>
+          <span>Version {{ item.version }} · <time datetime="{{ item.published_at }}">{{ item.published_at[:10] }}</time></span>
+          {% if item.dataset_doi %}<span class="mono">doi:{{ item.dataset_doi }}</span>{% endif %}
+          {% if item.status == 'withdrawn' %}<span class="status-chip">Withdrawn</span>{% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+  {% if pages > 1 %}
+  <nav class="pager" aria-label="Pages">
+    {% if previous_url %}<a class="button secondary" href="/depositions{{ previous_url }}" rel="prev">Previous</a>{% endif %}
+    {% if next_url %}<a class="button secondary" href="/depositions{{ next_url }}" rel="next">Next</a>{% endif %}
+  </nav>
+  {% endif %}
+{% elif values.q %}
+  {{ empty_state("No depositions match this search.", "Check the spelling, or search for part of the title.", "/depositions", "Show all") }}
+{% else %}
+  {{ empty_state("Nothing has been published yet.", "Published depositions will appear here.") }}
+{% endif %}
+{% endblock %}
