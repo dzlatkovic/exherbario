@@ -22,6 +22,8 @@ from app.chemistry.exceptions import ChemistryError
 from app.chemistry.routes import chemistry_router
 from app.config import settings
 from app.deposition.routes import institution_router, router as deposition_router
+from app.external.lookups import LookupUnavailable
+from app.external.routes import external_router, lookup_unavailable_response
 
 from app.field_loc.routes import field_loc_router
 from app.publication.routes import publication_router, publication_authors_router
@@ -56,6 +58,7 @@ def init_app():
     fastapi_app = FastAPI(title="Ex Herbario", lifespan=lifespan,
                           description="Voucher-linked herbarium records and citable scientific depositions.")
     fastapi_app.add_exception_handler(ChemistryError, chemistry_error_response)
+    fastapi_app.add_exception_handler(LookupUnavailable, lookup_unavailable_response)
 
     @fastapi_app.middleware("http")
     async def prevent_record_caching(request: Request, call_next):
@@ -78,6 +81,7 @@ def init_app():
     fastapi_app.include_router(weather_router)
     fastapi_app.include_router(chemistry_router)
     fastapi_app.include_router(deposition_router)
+    fastapi_app.include_router(external_router)
     fastapi_app.include_router(institution_router)
     fastapi_app.include_router(visibility_router)
     fastapi_app.include_router(catalog_router)

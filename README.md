@@ -8,7 +8,7 @@
 
 Ex Herbario (formerly HERBAR) is an open-source, self-hosted platform for university herbaria and research groups. It keeps voucher specimens together with their taxonomy, collection sites, photos, publications and identification history, links them to lab samples and chemical profiles, and publishes citable, verifiable depositions for journal articles.
 
-- **Vouchers:** registration from labels, GBIF taxon lookup, redetermination history, logged corrections and per-record public release.
+- **Vouchers:** registration from labels, GBIF name matching, redetermination history, logged corrections and per-record public release.
 - **Chemistry:** GC-MS and LC-MS profiles imported from your own results table, with compounds identified through PubChem and analysis-ready CSV export.
 - **Depositions:** frozen, versioned snapshots with SHA-256 digests, a downloadable ZIP, an offline verifier and optional Zenodo or DataCite DOIs.
 - **Deployment:** one SQLite database plus two file folders, with checked backups and restores.
@@ -43,6 +43,7 @@ Visitors browse released vouchers and published depositions. After signing in, *
 - [Phytochemistry](docs/chemistry.md): samples, preparations, profile import, PubChem compounds and CSV export.
 - [Scientific depositions](docs/depositions.md): publishing, verifying archives, DOIs, corrections and withdrawal.
 - [Database, backups and migrations](docs/operations.md): storage, backup and restore, and upgrade notes.
+- [External lookups](docs/external-lookups.md): optional GBIF, Crossref, ROR and Index Herbariorum lookups, caching and offline use.
 
 ## Tests
 

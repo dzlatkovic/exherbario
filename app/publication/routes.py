@@ -3,7 +3,7 @@
 This module contains the API routers related to the Publication entity.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.publication.controller import PublicationController, PublicationAuthorsController
 from app.publication.schemas import (
@@ -13,13 +13,21 @@ from app.publication.schemas import (
     PublicationAuthorsSchemaIn, PublicationSchemaUpdate
 )
 from app.users.controller import JWTBearer
+from app.users.models import User
 
 publication_router = APIRouter(prefix="/api/publication", tags=["Publication"])
 
 
-@publication_router.post("/create-new-publication", response_model=PublicationSchema,
-                         dependencies=[Depends(JWTBearer("super_user"))])
-def create_new_publication(publication: PublicationSchemaIn):
+@publication_router.get("/doi-lookup", dependencies=[Depends(JWTBearer("super_user"))])
+def lookup_doi(doi: str = Query(..., min_length=7, max_length=300)):
+    """Propose bibliography fields for a DOI from Crossref, with `warnings` to check and the `source` to cite.
+    `existing_pub_id` is set when the DOI is already in the bibliography. Nothing is saved: send the reviewed
+    fields, with `source`, to `POST /create-new-publication`."""
+    return PublicationController.lookup_doi(doi)
+
+
+@publication_router.post("/create-new-publication", response_model=PublicationSchema)
+def create_new_publication(publication: PublicationSchemaIn, actor: User = Depends(JWTBearer("super_user"))):
     """Create a new publication record.
     :param publication: The publication information to create
     :type publication: PublicationSchemaIn
@@ -30,7 +38,8 @@ def create_new_publication(publication: PublicationSchemaIn):
                                                         year=publication.year,
                                                         journal=publication.journal,
                                                         title=publication.title,
-                                                        abstract=publication.abstract)
+                                                        abstract=publication.abstract,
+                                                        source=publication.source, actor_id=actor.user_id)
 
 
 @publication_router.get("/get-all", dependencies=[Depends(JWTBearer())], response_model=list[PublicationSchema])

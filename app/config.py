@@ -18,6 +18,11 @@ class Settings(BaseSettings):
         deposition versions record absolute identifiers under it, so it must be set before publishing.
     :param ZENODO_URL: Zenodo instance used to mirror published versions and obtain dataset DOIs.
     :param ZENODO_TOKEN: Personal access token with deposit:write and deposit:actions scopes.
+    :param EXTERNAL_LOOKUPS: Comma-separated providers curators may query: gbif, crossref, ror,
+        index_herbariorum. Leave empty for a fully offline instance.
+    :param EXTERNAL_TIMEOUT_SECONDS: Read timeout for a provider request (the connect timeout is 5 s).
+    :param EXTERNAL_CONTACT_EMAIL: Contact address sent in the User-Agent, as Crossref and ROR ask.
+    :param ROR_CLIENT_ID: Optional ROR client ID for a higher rate limit.
     """
     DATABASE_URL: str = "sqlite:///./herbar.db"
     USER_SECRET: str
@@ -29,6 +34,10 @@ class Settings(BaseSettings):
     PUBLIC_BASE_URL: str = ""
     ZENODO_URL: str = "https://zenodo.org"
     ZENODO_TOKEN: str = ""
+    EXTERNAL_LOOKUPS: str = "gbif,crossref,ror,index_herbariorum"
+    EXTERNAL_TIMEOUT_SECONDS: float = 15
+    EXTERNAL_CONTACT_EMAIL: str = ""
+    ROR_CLIENT_ID: str = ""
 
     # Read environment variables, then ./.env. Unrelated keys in .env are ignored, as before.
     model_config = SettingsConfigDict(env_file="./.env", extra="ignore")

@@ -27,6 +27,8 @@ Migration `0008` widens location, voucher and taxon text fields and adds collect
 
 Migration `0009` adds the institution registry and dataset DOIs. It registers each institution code already used by a deposition, named as its latest version or draft names it. Review those entries and add Index Herbariorum and ROR identifiers. Versions published before this migration keep their original relative paths and snapshot digests. Publish a correction to give a deposition absolute identifiers. Downgrade is blocked once a dataset DOI is recorded.
 
+Migration `0015` adds `external_lookup_cache`, which can be emptied at any time, and `external_import`, which records values curators accepted from GBIF, Crossref, ROR and Index Herbariorum. Existing records are unchanged. Downgrade is blocked once `external_import` holds entries.
+
 ### Preview migration 0004
 
 With writers stopped and a verified snapshot available, run the preview against revision `0003`. If rehearsing from an earlier revision, first upgrade a restored copy to `0003`.

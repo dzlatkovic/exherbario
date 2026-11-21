@@ -363,3 +363,9 @@ table.grid .number { text-align: right; white-space: nowrap; }
   border: 1px solid #8cc7a366; border-radius: var(--radius-small); background: var(--accent-tint); }
 .picker-results li.list-heading { display: block; padding: .5rem 0 0; background: none; border: 0; color: var(--muted);
   font-size: .8125rem; font-weight: 500; }
+
+/* Lookups that fill a form from an external registry */
+.lookup { padding-bottom: .75rem; border-bottom: 1px solid var(--line); }
+.lookup .inline-form { margin-top: 0; }
+.lookup-results p { margin: .35rem 0 0; }
+.picker-results li > span .warning-text { display: block; }

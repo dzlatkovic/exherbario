@@ -4,9 +4,16 @@ Publication model.
 """
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, UUID4, field_validator
+from pydantic import BaseModel, ConfigDict, UUID4, constr, field_validator
+
+
+class ExternalSource(BaseModel):
+    """Where a curator took the values from: sent with a save after a lookup, stored as provenance."""
+    provider: Literal["crossref"]
+    external_id: constr(strip_whitespace=True, min_length=1, max_length=300)
+    retrieved_at: Optional[str] = None
 
 
 class PublicationSchema(BaseModel):
@@ -32,6 +39,7 @@ class PublicationSchemaIn(BaseModel):
     journal: str
     title: str
     abstract: str
+    source: Optional[ExternalSource] = None
 
     @field_validator('year')
     @classmethod

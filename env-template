@@ -16,3 +16,10 @@ PUBLIC_BASE_URL=http://127.0.0.1:8000
 # Optional: mirror published versions to Zenodo for dataset DOIs (use https://sandbox.zenodo.org to rehearse).
 ZENODO_URL=https://zenodo.org
 ZENODO_TOKEN=
+
+# Optional lookups that let curators fill forms from external registries. Nothing is written until a curator saves.
+# Remove a provider (or leave the list empty) to keep the instance offline.
+EXTERNAL_LOOKUPS=gbif,crossref,ror,index_herbariorum
+EXTERNAL_TIMEOUT_SECONDS=15
+EXTERNAL_CONTACT_EMAIL=
+ROR_CLIENT_ID=

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 
 from fastapi import APIRouter, Depends, Query
 
@@ -6,6 +6,7 @@ from app.specimen.schemas import SpecimenSchema
 from app.taxonomy.controller import TaxonomyController
 from app.taxonomy.schemas import TaxonomySchemaIn, TaxonomySchema, TaxonRank
 from app.users.controller import JWTBearer
+from app.users.models import User
 
 taxonomy_router = APIRouter(prefix="/api/taxonomy", tags=["Taxonomy"])
 
@@ -61,11 +62,24 @@ def search_gbif(q: str = Query(..., min_length=2, max_length=100)):
     return TaxonomyController.search_gbif(q.strip())
 
 
-@taxonomy_router.post("/import-from-gbif", dependencies=[Depends(JWTBearer("super_user"))])
-def import_from_gbif(gbif_key: str = Query(..., pattern=r"^[0-9]{1,12}$")):
+@taxonomy_router.get("/gbif-match", dependencies=[Depends(JWTBearer("super_user"))])
+def match_gbif(name: str = Query(..., min_length=2, max_length=200),
+               kingdom: Literal["Plantae", "Fungi", "Chromista", "Protozoa"] | None = None):
+    """Match a name as written on a label to the GBIF Backbone Taxonomy, for a curator to review.
+    Returns the best match with GBIF's match type and confidence, the accepted name for a synonym,
+    alternatives, plain-language `review` notes and the `source` to cite. Nothing is saved; import the
+    chosen key with `POST /import-from-gbif`."""
+    return TaxonomyController.match_gbif(name, kingdom)
+
+
+@taxonomy_router.post("/import-from-gbif")
+def import_from_gbif(gbif_key: str = Query(..., pattern=r"^[0-9]{1,12}$"),
+                     matched_name: str | None = Query(None, max_length=200),
+                     actor: User = Depends(JWTBearer("super_user"))):
     """Add a GBIF taxon and its missing parents, and return the local taxon to link a determination to.
-    A synonym is linked to its accepted name; `note` then says so."""
-    return TaxonomyController.import_from_gbif(gbif_key)
+    A synonym is linked to its accepted name; `note` then says so. Added taxa are logged with their GBIF
+    source and, if given, the name as written that the curator matched (`matched_name`)."""
+    return TaxonomyController.import_from_gbif(gbif_key, actor.user_id, matched_name)
 
 
 @taxonomy_router.post("/build-taxonomic-tree", response_model=List[TaxonomySchema],

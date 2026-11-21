@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, conlist, constr, field_validator
 
@@ -109,11 +109,19 @@ class WithdrawVersion(DepositionInput):
     reason: Reason
 
 
+class RegistrySource(DepositionInput):
+    """A registry record the curator filled the form from; stored as provenance, never in snapshots."""
+    provider: Literal["ror", "index_herbariorum"]
+    external_id: constr(strip_whitespace=True, min_length=1, max_length=100)
+    retrieved_at: constr(max_length=40) | None = None
+
+
 class RegisterInstitution(DepositionInput):
     code: InstitutionCode
     name: ShortText
     index_herbariorum_code: constr(strip_whitespace=True, pattern=r"^[A-Za-z]{1,20}$") | None = None
     ror_id: constr(strip_whitespace=True, pattern=r"^(https://ror\.org/)?0[a-hj-km-np-tv-z0-9]{6}[0-9]{2}$") | None = None
+    sources: conlist(RegistrySource, max_length=2) = []
 
     @field_validator("code")
     @classmethod

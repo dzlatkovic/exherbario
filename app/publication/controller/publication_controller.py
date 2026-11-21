@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.publication.schemas import PublicationSchemaUpdate
 from app.publication.services import PublicationService
+from app.publication.crossref import DOINotFound
 from app.publication.exceptions import PublicationExceptionDoi, PublicationNotFoundException
 
 
@@ -16,7 +17,17 @@ class PublicationController:
     Controller class for Publication-related API endpoints.
     """
     @staticmethod
-    def create_new_publication(doi: str, year: str, journal: str, title: str, abstract: str):
+    def lookup_doi(doi: str):
+        try:
+            return PublicationService.lookup_doi(doi)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except DOINotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @staticmethod
+    def create_new_publication(doi: str, year: str, journal: str, title: str, abstract: str,
+                               source=None, actor_id: str | None = None):
         """
         Creates a new publication with the provided information
         :param doi: Digital Object Identifier of the publication
@@ -27,7 +38,7 @@ class PublicationController:
         :return: JSON representation of the created publication
         """
         try:
-            return PublicationService.create_new_publication(doi, year, journal, title, abstract)
+            return PublicationService.create_new_publication(doi, year, journal, title, abstract, source, actor_id)
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except PublicationExceptionDoi as error:

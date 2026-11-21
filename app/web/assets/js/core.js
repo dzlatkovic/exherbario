@@ -33,7 +33,9 @@ export async function request(path, {method = "GET", json, multipart} = {}) {
     const message = Array.isArray(detail)
       ? detail.map((error) => `${error.loc.slice(1).join(" ")} ${error.msg}`).join(". ")
       : detail;
-    throw new Error(message || `Request failed (HTTP ${response.status}).`);
+    const error = new Error(message || `Request failed (HTTP ${response.status}).`);
+    error.status = response.status;
+    throw error;
   }
   return result;
 }
@@ -225,7 +227,9 @@ export function confirmAction(title, body, action = "Confirm") {
 
 /**
  * A taxon lookup inside `root` (.taxon-query, .taxon-search, .feedback, .taxon-results, .taxon-choice).
- * Lists taxa already in this herbarium first, then GBIF names; choosing a GBIF name imports it with its parents.
+ * Lists taxa already in this herbarium first, then, for a name of two or more words, GBIF's best match for the name
+ * as written (with match type, confidence and anything to check), then GBIF names. Choosing a GBIF name imports it
+ * with its parents; nothing is added until the curator chooses.
  * Calls onPick({taxon_id, name, rank, authority}) with the local taxon, or onPick(null) when the choice is cleared.
  */
 export function taxonPicker(root, onPick) {
@@ -248,10 +252,11 @@ export function taxonPicker(root, onPick) {
     onPick(taxon);
   }
 
-  function row(title, detail, label, action) {
+  function row(title, detail, label, action, notes = []) {
     const item = node("li");
     const text = node("span");
     text.append(node("strong", title), node("span", detail, "muted small"));
+    for (const note of notes) text.append(node("span", note, "small warning-text"));
     const use = node("button", label, "secondary");
     use.type = "button";
     use.addEventListener("click", async () => {
@@ -274,23 +279,58 @@ export function taxonPicker(root, onPick) {
       list.append(row(taxon.name, `${taxon.rank} · GBIF ${taxon.gbif_key}`, "Use",
         async () => choose({taxon_id: taxon.taxon_id, name: taxon.name, rank: taxon.rank})));
     }
+    const gbifRow = (item, detail, notes = [], matchedName = null) =>
+      row(item.name, detail, item.taxon_id ? "Use" : "Add and use", async () => {
+        const params = matchedName ? `&matched_name=${endpoint(matchedName)}` : "";
+        const taxon = await request(`/api/taxonomy/import-from-gbif?gbif_key=${endpoint(item.gbif_key)}${params}`, {method: "POST"});
+        choose(taxon, taxon.note || (item.taxon_id ? "" : `Added ${taxon.name} and its parent taxa from GBIF.`));
+      }, notes);
+    let source = null;
+    let matched = 0;
+    if (term.split(/\s+/).length > 1) {
+      try {
+        const result = await request(`/api/taxonomy/gbif-match?name=${endpoint(term)}`);
+        source = result.source;
+        const proposals = result.match ? [result.match] : result.alternatives;
+        const usable = proposals.filter((item) => item.importable);
+        if (usable.length || result.review.length) list.append(node("li", "GBIF match for the name as written", "list-heading"));
+        for (const item of usable) {
+          const confidence = (result.match ? result.confidence : item.confidence);
+          const how = [result.match ? `${result.match_type} match` : "alternative", confidence != null ? `${confidence}% confidence` : null];
+          known.add(item.gbif_key);
+          list.append(gbifRow(item, [...how, item.rank, item.family].filter(Boolean).join(" · "), result.match ? result.review : [], term));
+          matched += 1;
+        }
+        if (!usable.length && result.review.length) list.append(node("li", result.review.join(" "), "small warning-text"));
+      } catch (error) {
+        if (error.status !== 503) list.append(node("li", error.message, "small warning-text"));
+      }
+    }
     let remote = [];
     try {
-      remote = (await request(`/api/taxonomy/gbif-search?q=${endpoint(term)}`)).filter((item) => !known.has(item.gbif_key));
+      remote = await request(`/api/taxonomy/gbif-search?q=${endpoint(term)}`);
     } catch (error) {
       status(feedback, error.message, true);
       return;
     }
-    if (remote.length) list.append(node("li", "From GBIF", "list-heading"));
+    remote = remote.filter((item) => !known.has(item.gbif_key));
+    if (remote.length) list.append(node("li", "Other GBIF names", "list-heading"));
     for (const item of remote) {
       const detail = [item.rank, item.status !== "accepted" && item.status, item.family || item.phylum, item.kingdom]
         .filter(Boolean).join(" · ");
-      list.append(row(item.name, detail, item.taxon_id ? "Use" : "Add and use", async () => {
-        const taxon = await request(`/api/taxonomy/import-from-gbif?gbif_key=${endpoint(item.gbif_key)}`, {method: "POST"});
-        choose(taxon, taxon.note || (item.taxon_id ? "" : `Added ${taxon.name} and its parent taxa from GBIF.`));
-      }));
+      list.append(gbifRow(item, detail));
     }
-    status(feedback, local.length || remote.length ? "" : "No match here or in GBIF. Check the spelling.", !(local.length || remote.length));
+    if (matched || remote.length) {
+      const credit = node("li", "", "list-heading small");
+      const link = node("a", (source && source.name) || "GBIF Backbone Taxonomy");
+      link.href = (source && source.url) || "https://www.gbif.org/";
+      link.rel = "noopener";
+      link.target = "_blank";
+      credit.append("Names from ", link, ` (${(source && source.license) || "CC BY 4.0"}).`);
+      list.append(credit);
+    }
+    const found = local.length || matched || remote.length;
+    status(feedback, found ? "" : "No match here or in GBIF. Check the spelling.", !found);
   }
 
   root.querySelector(".taxon-search").addEventListener("click", () => search().catch((error) => status(feedback, error.message, true)));

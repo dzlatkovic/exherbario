@@ -25,6 +25,15 @@ def list_institutions(service=Depends(get_service)):
     return service.list_institutions()
 
 
+@institution_router.get("/lookup")
+def lookup_institutions(q: str = Query(..., min_length=2, max_length=200), _actor: User = Depends(curator),
+                        service=Depends(get_service)):
+    """Search ROR and Index Herbariorum to fill the registration form. Each result says if it is already
+    registered here (`registered_code`); `errors` names a registry that could not be reached. Nothing is saved:
+    register with the chosen values and their `sources`."""
+    return service.lookup_institutions(q)
+
+
 @institution_router.post("", status_code=201)
 def register_institution(data: RegisterInstitution, actor: User = Depends(curator), service=Depends(get_service)):
     return service.register_institution(data, actor)

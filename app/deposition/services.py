@@ -8,8 +8,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, undefer
 
 from app.db import lock_for_update, new_id
+from app.external.lookups import parse_retrieved_at, record_import
 
 from .archive import build_archive, snapshot_digest
+from . import registries
 from .datacite import datacite_metadata
 from app.users.models import User
 
@@ -134,7 +136,18 @@ class DepositionService:
             "ror": f"https://ror.org/{row.ror_id}" if row.ror_id else None,
         }
 
+    def lookup_institutions(self, query):
+        return registries.lookup(self.db, query)
+
     def register_institution(self, data, actor):
+        for source in data.sources:
+            if source.provider == "ror":
+                matches = data.ror_id is not None and registries.ror_id(source.external_id) == data.ror_id.lower()
+            else:
+                matches = source.external_id.upper() == data.index_herbariorum_code
+            if not matches:
+                raise HTTPException(422, f"The {source.provider.replace('_', ' ')} source does not match the "
+                                         "identifier being registered.")
         existing = self.db.get(Institution, data.code)
         if existing is not None:
             unchanged = (existing.name, existing.index_herbariorum_code, existing.ror_id) == (
@@ -145,8 +158,14 @@ class DepositionService:
         for column, value in (("index_herbariorum_code", data.index_herbariorum_code), ("ror_id", data.ror_id)):
             if value and self.db.scalar(select(Institution.code).where(getattr(Institution, column) == value)):
                 raise HTTPException(409, f"Another institution code already uses {value}.")
-        institution = Institution(**data.model_dump(), registered_by=actor.user_id, registered_at=utc_now())
+        institution = Institution(**data.model_dump(exclude={"sources"}), registered_by=actor.user_id,
+                                  registered_at=utc_now())
         self.db.add(institution)
+        for source in data.sources:
+            identifier = data.ror_id if source.provider == "ror" else data.index_herbariorum_code
+            record_import(self.db, provider=source.provider, external_id=identifier, record_type="institution",
+                          record_id=data.code, fields={"name": data.name, "identifier": identifier},
+                          confirmed_by=actor.user_id, retrieved_at=parse_retrieved_at(source.retrieved_at))
         self.db.commit()
         return self._institution(institution)
 

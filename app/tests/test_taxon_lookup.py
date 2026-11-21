@@ -73,7 +73,9 @@ class TestTaxonLookup(TestClass):
         def offline(**_):
             raise RequestException("no route")
         monkeypatch.setattr(f"{SERVICE}.name_suggest", offline)
-        down = client.get("/api/taxonomy/gbif-search", params={"q": "Porella"}, headers=curator)
+        remembered = client.get("/api/taxonomy/gbif-search", params={"q": "porella "}, headers=curator)
+        assert remembered.status_code == 200 and remembered.json()[0]["gbif_key"] == "2688728"  # cached answer
+        down = client.get("/api/taxonomy/gbif-search", params={"q": "Marchantia"}, headers=curator)
         assert down.status_code == 502 and "still listed" in down.json()["detail"]
 
     def test_forms_carry_the_lookup(self):

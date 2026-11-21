@@ -14,6 +14,34 @@ const DIRECTORIES = {
     detail: (item) => join(item.index_herbariorum_code && `Index Herbariorum ${item.index_herbariorum_code}`, item.ror),
     fields: [text("code", "Code", {required: true, maxLength: 40, placeholder: "e.g. BEOU"}), text("name", "Name", {required: true, maxLength: 200}),
              text("index_herbariorum_code", "Index Herbariorum code", {maxLength: 20}), text("ror_id", "ROR ID", {placeholder: "e.g. 02qsmb048"})],
+    lookup: {
+      label: "Find in ROR and Index Herbariorum", placeholder: "Institution name, herbarium code or ROR ID", button: "Search",
+      run: async (query) => {
+        const found = await request(`/api/institutions/lookup?q=${endpoint(query)}`);
+        const where = (...parts) => join(...parts);
+        const taken = (item) => (item.registered_code ? [`Already registered here as ${item.registered_code}.`] : []);
+        const choices = [
+          ...found.ror.map((item) => ({
+            title: item.name, detail: where("ROR", item.ror_id, item.acronyms.join(", "), item.city, item.country, item.status !== "active" ? item.status : null),
+            values: {name: item.name, ror_id: item.ror_id}, notes: taken(item),
+            source: {...found.sources.ror, external_id: item.ror_id, url: item.ror},
+          })),
+          ...found.index_herbariorum.map((item) => ({
+            title: `${item.code} · ${item.organization}`, detail: where("Index Herbariorum", item.division, item.city, item.country, item.status),
+            // The herbarium code is suggested as this registry's code only when none has been typed yet.
+            values: {index_herbariorum_code: item.code}, ifEmpty: {code: item.code, name: item.organization}, notes: taken(item),
+            source: {...found.sources.index_herbariorum, external_id: item.code, url: item.url},
+          })),
+        ];
+        const notes = [...Object.values(found.errors), ...(choices.length ? [] : ["Neither registry has a match. Check the spelling, or enter the details by hand."])];
+        return {choices, notes, credits: Object.values(found.sources)};
+      },
+      attach: (body, sources) => {
+        const used = sources.filter((item) => (item.provider === "ror" && item.external_id === body.ror_id)
+          || (item.provider === "index_herbariorum" && item.external_id === (body.index_herbariorum_code || "").toUpperCase()));
+        if (used.length) body.sources = used.map((item) => ({provider: item.provider, external_id: item.external_id, retrieved_at: item.retrieved_at}));
+      },
+    },
     create: (data) => request("/api/institutions", {method: "POST", json: data}),
   },
   storage: {
@@ -59,6 +87,21 @@ const DIRECTORIES = {
     fields: [text("title", "Title", {required: true, maxLength: 500}), text("journal", "Journal", {required: true, maxLength: 300}),
              text("year", "Year", {required: true, pattern: "[0-9]{4}", placeholder: "YYYY"}), text("doi", "DOI", {required: true, maxLength: 200}),
              {name: "abstract", label: "Abstract", type: "textarea", required: true}],
+    lookup: {
+      label: "Look up a DOI", placeholder: "e.g. 10.3390/plants13010001", button: "Fill from Crossref",
+      run: async (doi) => {
+        const found = await request(`/api/publication/doi-lookup?doi=${endpoint(doi)}`);
+        const notes = [...(found.existing_pub_id ? ["This DOI is already in the bibliography."] : []), ...found.warnings];
+        return {values: found.fields, notes, source: {...found.source, external_id: found.fields.doi}};
+      },
+      // Saved with the entry only while the DOI field still holds the DOI that was looked up.
+      attach: (body, sources) => {
+        const source = sources.find((item) => item.provider === "crossref");
+        if (source && (body.doi || "").toLowerCase().endsWith(source.external_id)) {
+          body.source = {provider: "crossref", external_id: source.external_id, retrieved_at: source.retrieved_at};
+        }
+      },
+    },
     create: (data) => request("/api/publication/create-new-publication", {method: "POST", json: data}),
     update: (id, data) => request(`/api/publication/update-publication?pub_id=${endpoint(id)}`, {method: "PUT", json: data}),
     remove: (id) => request(`/api/publication/delete-publication?pub_id=${endpoint(id)}`, {method: "DELETE"}),
@@ -86,6 +129,7 @@ const list = find("directory-list");
 const listStatus = find("directory-status");
 let items = [];
 let editing = null;
+let sources = [];  // attribution of values filled from a lookup, sent with the new entry
 
 find("directory-note").textContent = config.note;
 const searchForm = find("directory-search");
@@ -96,9 +140,81 @@ function valueOf(item, name) {
   return config.value ? config.value(item, name) : item[name];
 }
 
+function credit(source) {
+  const line = node("p", "", "muted small");
+  const link = node("a", source.name);
+  link.href = source.url;
+  link.rel = "noopener";
+  link.target = "_blank";
+  const when = source.retrieved_at ? `, retrieved ${source.retrieved_at.slice(0, 10)}${source.stale ? " (an older copy: the registry is unreachable)" : ""}` : "";
+  line.append("From ", link, `${when}. ${source.license}. Check every value before saving.`);
+  return line;
+}
+
+/** Fill the form from a lookup: one proposal ({values, notes, source}) or a list to choose from ({choices}). */
+function lookupBar() {
+  const wrap = node("div", "", "lookup full");
+  const row = node("div", "", "inline-form");
+  const label = node("label", config.lookup.label);
+  const input = node("input");
+  input.type = "search";
+  input.placeholder = config.lookup.placeholder;
+  input.maxLength = 300;
+  label.append(input);
+  const run = node("button", config.lookup.button, "secondary");
+  run.type = "button";
+  row.append(label, run);
+  const results = node("div", "", "lookup-results");
+  const fill = (proposal) => {
+    const set = (values, onlyEmpty) => {
+      for (const [name, value] of Object.entries(values || {})) {
+        const field = form.elements.namedItem(name);
+        if (field && value !== null && value !== undefined && value !== "" && !(onlyEmpty && field.value.trim())) field.value = value;
+      }
+    };
+    set(proposal.values, false);
+    set(proposal.ifEmpty, true);
+    sources = [...sources.filter((item) => item.provider !== proposal.source.provider), proposal.source];
+  };
+  const show = (found) => {
+    if (found.choices) {
+      const list = node("ul", "", "picker-results");
+      for (const choice of found.choices) {
+        const item = node("li");
+        const text = node("span");
+        text.append(node("strong", choice.title), node("span", choice.detail, "muted small"));
+        const use = node("button", "Use", "secondary");
+        use.type = "button";
+        use.addEventListener("click", () => { fill(choice); results.replaceChildren(...(choice.notes || []).map((note) => node("p", note, "small warning-text")), credit(choice.source)); });
+        item.append(text, use);
+        list.append(item);
+      }
+      results.replaceChildren(...found.notes.map((note) => node("p", note, "small warning-text")), list,
+        ...found.credits.map((source) => credit({...source, retrieved_at: null})));
+    } else {
+      fill(found);
+      results.replaceChildren(...found.notes.map((note) => node("p", note, "small warning-text")), credit(found.source));
+    }
+  };
+  const go = async () => {
+    if (input.value.trim().length < 2) return;
+    run.disabled = true;
+    results.replaceChildren(node("p", "Looking up…", "muted small"));
+    try { show(await config.lookup.run(input.value.trim())); }
+    catch (error) { results.replaceChildren(node("p", error.message, "small warning-text")); }
+    finally { run.disabled = false; }
+  };
+  run.addEventListener("click", go);
+  input.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); go(); } });
+  wrap.append(row, results);
+  return wrap;
+}
+
 function buildFields(item) {
   const box = find("entry-fields");
   box.replaceChildren();
+  sources = [];
+  if (config.lookup && !item) box.append(lookupBar());
   for (const field of config.fields) {
     if ((field.createOnly && item) || (field.editOnly && !item)) continue;
     const label = node("label", field.label);
@@ -209,6 +325,7 @@ bindForm(form, async (data) => {
     await config.update(editing[config.key], body);
     message = "Changes saved.";
   } else {
+    if (config.lookup) config.lookup.attach(body, sources);
     const result = await config.create(body);
     message = typeof result === "string" ? result : "Added.";
   }
