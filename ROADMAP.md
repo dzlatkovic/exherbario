@@ -1,4 +1,4 @@
-# HERBAR release baseline
+# Ex Herbario release baseline
 
 Reviewed checkout `ec02bf8` on 2026-11-20. The supplied roadmap describes the intended product and an audit checklist. The findings below reflect the checked-out code.
 
@@ -69,7 +69,7 @@ These 48 paths accept requests without a bearer token in the current FastAPI app
 | `GET /api/publication/get-publication-by-id` | Full publication record, including abstract | Staff; approved citations via catalog |
 | `GET /api/publication_authors/get-publication-report` | DOI, author names and associated determinations | Staff |
 | `GET /api/taxonomy/get-taxon-by-gbif` | Taxon record by GBIF key | Public taxonomy vocabulary |
-| `GET /api/taxonomy/get-taxon-by-id` | Taxon record by HERBAR ID | Public taxonomy vocabulary |
+| `GET /api/taxonomy/get-taxon-by-id` | Taxon record by Ex Herbario ID | Public taxonomy vocabulary |
 | `GET /api/taxonomy/get-specimens-for-taxon` | Legacy specimen rows for a taxon | Staff; reviewed matches via catalog |
 | `GET /api/users/id` | User ID, name, email, activation and administrator flags | Staff |
 | `GET /api/users/get-all-users` | User directory with the same fields | Staff |

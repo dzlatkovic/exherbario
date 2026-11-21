@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Run {{ profile.run_code }} · {{ study.title }} · HERBAR{% endblock %}
+{% block title %}Run {{ profile.run_code }} · {{ study.title }} · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/profile.js"></script>{% endblock %}
 {%- macro amount(row) -%}
   {%- if row.status == 'not_detected' -%}<span class="muted">nd</span>

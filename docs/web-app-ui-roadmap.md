@@ -1,4 +1,4 @@
-# HERBAR web app UI roadmap
+# Ex Herbario web app UI roadmap
 
 **20 November 2026.** This roadmap builds on [web-app-ui-proposal.md](web-app-ui-proposal.md), which has the page map and the full endpoint inventory. Where the two differ, follow this roadmap.
 
@@ -124,7 +124,8 @@ The step is done when:
 - **Deposition editor:** runs are chosen by study and run, vouchers through the voucher search, and both show as named lists; the raw ID lists stay under **More options**. The page address changes to the deposition's own address after the first save. Curators see **Publish**; researchers see a note to pass the page to a curator.
 - **API:** `GET /api/depositions` lists the signed-in user's depositions, and `GET /api/chemistry/studies/{id}/imports` lists a study's imports.
 - **Checked** in Chrome at phone and desktop widths: create a study, build a deposition by name, save, reload, validate, publish and open the published version, with no page or request errors.
-- **Not yet:** the import wizard has no progress bar for PubChem lookups, and a conflicting draft edit shows the server's message rather than loading the current draft.
+- **Progress (added 21 November 2026):** PubChem lookups and "Accept all" show a progress bar and can be stopped between batches of five; finished rows are kept, so the lookup resumes later.
+- **Not yet:** a conflicting draft edit shows the server's message rather than loading the current draft.
 
 ## Step 4: Published work and curation
 

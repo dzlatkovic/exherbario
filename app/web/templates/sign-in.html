@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Sign in · HERBAR{% endblock %}
+{% block title %}Sign in · Ex Herbario{% endblock %}
 {% block body %}
 <section class="card narrow" aria-labelledby="sign-in-title">
   <h1 id="sign-in-title" class="title">Sign in</h1>
-  <p class="muted">Use your HERBAR account to work with studies, imports and depositions.</p>
+  <p class="muted">Use your Ex Herbario account to work with studies, imports and depositions.</p>
   {% if problem %}<p class="notice warning" role="alert">{{ problem }}</p>{% endif %}
   <form method="post" action="/sign-in" class="stack">
     <input type="hidden" name="next" value="{{ next }}">

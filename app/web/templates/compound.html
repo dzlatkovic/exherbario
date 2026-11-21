@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ compound.title ~ ' · ' if compound }}Compound · HERBAR{% endblock %}
+{% block title %}{{ compound.title ~ ' · ' if compound }}Compound · Ex Herbario{% endblock %}
 {% block body %}
 {% if not compound %}
   <section class="card narrow">
     <h1 class="title">Compound not registered</h1>
-    <p class="muted">HERBAR has no measurement linked to this PubChem CID.</p>
+    <p class="muted">Ex Herbario has no measurement linked to this PubChem CID.</p>
   </section>
 {% else %}
 <header class="record-header">

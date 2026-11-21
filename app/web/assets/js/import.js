@@ -1,6 +1,11 @@
 // Results-table import: assign columns, preview, review PubChem matches and confirm. Reopening resumes the import.
 import {bindForm, bindRunFields, endpoint, find, node, request, runMetadata, selectOptions, status} from "./core.js";
 
+// Long runs report progress and can be stopped between batches; whatever was done is kept.
+const LOOKUP_BATCH = 5;
+let stopRequested = false;
+let busy = false;
+
 const importId = find("import").dataset.import;
 const studyId = find("import").dataset.study;
 
@@ -231,7 +236,7 @@ function renderImportReview() {
     if (item.status !== "unidentified") button("Unidentified", () => reviewAction(item.row, {action: "unidentified"}));
   }
   const open = importState.review.filter((item) => !["confirmed", "unidentified"].includes(item.status)).length;
-  find("import-confirm").disabled = open > 0 || !importState.ready;
+  find("import-confirm").disabled = open > 0 || !importState.ready || busy;
   status(find("import-confirm-status"), open ? `${open} rows still need a decision.` : "");
 }
 
@@ -297,24 +302,79 @@ bindForm("import-assign", async (data, form) => {
   renderImportPreview(result);
   return result.preview.errors.length ? "Preview has problems to fix." : "Preview ready. Review the compounds below.";
 });
+
+function startProgress(total, label) {
+  stopRequested = false;
+  busy = true;
+  for (const id of ["import-match", "import-accept-all", "import-confirm"]) find(id).disabled = true;
+  find("import-stop").hidden = false;
+  find("import-stop").disabled = false;
+  find("import-progress").hidden = false;
+  showProgress(0, total, label);
+}
+
+function showProgress(done, total, label) {
+  const bar = find("import-progress-bar");
+  bar.max = Math.max(total, 1);
+  bar.value = done;
+  find("import-progress-label").textContent = `${label}: ${done} of ${total}`;
+}
+
+function endProgress() {
+  busy = false;
+  for (const id of ["import-match", "import-accept-all"]) find(id).disabled = false;
+  renderImportReview();  // sets Confirm from the rows still open
+  find("import-stop").hidden = true;
+  find("import-progress").hidden = true;
+}
+
+find("import-stop").addEventListener("click", () => {
+  stopRequested = true;
+  find("import-stop").disabled = true;
+  find("import-progress-label").textContent += " · stopping after this batch…";
+});
+
 find("import-match").addEventListener("click", async () => {
   const feedback = find("import-match-status");
+  status(feedback);
+  const total = importState.review.filter((row) => row.status === "pending").length;
+  if (!total) return status(feedback, "Every name has already been looked up.");
+  startProgress(total, "Names looked up in PubChem");
   try {
     for (;;) {
-      const result = await request(`/api/chemistry/imports/${endpoint(importState.record.id)}/match`, {method: "POST"});
+      const result = await request(
+        `/api/chemistry/imports/${endpoint(importState.record.id)}/match?limit=${LOOKUP_BATCH}`, {method: "POST"});
       importState.review = result.review;
       renderImportReview();
+      showProgress(total - Math.min(result.pending, total), total, "Names looked up in PubChem");
       if (result.problem) return status(feedback, result.problem, true);
-      status(feedback, result.pending ? `Looking up… ${result.pending} names left.` : "All names looked up.");
-      if (!result.pending) return;
+      if (!result.pending) return status(feedback, "All names looked up.");
+      if (stopRequested) return status(feedback, `Stopped. ${result.pending} name${result.pending === 1 ? "" : "s"} left; look them up later from here.`);
     }
   } catch (error) {
     status(feedback, error.message, true);
+  } finally {
+    endProgress();
   }
 });
 find("import-accept-all").addEventListener("click", async () => {
-  for (const item of importState.review.filter((row) => row.status === "needs_review" && row.match)) {
-    await reviewAction(item.row, {action: "accept"}).catch((error) => status(find("import-match-status"), error.message, true));
+  const feedback = find("import-match-status");
+  status(feedback);
+  const rows = importState.review.filter((row) => row.status === "needs_review" && row.match);
+  if (!rows.length) return status(feedback, "No proposed matches are waiting.");
+  startProgress(rows.length, "Matches accepted");
+  let done = 0;
+  try {
+    for (const item of rows) {
+      if (stopRequested) return status(feedback, `Stopped after ${done} of ${rows.length}.`);
+      await reviewAction(item.row, {action: "accept"});
+      showProgress(++done, rows.length, "Matches accepted");
+    }
+    status(feedback, `Accepted ${done} match${done === 1 ? "" : "es"}.`);
+  } catch (error) {
+    status(feedback, error.message, true);
+  } finally {
+    endProgress();
   }
 });
 find("import-confirm").addEventListener("click", async () => {

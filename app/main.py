@@ -1,5 +1,5 @@
 """
-HERBAR is an online platform that offers significant advantages over
+Ex Herbario (formerly HERBAR) is an online platform that offers significant advantages over
 non-digital herbariums, including faster and easier access to the data,
 automated statistical analysis, increased public accessibility to the
 collection, and the ability for researchers to access the Herbarium
@@ -53,7 +53,8 @@ def init_app():
         validate_auth_config()
         yield
 
-    fastapi_app = FastAPI(lifespan=lifespan)
+    fastapi_app = FastAPI(title="Ex Herbario", lifespan=lifespan,
+                          description="Voucher-linked herbarium records and citable scientific depositions.")
     fastapi_app.add_exception_handler(ChemistryError, chemistry_error_response)
 
     @fastapi_app.middleware("http")

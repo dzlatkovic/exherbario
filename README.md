@@ -1,6 +1,8 @@
-# Herbarium Research and Botanical Archive Resource (HERBAR)
+# Ex Herbario
 
-HERBAR is a FastAPI backend for a university herbarium. It links specimen records to taxonomy, collection sites, storage, photos, publications, and identification history. Researchers can also link lab samples and chemical profiles to voucher specimens.
+*Formerly HERBAR. The name changed for display only; the repository, Python package, `herbar.db`, the `X-HERBAR-*` download headers and the `herbar-deposition` archive format keep their names so that existing installations and published archives keep working.*
+
+Ex Herbario is a FastAPI backend for a university herbarium. It links specimen records to taxonomy, collection sites, storage, photos, publications, and identification history. Researchers can also link lab samples and chemical profiles to voucher specimens.
 
 ## Quick start
 
@@ -49,7 +51,7 @@ In Swagger, authenticate as a curator and call `POST /api/specimen/create-new-sp
 }
 ```
 
-Omit unknown fields or send `null`. `type_status` accepts holotype, isotype, lectotype, isolectotype, neotype, isoneotype, epitype, syntype, isosyntype, paratype, isoparatype or type. Collection sites accept locality text up to 500 characters and optional `coordinate_uncertainty_m`, `geodetic_datum` and `georeference_source`. HERBAR supplies a specimen UUID and registration date. A linked taxon, collection site, storage slot, and login accounts for the collector or determiner are optional. The scientific names are independent of accounts. You can add a `verifier_name` if known. Accession numbers are unique within a holding institution and collection when all three values are known. Legacy `reg_no` remains a separate global lookup key.
+Omit unknown fields or send `null`. `type_status` accepts holotype, isotype, lectotype, isolectotype, neotype, isoneotype, epitype, syntype, isosyntype, paratype, isoparatype or type. Collection sites accept locality text up to 500 characters and optional `coordinate_uncertainty_m`, `geodetic_datum` and `georeference_source`. Ex Herbario supplies a specimen UUID and registration date. A linked taxon, collection site, storage slot, and login accounts for the collector or determiner are optional. The scientific names are independent of accounts. You can add a `verifier_name` if known. Accession numbers are unique within a holding institution and collection when all three values are known. Legacy `reg_no` remains a separate global lookup key.
 
 Use the returned `specimen_id` to link images and lab samples, and as the query parameter for label and QR reads when a legacy registration number is unavailable. The full label and scientific attribution names are available on authenticated routes. The public catalog shows the collector number and type status, but not collector names. After curator release, the public catalog supports accession, institution, and collection filters.
 
@@ -82,13 +84,13 @@ An administrator can release a study and selected profiles. Public profiles requ
 
 `GET /api/chemistry/public/export?study_id=…` (or repeated `profile_id=…`) returns released profiles as analysis-ready CSV, ready for PCA or other statistics in R or Python. `format=long` gives one row per measurement; `format=wide` gives one row per profile, with a column per compound keyed by CID (`cid:6654`). Unlinked compounds are keyed by name and RI. In the wide format, trace values are `tr` and not-detected values are `nd`.
 
-HERBAR no longer runs PCA. Before upgrading past migration 0013, export any saved analyses with `python -m app.db.export_pca <directory> --remove-exported`.
+Ex Herbario no longer runs PCA. Before upgrading past migration 0013, export any saved analyses with `python -m app.db.export_pca <directory> --remove-exported`.
 
 ## Publish a scientific deposition
 
 A curator first registers the institution whose namespace holds the accessions. Use `POST /api/institutions` with a `code` such as `EXU` and the institution `name`. Add the `index_herbariorum_code` and `ror_id` where they exist, so citations resolve to a known institution. `GET /api/institutions` lists registered codes. A code, Index Herbariorum code or ROR ID cannot be reassigned to another institution.
 
-1. An authenticated researcher creates a draft with `POST /api/depositions`. Supply a registered institution code, then add the title, license and contributor names and roles, with an optional `orcid` for each contributor. Select `profile_ids` for analytical profiles, `specimen_ids` for vouchers cited without analytical data, or both. Description and rights statements are optional. HERBAR reserves an accession in that institution's namespace. Use `PUT /api/depositions/{id}/draft` with the returned `draft_revision` as `expected_revision` to edit.
+1. An authenticated researcher creates a draft with `POST /api/depositions`. Supply a registered institution code, then add the title, license and contributor names and roles, with an optional `orcid` for each contributor. Select `profile_ids` for analytical profiles, `specimen_ids` for vouchers cited without analytical data, or both. Description and rights statements are optional. Ex Herbario reserves an accession in that institution's namespace. Use `PUT /api/depositions/{id}/draft` with the returned `draft_revision` as `expected_revision` to edit.
 2. Review `GET /api/depositions/{id}/draft/preview` before release. It shows the exact proposed public snapshot. Profiles must belong to studies available to the draft owner. Each voucher, study, and profile must be released through its existing visibility control. The preview uses the voucher's approved regional projection and keeps verbatim labels, exact locations, original sample collection-event text, and account IDs private. Scientific determiner and collector names are included only when the draft enables `include_determiner_names` or `include_collector_names`. Collector numbers and type status are always included. Review contributor names and remaining free text before approval.
 3. A curator calls `POST /api/depositions/{id}/publish` with the preview's `draft_revision` and `snapshot_sha256`. If the underlying records or files have changed, review a new preview. Retry the same request to get the same version. The returned `identifier` is the version's public page under `PUBLIC_BASE_URL`, and `url` is its JSON record.
 
@@ -104,20 +106,20 @@ python -m app.deposition.verify_archive .\deposition-v1.zip --snapshot-sha256 <d
 
 The verifier runs offline without the server, database, or installed Python dependencies. Omitting the expected digest still checks the archive's internal consistency.
 
-- Get a dataset DOI by mirroring the version to Zenodo. Set `ZENODO_TOKEN` to a token with the `deposit:write` and `deposit:actions` scopes. Rehearse with `ZENODO_URL=https://sandbox.zenodo.org`, then run `python -m app.deposition.mirror_zenodo EXU <accession> 1 --curator curator@example.org`. Add `--dry-run` to review the Zenodo metadata first. Zenodo receives the same ZIP that HERBAR serves, and HERBAR records the DOI it returns. An institution with its own DataCite membership can register a DOI from `GET /api/depositions/public/{institution}/{accession}/versions/{number}/datacite.json`. Record that DOI with `PUT /api/depositions/{id}/versions/{number}/doi` and `{"doi": "10.…", "agency": "datacite"}`. The public page then cites the DOI.
+- Get a dataset DOI by mirroring the version to Zenodo. Set `ZENODO_TOKEN` to a token with the `deposit:write` and `deposit:actions` scopes. Rehearse with `ZENODO_URL=https://sandbox.zenodo.org`, then run `python -m app.deposition.mirror_zenodo EXU <accession> 1 --curator curator@example.org`. Add `--dry-run` to review the Zenodo metadata first. Zenodo receives the same ZIP that Ex Herbario serves, and Ex Herbario records the DOI it returns. An institution with its own DataCite membership can register a DOI from `GET /api/depositions/public/{institution}/{accession}/versions/{number}/datacite.json`. Record that DOI with `PUT /api/depositions/{id}/versions/{number}/doi` and `{"doi": "10.…", "agency": "datacite"}`. The public page then cites the DOI.
 - Link a bare article DOI with `PUT /api/depositions/{id}/versions/{number}/article-doi`. Article links are attached to the cited version without editing its snapshot.
 - Create a correction by sending a complete new draft with `expected_revision: null` and a `correction_reason`, then preview and publish it. The accession stays the same and the version-specific URL changes. Earlier versions remain citable and indicate that they were superseded.
 - Withdraw a published version with `POST /api/depositions/{id}/versions/{number}/withdraw` and a public `reason`. Its URL returns a 410 notice with citation identity and linked DOIs. File downloads are withdrawn and the frozen records remain in the archive. Withdrawing release from a live voucher or profile leaves the immutable deposition in place. Use the version withdrawal action for the published record.
 
 ## Scientific corrections
 
-Send a nonblank `correction_reason` in the JSON body of `PUT /api/field-locations/update-field-loc` when correcting a collection site and of `PUT /api/specimen/update-specimen` when correcting voucher metadata. A determination-only update may omit the reason for a new determination. Include it for a correction. HERBAR records the authenticated curator, UTC timestamp and changed fields with their old and new values in the same transaction. Changes to identification also retain the existing determination history.
+Send a nonblank `correction_reason` in the JSON body of `PUT /api/field-locations/update-field-loc` when correcting a collection site and of `PUT /api/specimen/update-specimen` when correcting voucher metadata. A determination-only update may omit the reason for a new determination. Include it for a correction. Ex Herbario records the authenticated curator, UTC timestamp and changed fields with their old and new values in the same transaction. Changes to identification also retain the existing determination history.
 
 Deleting a collection site referenced by a voucher returns HTTP 409. Weather records also prevent automatic deletion of their voucher. Migration `0003` adds the correction log and preserves prior records. Downgrading it drops the log. Back up the archive before upgrading and use a verified snapshot for recovery.
 
 ## Database and backups
 
-The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db`, `images/`, and `files/` on persistent local storage. HERBAR stores its archive in SQLite only, so `DATABASE_URL` must be a `sqlite:///` path.
+The API and Alembic use `DATABASE_URL`, which defaults to `sqlite:///./herbar.db`. Keep `herbar.db`, `images/`, and `files/` on persistent local storage. Ex Herbario stores its archive in SQLite only, so `DATABASE_URL` must be a `sqlite:///` path.
 
 Stop the API and other writers before backing up the database, photos, and analytical files together.
 
@@ -159,7 +161,7 @@ Run `python -m pytest`. The suite covers the SQLite API, migrations, concurrent 
 
 ## License
 
-HERBAR is released under the [MIT License](LICENSE).
+Ex Herbario is released under the [MIT License](LICENSE).
 
 ## Meta
 

@@ -91,6 +91,8 @@ class TestSpreadsheetImport(TestClass):
         stalled = client.post(f"{imports}/match", headers=owner).json()
         assert stalled["pending"] == 4 and "PubChem" in stalled["problem"]
         pubchem.available = True
+        assert client.post(f"{imports}/match", headers=owner, params={"limit": 26}).status_code == 422
+        assert client.post(f"{imports}/match", headers=owner, params={"limit": 1}).json()["pending"] == 3
         matched = client.post(f"{imports}/match", headers=owner).json()
         assert matched["pending"] == 0
         review = {row["name"]: row for row in matched["review"]}

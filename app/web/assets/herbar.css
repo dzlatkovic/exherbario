@@ -52,7 +52,10 @@ body { margin: 0; line-height: 1.55; font-weight: 400; min-height: 100vh; }
 .masthead { position: sticky; top: 0; z-index: 10; background: #121614e6; backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top); }
 .masthead-inner { display: flex; align-items: center; gap: .75rem 1.25rem; min-height: 3.5rem; }
-.wordmark { color: var(--text); font-weight: 600; letter-spacing: .14em; text-decoration: none; font-size: 1rem; }
+.wordmark { display: inline-flex; align-items: center; gap: .45rem; flex: none; color: var(--text); font-weight: 600;
+  letter-spacing: .01em; text-decoration: none; font-size: 1.0625rem; white-space: nowrap; }
+.wordmark .mark { width: 1.75rem; height: 1.75rem; color: var(--accent); flex: none; }
+.wordmark:hover { color: var(--text); }
 .masthead .site-nav { flex: 1; min-width: 0; display: flex; flex-wrap: nowrap; gap: .25rem; overflow-x: auto; scrollbar-width: none; }
 .site-nav a { color: var(--muted); text-decoration: none; padding: .45rem .75rem; border-radius: 999px; white-space: nowrap; font-weight: 500; }
 .site-nav a:hover { color: var(--text); background: var(--surface-2); }
@@ -330,16 +333,25 @@ table.grid .number { text-align: right; white-space: nowrap; }
 @media (max-width: 35.99rem) {
   /* Three navigation links and the account button fit one line on a 360 px phone. */
   .masthead-inner { gap: .5rem; }
-  .wordmark { letter-spacing: .08em; }
+  /* On phones the mark stands alone; the name stays available to screen readers through the link label. */
+  .wordmark-text { display: none; }
   .masthead .site-nav { gap: 0; }
   .site-nav a { padding: .45rem .55rem; }
   .tabs { gap: 0; }
   .tabs a { padding: .7rem .6rem; }
 }
 @media (max-width: 24.99rem) {
-  .wordmark { letter-spacing: .04em; }
   .masthead-inner { gap: .35rem; }
   .site-nav a { padding: .45rem .45rem; font-size: .9375rem; }
   .tabs a { padding: .7rem .45rem; }
 }
 .citation p { overflow-wrap: anywhere; }
+
+/* Linear progress (Material style): a thin track with an accent fill. */
+.progress { display: grid; gap: .35rem; margin: .5rem 0; }
+.progress progress { appearance: none; -webkit-appearance: none; width: 100%; height: 4px; border: 0; border-radius: 2px;
+  background: var(--surface-3); color: var(--accent); overflow: hidden; }
+.progress progress::-webkit-progress-bar { background: var(--surface-3); border-radius: 2px; }
+.progress progress::-webkit-progress-value { background: var(--accent); border-radius: 2px; transition: width .3s ease; }
+.progress progress::-moz-progress-bar { background: var(--accent); border-radius: 2px; }
+.progress p { margin: 0; font-variant-numeric: tabular-nums; }

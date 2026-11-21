@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Sample ' ~ sample.code ~ ' · ' if profile }}Profile · HERBAR{% endblock %}
+{% block title %}{{ 'Sample ' ~ sample.code ~ ' · ' if profile }}Profile · Ex Herbario{% endblock %}
 {%- macro amount(row, unit) -%}
   {%- if row.status == 'not_detected' -%}<span class="muted">nd</span>
   {%- elif row.status == 'not_measured' -%}<span class="muted">not measured</span>

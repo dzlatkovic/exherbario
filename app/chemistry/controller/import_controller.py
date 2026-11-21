@@ -42,8 +42,8 @@ class ImportController:
         record, preview = self.service.assign(import_id, data, actor)
         return {**import_summary(record), "preview": preview, "review": review_summary(record.review)}
 
-    def match(self, import_id: str, actor: User):
-        return self.service.match_pending(import_id, actor)
+    def match(self, import_id: str, actor: User, limit: int = 25):
+        return self.service.match_pending(import_id, actor, limit)
 
     def review_row(self, import_id: str, row: int, data: RowReviewIn, actor: User):
         return self.service.review_row(import_id, row, data, actor)

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ record.title if record else 'Deposition unavailable' }} · HERBAR{% endblock %}
+{% block title %}{{ record.title if record else 'Deposition unavailable' }} · Ex Herbario{% endblock %}
 {% block head %}{% if manage %}<script type="module" src="/assets/herbar/js/version.js"></script>{% endif %}{% endblock %}
 {% macro voucher_facts(voucher) %}
   {% set determination = voucher.determination %}

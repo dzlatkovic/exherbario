@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#121614">
-  <title>{% block title %}HERBAR{% endblock %}</title>
+  <title>{% block title %}Ex Herbario{% endblock %}</title>
   <link rel="preload" href="/assets/herbar/fonts/fira-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="icon" href="/assets/herbar/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/herbar/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/herbar/fonts/fonts.css">
   <link rel="stylesheet" href="/assets/herbar/herbar.css">
   {% block head %}{% endblock %}
@@ -40,7 +41,10 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="masthead">
     <div class="frame masthead-inner">
-      <a class="wordmark" href="/">HERBAR</a>
+      <a class="wordmark" href="/" aria-label="Ex Herbario home">
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="2.5" width="14" height="19" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 15.5C8 11 10.5 8 15.5 7.5C15.5 12 13 15 8 15.5Z" fill="currentColor"/><rect x="12.5" y="17.2" width="4.6" height="2.6" rx=".6" fill="currentColor"/></svg>
+        <span class="wordmark-text">Ex Herbario</span>
+      </a>
       <nav class="site-nav" aria-label="Site">
         {% for url, label, also in navigation %}
           {%- set current = namespace(on=path == url or path.startswith(url ~ '/')) -%}

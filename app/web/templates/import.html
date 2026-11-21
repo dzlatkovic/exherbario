@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Import {{ record.source_name }} · HERBAR{% endblock %}
+{% block title %}Import {{ record.source_name }} · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/import.js"></script>{% endblock %}
 {% block body %}
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher/studies/{{ study.id }}">{{ study.title }}</a></nav>
@@ -49,6 +49,11 @@
     <div class="link-row">
       <button type="button" id="import-match" class="secondary">Look up remaining names in PubChem</button>
       <button type="button" id="import-accept-all" class="secondary">Accept all proposed matches</button>
+      <button type="button" id="import-stop" class="text-button" hidden>Stop</button>
+    </div>
+    <div id="import-progress" class="progress" hidden>
+      <progress id="import-progress-bar" max="1" value="0" aria-labelledby="import-progress-label"></progress>
+      <p id="import-progress-label" class="muted small"></p>
     </div>
     <p id="import-match-status" class="feedback" role="status"></p>
     <div class="table-scroll"><table id="import-review" class="grid"></table></div>

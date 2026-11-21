@@ -129,9 +129,10 @@ def assign_import(import_id: str, data: AssignmentIn, actor: User = Depends(auth
 
 
 @chemistry_router.post("/imports/{import_id}/match")
-def match_import(import_id: str, actor: User = Depends(authenticated),
+def match_import(import_id: str, limit: int = Query(25, ge=1, le=25), actor: User = Depends(authenticated),
                  controller: ImportController = Depends(get_import_controller)):
-    return controller.match(import_id, actor)
+    """Look up the next `limit` pending rows in PubChem. Call again until `pending` is 0."""
+    return controller.match(import_id, actor, limit)
 
 
 @chemistry_router.put("/imports/{import_id}/rows/{row}/compound")
