@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.db import SessionLocal
 from app.file_storage import store_upload
@@ -46,7 +46,8 @@ class ImageService:
                 data = original.read(MAX_IMAGE_BYTES + 1)
             if len(data) > MAX_IMAGE_BYTES:
                 raise InvalidImageFileException("Image exceeds the public size limit.", 400)
-            with Image.open(BytesIO(data)) as source:
+            # Only the JPEG decoder may parse archived bytes; other format parsers never see them.
+            with Image.open(BytesIO(data), formats=["JPEG"]) as source:
                 if source.format != "JPEG" or max(source.size) > 2048:
                     raise InvalidImageFileException("Unsupported public image.", 400)
                 oriented = ImageOps.exif_transpose(source).convert("RGB")
@@ -64,7 +65,8 @@ class ImageService:
             raise InvalidImageFileException("Image exceeds the 10 MiB limit.", 413)
 
         try:
-            with Image.open(BytesIO(image_data)) as image:
+            # Restricting the decoder keeps uploads away from Pillow's other format parsers (PSD, EPS, FITS, ...).
+            with Image.open(BytesIO(image_data), formats=["JPEG"]) as image:
                 if image.format != "JPEG":
                     raise InvalidImageFormatException("Only JPEG images are supported.", 400)
                 width, height = image.size
@@ -73,6 +75,8 @@ class ImageService:
                         "Image dimensions must not exceed 2048 pixels.", 400
                     )
                 image.load()
+        except UnidentifiedImageError as error:
+            raise InvalidImageFormatException("Only JPEG images are supported.", 400) from error
         except (OSError, Image.DecompressionBombError) as error:
             raise InvalidImageFileException("Invalid JPEG image.", 400) from error
 
