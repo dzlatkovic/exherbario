@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     :param DWC_PUBLISHER: Organization publishing the dataset, e.g. the university herbarium.
     :param DWC_CONTACT_EMAIL: Dataset contact; EXTERNAL_CONTACT_EMAIL is used when empty.
     :param DWC_LICENSE: CC0-1.0, CC-BY-4.0 or CC-BY-NC-4.0, the licences GBIF accepts.
+    :param DATA_DIR: Folder that holds files/ (scientific uploads) and images/ (photographs). The database
+        records paths relative to it, so a whole instance moves by moving this folder and the database.
+        On a host with a mounted volume, set it to the volume, e.g. /data, with DATABASE_URL=sqlite:////data/herbar.db.
+    :param DEMO_MODE: A demonstration instance with synthetic data: a banner on every page, demo accounts on the
+        sign-in page, pages kept out of search engines, and no publishing to Zenodo or GBIF.
+    :param DEMO_PASSWORD: Password of the demo accounts that python -m app.demo creates (shown on the sign-in page).
+    :param DEMO_RESET_HOUR: UTC hour at which a demo instance resets itself every day; -1 turns the reset off.
     """
     DATABASE_URL: str = "sqlite:///./herbar.db"
     USER_SECRET: str
@@ -56,6 +63,10 @@ class Settings(BaseSettings):
     DWC_PUBLISHER: str = ""
     DWC_CONTACT_EMAIL: str = ""
     DWC_LICENSE: str = "CC-BY-4.0"
+    DATA_DIR: str = "."
+    DEMO_MODE: bool = False
+    DEMO_PASSWORD: str = "herbar-demo"
+    DEMO_RESET_HOUR: int = 3
 
     # Read environment variables, then ./.env. Unrelated keys in .env are ignored, as before.
     model_config = SettingsConfigDict(env_file="./.env", extra="ignore")

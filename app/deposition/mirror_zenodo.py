@@ -126,6 +126,8 @@ def main():
     parser.add_argument("--license", help="Zenodo license ID when the deposition license is not recognised.")
     parser.add_argument("--dry-run", action="store_true", help="Show the Zenodo metadata without uploading.")
     args = parser.parse_args()
+    if settings.DEMO_MODE:
+        raise SystemExit("A demonstration instance does not mirror its synthetic depositions to Zenodo.")
     try:
         result = mirror(args.institution, args.accession, args.version, args.curator,
                         license_id=args.license, dry_run=args.dry_run)

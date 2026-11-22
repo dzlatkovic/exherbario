@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+.env
+herbar.db
+herbar.db-*
+files/
+images/
+backups/
+Claude outputs/
+_to_delete/

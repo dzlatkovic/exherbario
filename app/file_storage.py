@@ -6,7 +6,15 @@ from os import fsync
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
-FILES_ROOT = Path("files")
+from app.config import settings
+
+DATA_ROOT = Path(settings.DATA_DIR)
+FILES_ROOT = DATA_ROOT / "files"
+
+
+def stored_file_path(name: str) -> str:
+    """The path recorded for a new upload: relative to DATA_DIR, so records stay valid if the folder moves."""
+    return f"{FILES_ROOT.name}/{name}"
 
 
 def archive_member(root: Path, stored_path: str | None) -> Path:

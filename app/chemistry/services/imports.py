@@ -19,7 +19,7 @@ from app.chemistry.sample_links import utc_now
 from app.chemistry.schemas.chemistry_schemas import basis_problem
 from app.chemistry.schemas.import_schemas import AssignmentIn, RowReviewIn
 from app.db import lock_for_update
-from app.file_storage import FILES_ROOT, archive_member, store_upload
+from app.file_storage import FILES_ROOT, archive_member, store_upload, stored_file_path
 from app.users.models import User
 
 from .compounds import CompoundRegistry, candidate_summary
@@ -103,7 +103,7 @@ class ImportService:
             raise ChemistryError(422, "The table is empty.")
         record = SpreadsheetImport(study_id=study_id, owner_id=actor.user_id, status="draft", created_at=utc_now(),
                                    source_name=filename, source_kind=kind,
-                                   source_path=(FILES_ROOT / f"{uuid4().hex}.{kind}").as_posix(),
+                                   source_path=stored_file_path(f"{uuid4().hex}.{kind}"),
                                    source_sha256=sha256(content).hexdigest())
         try:
             with store_upload(archive_member(FILES_ROOT, record.source_path), content):

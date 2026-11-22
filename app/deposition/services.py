@@ -8,6 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, undefer
 
 from app.chemistry.models import Preparation, Profile
+from app.config import settings
 from app.db import lock_for_update, new_id
 from app.external.lookups import parse_retrieved_at, record_import
 from app.specimen.models import Specimen
@@ -355,6 +356,8 @@ class DepositionService:
         return {"doi": doi, "url": self._version_identity(deposition, version)["url"]}
 
     def register_doi(self, deposition_id, number, data, actor):
+        if settings.DEMO_MODE:
+            raise HTTPException(409, "A demonstration instance does not register DOIs for its synthetic depositions.")
         deposition = self._existing_version(deposition_id, number, actor)
         current = self.db.get(DepositionDOI, (deposition.id, number))
         if current is not None:

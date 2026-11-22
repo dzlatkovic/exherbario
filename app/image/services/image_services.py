@@ -4,14 +4,14 @@ from datetime import date
 from hashlib import sha256
 from io import BytesIO
 from logging import getLogger
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 from fastapi import UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.db import SessionLocal
-from app.file_storage import store_upload
+from app.file_storage import DATA_ROOT, store_upload
 from app.image.exceptions import (
     ImageInUseException,
     ImageNotFoundException,
@@ -24,7 +24,7 @@ from app.image.schemas import ImageSchema, ImageSchemaIn, ImageType
 from app.specimen.exceptions import SpecimenNotFoundException
 from app.specimen.models import Specimen
 
-IMAGE_ROOT = Path("images")
+IMAGE_ROOT = DATA_ROOT / "images"
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 logger = getLogger(__name__)
 
@@ -32,7 +32,8 @@ logger = getLogger(__name__)
 class ImageService:
     @staticmethod
     def storage_path(stored_path: str) -> Path:
-        path = Path(stored_path).resolve()
+        # Recorded paths are relative to DATA_DIR, e.g. images/<name>.jpg.
+        path = (DATA_ROOT / stored_path).resolve()
         if IMAGE_ROOT.resolve() not in path.parents:
             raise InvalidImageFileException("Image path is outside the storage directory.", 400)
         return path
@@ -80,7 +81,7 @@ class ImageService:
         except (OSError, Image.DecompressionBombError) as error:
             raise InvalidImageFileException("Invalid JPEG image.", 400) from error
 
-        stored_path = IMAGE_ROOT / f"{uuid4().hex}.jpg"
+        stored_path = PurePosixPath(IMAGE_ROOT.name) / f"{uuid4().hex}.jpg"
         path = ImageService.storage_path(str(stored_path))
         with SessionLocal() as db:
             if db.get(Specimen, specimen_id) is None:

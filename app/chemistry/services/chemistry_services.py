@@ -16,7 +16,7 @@ from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, S
                                    SamplePreparationIn, VoucherLinkIn, run_metadata_for)
 from app.chemistry.schemas.chemistry_schemas import MAX_SAMPLE_VOUCHERS, basis_problem
 from app.db import lock_for_update, new_id
-from app.file_storage import FILES_ROOT, archive_member, store_upload
+from app.file_storage import FILES_ROOT, archive_member, store_upload, stored_file_path
 from app.users.models import User
 
 from .compounds import CompoundRegistry
@@ -213,7 +213,7 @@ class ChemistryService:
                       filename, content: bytes, source: str, rows, *, uploads: ExitStack | None = None, **extra):
         """Store a profile and its source file. With ``uploads``, the caller commits and the file is removed
         if the caller's transaction fails."""
-        stored_path = (FILES_ROOT / f"{uuid4().hex}.csv").as_posix()
+        stored_path = stored_file_path(f"{uuid4().hex}.csv")
         profile = Profile(preparation_id=preparation_id, run_code=run_code,
                           analytical_method=analytical_method, measurement_basis=measurement_basis,
                           unit=unit, source_name=filename[:200] or "profile.csv", source_csv=source,

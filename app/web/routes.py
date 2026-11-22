@@ -56,7 +56,11 @@ from . import account_pages, catalog_pages, chemistry_pages, curation_pages, sta
 from app.config import settings  # noqa: E402
 from app.users import orcid  # noqa: E402
 
+from app.demo_accounts import demo_accounts  # noqa: E402
+
 templates.globals["orcid_sign_in"] = lambda: orcid.enabled() and settings.ORCID_SIGN_IN
+templates.globals["demo_mode"] = lambda: settings.DEMO_MODE
+templates.globals["demo_accounts"] = demo_accounts
 templates.globals["orcid_url"] = orcid.base_url
 router.include_router(account_pages.router)
 

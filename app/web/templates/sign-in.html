@@ -5,6 +5,14 @@
   <h1 id="sign-in-title" class="title">Sign in</h1>
   <p class="muted">Use your Ex Herbario account to work with studies, imports and depositions.</p>
   {% if problem %}<p class="notice warning" role="alert">{{ problem }}</p>{% endif %}
+  {% if demo_accounts() %}
+  <div class="notice stack">
+    <p><strong>Demo accounts</strong> (password <span class="mono">{{ demo_accounts()[0].password }}</span>):</p>
+    <ul class="plain-list">
+      {% for account in demo_accounts() %}<li><span class="mono">{{ account.email }}</span> · {{ account.role }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   <form method="post" action="/sign-in" class="stack">
     <input type="hidden" name="next" value="{{ next }}">
     <label>Email <input name="email" type="email" autocomplete="username" required value="{{ email or '' }}" autofocus></label>

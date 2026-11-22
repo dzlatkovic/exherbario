@@ -9,6 +9,7 @@ For more information on how to use this application,
 please refer to the documentation.
 """
 
+import asyncio
 
 from contextlib import asynccontextmanager
 
@@ -53,7 +54,13 @@ def init_app():
     @asynccontextmanager
     async def lifespan(_app):
         validate_auth_config()
+        nightly = None
+        if settings.DEMO_MODE and 0 <= settings.DEMO_RESET_HOUR <= 23:
+            from app.demo import nightly_reset
+            nightly = asyncio.create_task(nightly_reset(settings.DEMO_RESET_HOUR))
         yield
+        if nightly is not None:
+            nightly.cancel()
 
     fastapi_app = FastAPI(title="Ex Herbario", lifespan=lifespan,
                           description="Voucher-linked herbarium records and citable scientific depositions.")
@@ -65,6 +72,9 @@ def init_app():
         response = await call_next(request)
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
+        if settings.DEMO_MODE:
+            # Synthetic demo records must not reach search engines or be mistaken for real ones.
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
     fastapi_app.include_router(field_loc_router)

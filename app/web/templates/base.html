@@ -11,6 +11,7 @@
   <link rel="apple-touch-icon" href="/assets/herbar/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/herbar/fonts/fonts.css">
   <link rel="stylesheet" href="/assets/herbar/herbar.css">
+  {% if demo_mode() %}<meta name="robots" content="noindex, nofollow">{% endif %}
   {% block head %}{% endblock %}
 </head>
 {%- macro empty_state(title, message="", action_url="", action_label="") -%}
@@ -39,6 +40,10 @@
 {%- endif -%}
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+  {% if demo_mode() %}
+  <div class="demo-banner" role="note">Demonstration instance: all data are synthetic and are reset regularly.
+    Nothing here is a real record, and nothing here can be cited.</div>
+  {% endif %}
   <header class="masthead">
     <div class="frame masthead-inner">
       <a class="wordmark" href="/" aria-label="Ex Herbario home">

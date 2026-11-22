@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import catalog, dwca
+from app.config import settings
 from app.db import get_db
 from app.image.exceptions import InvalidImageFileException
 from app.image.models import Image
@@ -51,6 +52,8 @@ def darwin_core_archive(holding_institution: str = Query("", max_length=120), co
     """Released vouchers as a Darwin Core Archive (occurrences, with released chemistry as measurements), for GBIF
     and other aggregators. Same privacy rules as the public catalog. Filter by holding institution and collection
     to publish one dataset per collection."""
+    if settings.DEMO_MODE:
+        raise HTTPException(404, "A demonstration instance does not publish its synthetic vouchers to GBIF.")
     archive = dwca.build(db, holding_institution.strip(), collection.strip(), measurements)
     return Response(archive, media_type="application/zip", headers={
         "Content-Disposition": 'attachment; filename="dwca.zip"', "X-Content-Type-Options": "nosniff"})

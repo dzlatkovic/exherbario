@@ -54,6 +54,8 @@
       <p>{{ problem }}</p>
     </section>
   {% else %}
+    {% if demo_mode() %}<p class="notice warning" role="note">A demonstration deposition with synthetic data. Its accession and
+      identifier are not permanent and must not be cited.</p>{% endif %}
     <section class="hero">
       <div class="hero-content">
         <p class="overline">{{ record.institution_name }} · Scientific deposition</p>
