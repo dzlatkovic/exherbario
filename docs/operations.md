@@ -44,5 +44,3 @@ A backup copies the database and both folders into a new folder with a manifest 
 1. Stop the app and take a backup.
 2. Update the code and run `python -m pip install -r requirements.txt`.
 3. Run `python -m alembic upgrade head`, then start the app.
-
-Notes on specific migrations for older instances are in [UPGRADING.md](https://github.com/dzlatkovic/exherbario/blob/main/UPGRADING.md).
