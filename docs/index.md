@@ -1,20 +1,23 @@
 # Ex Herbario documentation
 
-Ex Herbario is an open-source, self-hosted platform for university herbaria and research groups. It connects preserved voucher specimens to lab samples and analytical results and packages research data for citation and offline verification.
+Ex Herbario is an open-source, self-hosted platform for herbaria and research groups. It links preserved voucher specimens to lab samples and analytical results, and publishes the data behind a paper as a citable, verifiable deposition.
 
-## Work with records
+Ex Herbario is in alpha: expect changes, and keep backups.
 
-- [Register and curate vouchers](vouchers.md) with collection details, taxonomy, photographs and determination history.
-- [Record samples and import analytical results](chemistry.md) from a spreadsheet, then review compound matches and export the measurements.
-- [Prepare a results table](ai-extraction.md) using the workbook template and guidance for checking extracted values.
+## Records and results
 
-## Publish and share
+- [Vouchers](vouchers.md): register specimens, release them to the public, and correct or redetermine them.
+- [Phytochemistry](chemistry.md): samples, preparations, importing results tables and reviewing compound matches.
+- [Prepare a results table](ai-extraction.md) from a published paper with your own AI assistant.
 
-- [Publish a scientific deposition](depositions.md) with a versioned citation and a verifiable ZIP archive.
-- [Export released vouchers as a Darwin Core Archive](darwin-core.md) for sharing with GBIF.
+## Publish
+
+- [Scientific depositions](depositions.md): publish, cite, verify, correct and withdraw a dataset.
+- [Darwin Core Archive](darwin-core.md): share released vouchers with GBIF.
 
 ## Run an instance
 
-- [Install Ex Herbario](https://github.com/dzlatkovic/exherbario#quick-start) and create the first administrator.
-- [Manage storage, backups and upgrades](operations.md).
-- [Configure external lookups](external-lookups.md) for taxon names, references, institutions and researcher identifiers.
+- [Install, back up and upgrade](operations.md).
+- [External lookups](external-lookups.md): GBIF, Crossref, ROR, Index Herbariorum, LOTUS and ORCID.
+
+Every instance also serves interactive API documentation at `/docs`.
