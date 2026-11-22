@@ -16,7 +16,7 @@ A sample and its preparation can be deposited without any run, for example an ex
 2. Assign each column a role (compound, RI, identification, a sample…). The page guesses most of them.
 3. Columns not yet linked to a sample: **Create samples and preparations** creates them all in one dialog.
 4. Enter the run conditions once (for GC: column, temperature programme, alkane series) and check the preview.
-5. **Look up remaining names in PubChem**. Exact name matches are accepted automatically; review the rest, choose another compound, or give a SMILES for a compound PubChem does not have.
+5. **Look up names in PubChem** (it also retries names that found nothing earlier). Exact name matches are accepted automatically; review the rest, choose another compound, or give a SMILES for a compound PubChem does not have.
 6. **Confirm import**. Each sample column becomes one run.
 
 Two kinds of tables are supported:

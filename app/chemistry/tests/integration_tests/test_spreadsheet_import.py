@@ -158,6 +158,12 @@ class TestSpreadsheetImport(TestClass):
         assert review["Limonene"]["status"] == "confirmed" and review["Pinene"]["status"] == "needs_review"
         assert review["Limonene"]["match"]["cid"] == 22311 and review["Pinene"]["match"]["cid"] == 6654
         assert review["Unknown sesquiterpene"]["status"] == "unmatched"
+        # Looking up again retries only the names that found nothing; decided rows are left alone.
+        calls = len(pubchem.calls)
+        retried = client.post(f"{imports}/match", headers=owner, params={"retry_unmatched": True}).json()
+        assert retried["pending"] == 0 and pubchem.calls[calls:] == [("name", "Unknown sesquiterpene")]
+        assert {row["name"]: row["status"] for row in retried["review"]}["Unknown sesquiterpene"] == "unmatched"
+        assert client.post(f"{imports}/match", headers=owner).json()["pending"] == 0 and len(pubchem.calls) == calls + 1
 
         rows = f"{imports}/rows"
         assert client.put(f"{rows}/7/compound", headers=owner, json={"action": "accept"}).status_code == 409

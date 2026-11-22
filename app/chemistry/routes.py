@@ -183,10 +183,11 @@ def assign_import(import_id: str, data: AssignmentIn, actor: User = Depends(auth
 
 
 @chemistry_router.post("/imports/{import_id}/match")
-def match_import(import_id: str, limit: int = Query(25, ge=1, le=25), actor: User = Depends(authenticated),
-                 controller: ImportController = Depends(get_import_controller)):
-    """Look up the next `limit` pending rows in PubChem. Call again until `pending` is 0."""
-    return controller.match(import_id, actor, limit)
+def match_import(import_id: str, limit: int = Query(25, ge=1, le=25), retry_unmatched: bool = False,
+                 actor: User = Depends(authenticated), controller: ImportController = Depends(get_import_controller)):
+    """Look up the next `limit` pending rows in PubChem. Call again until `pending` is 0.
+    With retry_unmatched, rows that found nothing earlier are looked up again (send it on the first call only)."""
+    return controller.match(import_id, actor, limit, retry_unmatched)
 
 
 @chemistry_router.put("/imports/{import_id}/rows/{row}/compound")

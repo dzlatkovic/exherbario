@@ -640,13 +640,16 @@ find("import-stop").addEventListener("click", () => {
 find("import-match").addEventListener("click", async () => {
   const feedback = find("import-match-status");
   status(feedback);
-  const total = importState.review.filter((row) => row.status === "pending").length;
+  // Names that found nothing before are tried again, once per click.
+  const total = importState.review.filter((row) => ["pending", "unmatched"].includes(row.status)).length;
   if (!total) return status(feedback, "Every name has already been looked up.");
   startProgress(total, "Names looked up in PubChem");
+  let retry = "&retry_unmatched=true";
   try {
     for (;;) {
       const result = await request(
-        `/api/chemistry/imports/${endpoint(importState.record.id)}/match?limit=${LOOKUP_BATCH}`, {method: "POST"});
+        `/api/chemistry/imports/${endpoint(importState.record.id)}/match?limit=${LOOKUP_BATCH}${retry}`, {method: "POST"});
+      retry = "";
       importState.review = result.review;
       renderImportReview();
       showProgress(total - Math.min(result.pending, total), total, "Names looked up in PubChem");

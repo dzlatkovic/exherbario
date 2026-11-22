@@ -333,11 +333,18 @@ class ImportService:
 
     # PubChem matching and review ------------------------------------------------------------------------------
 
-    def match_pending(self, import_id: str, actor: User, limit: int = MATCH_BATCH):
-        """Look up the next pending rows in PubChem. Call repeatedly until nothing is pending."""
+    def match_pending(self, import_id: str, actor: User, limit: int = MATCH_BATCH, retry_unmatched: bool = False):
+        """Look up the next pending rows in PubChem. Call repeatedly until nothing is pending.
+
+        retry_unmatched first returns rows that found nothing to pending, so a name PubChem missed earlier (for
+        example before a lookup fix, or while it was busy) is tried again."""
         record = self._import_for_actor(import_id, actor)
         # A copy: JSON columns only save on reassignment, and in-place edits would hide the change.
         review = deepcopy(record.review or {"rows": {}})
+        if retry_unmatched:
+            for number, row in review["rows"].items():
+                if row["status"] == "unmatched":
+                    review["rows"][number] = {**row, "status": "pending", "problem": None}
         pending = [number for number, row in review["rows"].items() if row["status"] == "pending"]
         problem = None
         deadline = time.monotonic() + MATCH_SECONDS
