@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% from "_delete_action.html" import delete_action %}
 {% block title %}Run {{ profile.run_code }} · {{ study.title }} · Ex Herbario{% endblock %}
-{% block head %}<script type="module" src="/assets/herbar/js/profile.js"></script>{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/profile.js"></script><script type="module" src="/assets/herbar/js/deletion.js"></script>{% endblock %}
 {%- macro amount(row) -%}
   {%- if row.status == 'not_detected' -%}<span class="muted">nd</span>
   {%- elif row.status == 'not_measured' -%}<span class="muted">not measured</span>
@@ -23,6 +24,10 @@
       data-body='{"is_public": {{ 'false' if profile.is_public else 'true' }}}'
       data-confirm="{{ 'Withdraw this run from public view?' if profile.is_public else 'Release this run? It appears publicly only when its study and all linked vouchers are released.' }}">{{ 'Withdraw run' if profile.is_public else 'Release run' }}</button>{% endif %}
   </p>
+  {% if not (profile.is_public or profile.ever_public) %}
+  {{ delete_action("Delete run", "/api/chemistry/profiles/" ~ profile.id, "/researcher/studies/" ~ study.id,
+      "Permanently delete run " ~ profile.run_code ~ ", its measurements, and its run file.") }}
+  {% endif %}
 </header>
 
 <section class="card" aria-labelledby="measurements-title">

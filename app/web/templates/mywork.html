@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_form_labels.html" import field_label %}
 {% block title %}My work · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/mywork.js"></script>{% endblock %}
 {% block header %}
@@ -32,8 +33,8 @@
       {% endif %}
       {% set study_form %}
         <form id="create-study" class="stack">
-          <label>Title <input name="title" required maxlength="200"></label>
-          <label>Description <textarea name="description" rows="2" maxlength="4000"></textarea></label>
+          <label>{{ field_label("Title") }} <input name="title" required maxlength="200"></label>
+          <label>{{ field_label("Description", "Optional") }} <textarea name="description" rows="2" maxlength="4000"></textarea></label>
           <button class="{{ 'secondary' if studies else 'primary' }}">Create study</button>
           <p class="feedback" role="status"></p>
         </form>

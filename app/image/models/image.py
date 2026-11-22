@@ -16,6 +16,7 @@ class Image(Base):
     height = Column(Integer)
     upload_date = Column(Date, default=datetime.utcnow)
     is_public = Column(Boolean, nullable=False, server_default=false())
+    ever_public = Column(Boolean, nullable=False, server_default=false())
     sha256 = Column(String(64))
 
     plantnet_results = relationship("PlantNetResult", backref="image")

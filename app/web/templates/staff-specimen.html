@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% from "_delete_action.html" import delete_action %}
 {% block title %}{{ record.name ~ ' · ' if record }}Staff record · Ex Herbario{% endblock %}
-{% block head %}<script type="module" src="/assets/herbar/js/specimen.js"></script>{% if curator %}<script type="module" src="/assets/herbar/js/lotus.js"></script>{% endif %}{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/specimen.js"></script>{% if curator %}<script type="module" src="/assets/herbar/js/lotus.js"></script><script type="module" src="/assets/herbar/js/deletion.js"></script>{% endif %}{% endblock %}
 {% block body %}
 {% if not record %}
   <section class="card narrow">
@@ -45,6 +46,13 @@
       <p class="feedback" role="status"></p>
     </form>
   </details>
+  {% if not (specimen.is_public or specimen.ever_public) %}
+  <details class="form-details">
+    <summary>Manage voucher</summary>
+    {{ delete_action("Delete voucher", "/api/specimen/delete-specimen?specimen_id=" ~ specimen.specimen_id, "/curation/vouchers",
+        "Permanently delete voucher " ~ (specimen.accession or specimen.reg_no or specimen.specimen_id) ~ ".") }}
+  </details>
+  {% endif %}
   {% endif %}
 </header>
 
@@ -171,6 +179,10 @@
               <span class="status-chip photo-state{% if photo.is_public %} released{% endif %}">{{ 'Approved' if photo.is_public else 'Not public' }}</span>
               <span class="muted small">{{ photo.image_type.value if photo.image_type }}</span>
               {% if curator %}<button type="button" class="text-button photo-visibility" data-public="{{ 'false' if photo.is_public else 'true' }}">{{ 'Withdraw' if photo.is_public else 'Approve' }}</button>{% endif %}
+              {% if curator and not (photo.is_public or photo.ever_public) %}
+              {{ delete_action("Delete photograph", "/api/image/delete-image?image_id=" ~ photo.image_id, "",
+                  "Permanently delete this photograph from voucher " ~ (specimen.accession or specimen.reg_no or specimen.specimen_id) ~ ".") }}
+              {% endif %}
             </figcaption>
           </figure>
         {% endfor %}

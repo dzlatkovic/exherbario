@@ -1,19 +1,26 @@
 {% extends "base.html" %}
+{% from "_form_labels.html" import field_label %}
+{% from "_delete_action.html" import delete_action %}
 {% block title %}Import {{ record.source_name }} · Ex Herbario{% endblock %}
-{% block head %}<script type="module" src="/assets/herbar/js/import.js"></script>{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/import.js"></script><script type="module" src="/assets/herbar/js/deletion.js"></script>{% endblock %}
 {% block body %}
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher/studies/{{ study.id }}">{{ study.title }}</a></nav>
 <header class="record-header" id="import" data-import="{{ record.id }}" data-study="{{ study.id }}">
   <p class="overline">Results table import</p>
   <h1 class="title plain">{{ record.source_name }}</h1>
   <p class="muted small">Assign the columns, check the preview, review every compound, then confirm. Nothing becomes a run until you confirm.</p>
+  {% if record.status == "draft" %}
+  {{ delete_action("Discard import", "/api/chemistry/imports/" ~ record.id, "/researcher/studies/" ~ study.id,
+      "Permanently discard “" ~ record.source_name ~ "” and its saved column assignments and review decisions.") }}
+  {% endif %}
 </header>
 <p id="import-status" class="notice" role="status" hidden></p>
 <section class="card" id="import-work">
   <form id="import-assign" class="stack">
+    <p class="muted small">Fill in fields marked Required. In Columns, assign one compound-name column and at least one sample column.</p>
     <div class="form-grid">
-      <label>Sheet <select name="sheet" id="import-sheet"></select></label>
-      <label>Header row <input name="header_row" id="import-header-row" type="number" min="1" value="1" required></label>
+      <label>{{ field_label("Sheet") }} <select name="sheet" required id="import-sheet"></select></label>
+      <label>{{ field_label("Header row") }} <input name="header_row" id="import-header-row" type="number" min="1" max="1000" value="1" required></label>
       <label>Saved layout <select id="import-template"><option value="">None</option></select></label>
     </div>
     <div class="table-scroll"><table id="import-grid" class="grid"></table></div>
@@ -22,24 +29,24 @@
     <h3>Settings for all sample columns</h3>
     <div class="form-grid">
       {% include "_run_fields.html" %}
-      <label>Measurement basis <select name="measurement_basis">
+      <label>{{ field_label("Measurement basis") }} <select name="measurement_basis" required>
         <option value="peak_area_percent">Peak-area percentage</option>
         <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
       </select></label>
-      <label>Unit <input name="unit" value="%" required maxlength="40"></label>
-      <label>Analytical method <input name="analytical_method" required maxlength="120"></label>
+      <label>{{ field_label("Unit") }} <input name="unit" value="%" required maxlength="40"></label>
+      <label>{{ field_label("Analytical method") }} <input name="analytical_method" required maxlength="120"></label>
       <label>Reference RI column polarity <select name="ri_ref_polarity">
         <option value="">Not stated</option><option value="non-polar">Non-polar</option>
         <option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
       </select></label>
       <label>RI tolerance <input name="ri_tolerance" type="number" min="1" max="500" value="20"></label>
-      <label>Save this layout as <input name="save_template" maxlength="120" placeholder="optional"></label>
+      <label>{{ field_label("Save this layout as", "Optional") }} <input name="save_template" maxlength="120"></label>
     </div>
     <button class="secondary">Preview</button>
     <p class="feedback" role="status"></p>
   </form>
   <div id="import-preview" class="stack" hidden>
-    <div id="import-problems" class="notice warning" hidden></div>
+    <div id="import-problems" class="notice warning" tabindex="-1" hidden></div>
     <div id="import-notes" class="notice" hidden></div>
     <div class="table-scroll"><table id="import-samples" class="grid"></table></div>
     <div id="import-excluded"></div>

@@ -1,6 +1,8 @@
 {% extends "base.html" %}
+{% from "_form_labels.html" import field_label %}
+{% from "_delete_action.html" import delete_action %}
 {% block title %}{{ study.title }} · Ex Herbario{% endblock %}
-{% block head %}<script type="module" src="/assets/herbar/js/study.js"></script>{% endblock %}
+{% block head %}<script type="module" src="/assets/herbar/js/study.js"></script><script type="module" src="/assets/herbar/js/deletion.js"></script>{% endblock %}
 {% block body %}
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher">My work</a></nav>
 <header class="record-header" id="study" data-study="{{ study.id }}">
@@ -16,6 +18,13 @@
       data-body='{"is_public": {{ 'false' if study.is_public else 'true' }}}'
       data-confirm="{{ 'Withdraw this study from public view?' if study.is_public else 'Release this study? Profiles appear publicly only when they and all their vouchers are released too.' }}">{{ 'Withdraw study' if study.is_public else 'Release study' }}</button>{% endif %}
   </p>
+  {% if not (study.is_public or study.ever_public or has_released_runs) %}
+  <details class="form-details">
+    <summary>Manage study</summary>
+    {{ delete_action("Delete study", "/api/chemistry/studies/" ~ study.id ~ "?samples=" ~ (samples | length) ~ "&preparations=" ~ preparation_count ~ "&runs=" ~ run_count ~ "&imports=" ~ import_count, "/researcher",
+        "Permanently delete “" ~ study.title ~ "” and its contents (" ~ (samples | length) ~ " samples, " ~ preparation_count ~ " preparations, " ~ run_count ~ " runs, " ~ import_count ~ " imports). Linked vouchers stay in the archive.") }}
+  </details>
+  {% endif %}
 </header>
 
 <section class="card" aria-labelledby="add-title">
@@ -48,15 +57,15 @@
         </div>
       </fieldset>
       <div class="form-grid">
-        <label>Sample code <input name="code" required maxlength="80"></label>
-        <label>Plant part <select name="plant_part" required>
+        <label>{{ field_label("Sample code") }} <input name="code" required maxlength="80"></label>
+        <label>{{ field_label("Plant part") }} <select name="plant_part" required>
           <option value="leaf">Leaf</option><option value="flower">Flower</option><option value="inflorescence">Inflorescence</option>
           <option value="aerial parts">Aerial parts</option><option value="stem">Stem</option><option value="root">Root</option>
           <option value="rhizome">Rhizome</option><option value="bark">Bark</option><option value="fruit">Fruit</option>
           <option value="seed">Seed</option><option value="whole plant">Whole plant</option><option value="other">Other</option>
         </select></label>
         <label>Plant part details <input name="plant_part_note" maxlength="200"></label>
-        <label>Material <select name="material_state" required>
+        <label>{{ field_label("Material") }} <select name="material_state" required>
           <option value="fresh">Fresh</option><option value="air-dried">Air-dried</option>
           <option value="oven-dried">Oven-dried</option><option value="freeze-dried">Freeze-dried</option>
         </select></label>
@@ -111,20 +120,28 @@
       {% if not runs.get(preparation.id) %}
       <p class="muted small">No runs yet. Use <a href="#add-title">Import a results table</a>: a column headed
         <span class="mono">{{ sample.code }}</span> is attached to this preparation{% if preparations[sample.id] | length > 1 %} once you choose it in the import{% endif %}.</p>
+      {% if not (study.is_public or study.ever_public) %}
+      {{ delete_action("Delete preparation", "/api/chemistry/preparations/" ~ preparation.id, "",
+          "Permanently delete preparation " ~ preparation.batch_code ~ ".") }}
+      {% endif %}
       {% endif %}
     </div>
     {% endfor %}
+    {% if not (study.is_public or study.ever_public) and not preparations[sample.id] %}
+    {{ delete_action("Delete sample", "/api/chemistry/samples/" ~ sample.id, "",
+        "Permanently delete sample " ~ sample.code ~ ". Linked vouchers stay in the archive.") }}
+    {% endif %}
 
     <details class="form-details">
       <summary>Add a preparation</summary>
       <form class="stack add-preparation" data-sample="{{ sample.id }}">
         <div class="form-grid">
-          <label>Batch code <input name="batch_code" required maxlength="80"></label>
+          <label>{{ field_label("Batch code") }} <input name="batch_code" required maxlength="80"></label>
           <label>Type <select name="kind"><option value="essential_oil">Essential oil</option><option value="extract">Extract</option></select></label>
           <label>Plant material (g) <input name="plant_material_mass_g" type="number" min="0" step="any"></label>
           <label>Yield (% w/w) <input name="yield_percent" type="number" min="0" max="100" step="any"></label>
         </div>
-        <label>Method reference <input name="method_reference" required maxlength="500"></label>
+        <label>{{ field_label("Method reference") }} <input name="method_reference" required maxlength="500"></label>
         <label>Method and parameters <input name="method_parameters" maxlength="1000" placeholder="e.g. hydrodistillation, Clevenger apparatus, 3 h"></label>
         <button class="secondary">Add preparation</button>
         <p class="feedback" role="status"></p>

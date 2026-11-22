@@ -1,4 +1,5 @@
-<label>Technique <select name="technique" class="technique" required>
+{% from "_form_labels.html" import field_label %}
+<label>{{ field_label("Technique") }} <select name="technique" class="technique" required>
   <option value="GC-MS">GC-MS</option><option value="GC-FID">GC-FID</option>
   <option value="LC-MS">LC-MS</option><option value="LC-MS/MS">LC-MS/MS</option>
   <option value="HPLC-DAD">HPLC-DAD</option>
@@ -6,7 +7,8 @@
 <fieldset class="form-grid run-fields full">
   <legend>Run</legend>
   <label>Column <input name="run.column" maxlength="200"></label>
-  <label data-for="gc">Column polarity <select name="run.polarity_class">
+  <label data-for="gc">{{ field_label("Column polarity") }} <select name="run.polarity_class" required>
+    <option value="">Select column polarity</option>
     <option value="non-polar">Non-polar</option><option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
   </select></label>
   <label data-for="gc">Stationary phase <input name="run.stationary_phase" maxlength="200"></label>

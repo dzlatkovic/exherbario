@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_form_labels.html" import field_label %}
 {% block title %}{{ 'Deposition' if deposition_id else 'New deposition' }} · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/deposition.js"></script>{% endblock %}
 {% block body %}
@@ -14,20 +15,23 @@
     <section class="card" aria-labelledby="draft-title">
       <h2 id="draft-title">Draft</h2>
       <form id="save-draft" class="stack">
+        <p class="muted small">Fill in fields marked Required to save a draft. You can add the remaining publication details later.</p>
         <div class="form-grid">
-          <label>Institution <select name="institution" required><option value="">Loading…</option></select></label>
-          <label>License <input name="license" maxlength="200" placeholder="e.g. CC BY 4.0"></label>
+          <label>{{ field_label("Institution") }} <select name="institution" required><option value="">Loading…</option></select></label>
+          <label>{{ field_label("License", "Required to publish") }} <input name="license" maxlength="200" placeholder="e.g. CC BY 4.0"></label>
         </div>
-        <label>Title <input name="title" maxlength="200"></label>
+        <label>{{ field_label("Title", "Required to publish") }} <input name="title" maxlength="200"></label>
         <label>Description <textarea name="description" rows="3" maxlength="10000"></textarea></label>
         <fieldset id="credits">
           <legend>Contributors</legend>
+          <p class="muted small">Add at least one contributor to publish. Each contributor needs a name and role. ORCID iD is optional.</p>
           <div id="credit-rows"></div>
           <button type="button" id="add-credit" class="secondary">Add contributor</button>
           {% if account.orcid %}<button type="button" id="add-me" class="secondary" data-name="{{ account.orcid_name or (account.name ~ ' ' ~ account.surname) | trim }}" data-orcid="{{ account.orcid }}">Add me with my ORCID iD</button>{% endif %}
         </fieldset>
         <fieldset class="stack">
           <legend>Analytical runs</legend>
+          <p class="muted small">Add at least one run or stand-alone voucher to publish.</p>
           <ul id="profile-list" class="picker-results"></ul>
           <div class="form-grid">
             <label>Study <select id="choose-study"><option value="">Select a study</option></select></label>
@@ -57,16 +61,28 @@
             <label>Voucher IDs <textarea name="specimen_ids" rows="2" spellcheck="false"></textarea></label>
           </div>
         </details>
-        <label id="correction-field" hidden>Reason for this correction <textarea name="correction_reason" rows="2" maxlength="1000"></textarea></label>
+        <label id="correction-field" hidden>{{ field_label("Reason for this correction") }} <textarea name="correction_reason" rows="2" maxlength="1000"></textarea></label>
         <button class="primary">Save draft</button>
         <p class="feedback" role="status"></p>
       </form>
+      <div class="stack" id="discard-draft-actions" hidden>
+        <button type="button" class="secondary danger" id="discard-draft">Discard draft</button>
+        <p class="feedback" id="discard-draft-feedback" role="status"></p>
+      </div>
     </section>
   </div>
 
   <aside class="record-side">
     <section class="card" aria-labelledby="review-title">
       <h2 id="review-title">Review and publish</h2>
+      <h3>Required to publish</h3>
+      <ul id="publication-requirements">
+        <li>Title</li>
+        <li>License</li>
+        <li>At least one contributor with a name and role</li>
+        <li>At least one analytical run or stand-alone voucher</li>
+      </ul>
+      <p class="muted small">Selected runs, their studies, and all linked or stand-alone vouchers must be released.</p>
       <p id="inputs-status" class="feedback" role="status"></p>
       <div id="release-inputs"></div>
       <form id="validate" class="stack">
@@ -83,15 +99,13 @@
           <p class="feedback" role="status"></p>
         </form>
       </section>
-      {% if not curator %}
       <section id="submission" class="submission" aria-labelledby="submission-title" hidden>
         <h3 id="submission-title">Curator review</h3>
         <p id="submission-text" class="muted small"></p>
-        <button type="button" id="submit-review" class="primary">Submit for review</button>
+        {% if not curator %}<button type="button" id="submit-review" class="primary">Submit for review</button>{% endif %}
         <button type="button" id="take-back" class="secondary" hidden>Take back</button>
         <p class="feedback" role="status"></p>
       </section>
-      {% endif %}
       <p id="publication-result" class="notice" role="status" hidden></p>
     </section>
   </aside>

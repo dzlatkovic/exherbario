@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Boolean, Column, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import false, JSON, Boolean, Column, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import deferred
 
 from app.db import Base, new_id
@@ -19,6 +19,7 @@ class Profile(Base):
     source_path = Column(String(150))
     source_sha256 = Column(String(64))
     is_public = Column(Boolean, nullable=False, default=False)
+    ever_public = Column(Boolean, nullable=False, server_default=false())
     # Required for new profiles; NULL for profiles imported before techniques were recorded.
     technique = Column(String(20))
     run_metadata = Column(JSON)

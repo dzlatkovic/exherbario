@@ -7,8 +7,10 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, undefer
 
+from app.chemistry.models import Profile
 from app.db import lock_for_update, new_id
 from app.external.lookups import parse_retrieved_at, record_import
+from app.specimen.models import Specimen
 
 from .archive import build_archive, snapshot_digest
 from . import registries
@@ -172,7 +174,9 @@ class DepositionService:
     def create(self, data, actor):
         if data.correction_reason is not None:
             raise HTTPException(409, "A correction requires a published version.")
+        lock_for_update(self.db, self.db.query(Institution).filter_by(code=data.institution)).first()
         registered_institution(self.db, data.institution)
+        self._check_draft_references(data)
         deposition = Deposition(institution=data.institution, owner_id=actor.user_id,
                                 draft=data.model_dump(exclude={"institution"}), draft_revision=new_id())
         self.db.add(deposition)
@@ -221,10 +225,30 @@ class DepositionService:
             raise HTTPException(409, "Supply a correction reason for a new version of a published deposition.")
         if not deposition.latest_version and data.correction_reason:
             raise HTTPException(409, "A correction requires a published version.")
+        self._check_draft_references(data)
         deposition.draft = data.model_dump(exclude={"expected_revision"})
         deposition.draft_revision = new_id()
         self.db.commit()
         return self._draft_summary(deposition)
+
+    def _check_draft_references(self, data):
+        for ids, column, label in ((data.profile_ids, Profile.id, "run"),
+                                   (data.specimen_ids, Specimen.specimen_id, "voucher")):
+            if ids and len(list(self.db.scalars(select(column).where(column.in_(ids))))) != len(ids):
+                raise HTTPException(409, f"A linked {label} no longer exists. Remove it from the draft and save again.")
+
+    def discard_draft(self, deposition_id, expected_revision, actor):
+        deposition = self._deposition(deposition_id, actor, for_update=True)
+        if deposition.draft is None or deposition.draft_revision != expected_revision:
+            raise HTTPException(409, "The draft changed. Reload the deposition before discarding it.")
+        if deposition.submitted_at is not None:
+            raise HTTPException(409, "Take the draft back from review before discarding it.")
+        if deposition.latest_version:
+            deposition.draft = None
+            deposition.draft_revision = None
+        else:
+            self.db.delete(deposition)
+        self.db.commit()
 
     def preview(self, deposition_id, actor):
         deposition = self._deposition(deposition_id, actor)

@@ -312,8 +312,9 @@ bindForm("import-assign", async (data, form) => {
   const result = await request(`/api/chemistry/imports/${endpoint(importState.record.id)}/assignment`,
     {method: "PUT", json: importAssignment(form)});
   renderImportPreview(result);
+  if (result.preview.errors.length) find("import-problems").focus();
   return result.preview.errors.length ? "Preview has problems to fix." : "Preview ready. Review the compounds below.";
-});
+}, {fieldName: (path) => path.filter((part) => part !== "settings").join(".")});
 
 function startProgress(total, label) {
   stopRequested = false;

@@ -17,6 +17,7 @@ from app.chemistry.names import name_key
 from app.chemistry.pubchem import PubChemUnavailable
 from app.chemistry.sample_links import utc_now
 from app.chemistry.schemas.import_schemas import AssignmentIn, RowReviewIn
+from app.db import lock_for_update
 from app.file_storage import FILES_ROOT, archive_member, store_upload
 from app.users.models import User
 
@@ -438,6 +439,7 @@ class ImportService:
     # Confirmation ---------------------------------------------------------------------------------------------
 
     def confirm(self, import_id: str, actor: User):
+        lock_for_update(self.db, self.db.query(SpreadsheetImport).filter_by(id=import_id)).first()
         record = self._import_for_actor(import_id, actor)
         if not record.assignment:
             raise ChemistryError(409, "Assign the columns first.")

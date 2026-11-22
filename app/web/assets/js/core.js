@@ -35,6 +35,7 @@ export async function request(path, {method = "GET", json, multipart} = {}) {
       : detail;
     const error = new Error(message || `Request failed (HTTP ${response.status}).`);
     error.status = response.status;
+    if (Array.isArray(detail)) error.issues = detail;
     throw error;
   }
   return result;
@@ -46,20 +47,79 @@ export function status(element, message = "", error = false) {
 }
 
 /** Handle a form's submit with fetch; `target` is a form element or its id. */
-export function bindForm(target, handler) {
+export function bindForm(target, handler, {fieldName} = {}) {
   const form = typeof target === "string" ? find(target) : target;
+  const feedback = form.querySelector(":scope > .feedback") ?? form.querySelector(".feedback");
+  const errors = new Map();
+  const clearError = (field) => {
+    const previous = errors.get(field);
+    if (!previous) return;
+    previous.message.remove();
+    field.removeAttribute("aria-invalid");
+    if (previous.description) field.setAttribute("aria-describedby", previous.description);
+    else field.removeAttribute("aria-describedby");
+    errors.delete(field);
+  };
+  const showErrors = (entries) => {
+    for (const [field, text] of entries) {
+      clearError(field);
+      const message = node("span", text, "field-error");
+      message.id = `${form.id}-error-${Array.from(form.elements).indexOf(field)}`;
+      const description = field.getAttribute("aria-describedby");
+      field.insertAdjacentElement("afterend", message);
+      field.setAttribute("aria-invalid", "true");
+      field.setAttribute("aria-describedby", [description, message.id].filter(Boolean).join(" "));
+      errors.set(field, {message, description});
+    }
+    const first = Array.from(form.elements).find((field) => errors.has(field));
+    if (!first) return;
+    for (let parent = first.parentElement; parent && parent !== form; parent = parent.parentElement) {
+      if (parent.tagName === "DETAILS") parent.open = true;
+    }
+    status(feedback, "Check the highlighted fields.", true);
+    requestAnimationFrame(() => first.focus());
+  };
+  if (fieldName) {
+    form.noValidate = true;
+    const clearOnEdit = (event) => clearError(event.target);
+    form.addEventListener("input", clearOnEdit);
+    form.addEventListener("change", clearOnEdit);
+  }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const submit = form.querySelector("button:not([type='button'])");
-    // The form's own message line; nested widgets (such as a voucher picker) have their own.
-    const feedback = form.querySelector(":scope > .feedback") ?? form.querySelector(".feedback");
+    if (fieldName) {
+      for (const field of errors.keys()) clearError(field);
+      const invalid = [];
+      for (const field of form.elements) {
+        if (!field.willValidate) continue;
+        if (!field.validity.valid) invalid.push([field, field.validationMessage]);
+        else if (field.required && ["text", "textarea"].includes(field.type) && !field.value.trim()) {
+          invalid.push([field, "Enter a value."]);
+        }
+      }
+      if (invalid.length) {
+        showErrors(invalid);
+        return;
+      }
+    }
     submit.disabled = true;
     status(feedback, "Working…");
     try {
       const message = await handler(new FormData(form), form);
       status(feedback, message);
     } catch (error) {
-      status(feedback, error.message || "Request failed.", true);
+      const entries = fieldName && error.issues?.flatMap(({loc, msg}) => {
+        const name = fieldName(loc.slice(1));
+        const field = Array.from(form.elements).find((item) =>
+          item.willValidate && (item.name === name || item.dataset.errorField === name));
+        return field ? [[field, msg.replace(/^Value error, /, "")]] : [];
+      });
+      if (entries?.length && entries.length === error.issues.length) showErrors(entries);
+      else {
+        if (entries?.length) showErrors(entries);
+        status(feedback, error.message || "Request failed.", true);
+      }
     } finally {
       submit.disabled = false;
       document.dispatchEvent(new CustomEvent("herbar:form-settled", {detail: {form}}));
@@ -168,7 +228,10 @@ export function bindRunFields(form) {
   const technique = form.querySelector(".technique");
   const render = () => {
     const kind = technique.value.startsWith("GC") ? "gc" : "lc";
-    for (const field of form.querySelectorAll(".run-fields [data-for]")) field.hidden = field.dataset.for !== kind;
+    for (const field of form.querySelectorAll(".run-fields [data-for]")) {
+      field.hidden = field.dataset.for !== kind;
+      field.querySelector("input, select").disabled = field.hidden;
+    }
   };
   technique.addEventListener("change", render);
   render();

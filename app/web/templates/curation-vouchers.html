@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_form_labels.html" import field_label %}
 {% block title %}Vouchers · Curation · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/curation-vouchers.js"></script>{% endblock %}
 {% block header %}{% include "_curation_header.html" %}{% endblock %}
@@ -19,9 +20,10 @@
   <section class="card voucher-register" id="register-section" aria-labelledby="register-title">
     <h2 id="register-title">Register a voucher</h2>
     <form id="register" class="stack">
+      <p class="muted small">Fill in fields marked Required. Other fields can be left blank.</p>
       <fieldset class="form-grid">
         <legend>Voucher identity</legend>
-        <label>Holding <select name="holding_type"><option value="local">Held locally</option><option value="external">Held externally</option></select></label>
+        <label>{{ field_label("Holding") }} <select name="holding_type" required><option value="local">Held locally</option><option value="external">Held externally</option></select></label>
         <label>Holding institution <input name="holding_institution" maxlength="120"></label>
         <label>Collection name <input name="collection" maxlength="120"></label>
         <label>Accession <input name="accession" maxlength="100"></label>
@@ -29,7 +31,7 @@
       <fieldset class="stack">
         <legend>Identification</legend>
         {% with picker_id = "register-taxon" %}{% include "_taxon_picker.html" %}{% endwith %}
-        <p class="muted small">Search local taxonomy and GBIF. Choose “Add and use” to import a GBIF match and its parent taxa.</p>
+        <p class="muted small">Taxon is optional. Search local taxonomy and GBIF. Choose “Add and use” to import a GBIF match and its parent taxa.</p>
         <div class="form-grid">
           <label>Name as recorded on the label <input name="subnomen" maxlength="200"></label>
           <label>Determiner <input name="determiner_name" maxlength="200"></label>
@@ -57,9 +59,9 @@
         </select></label>
         <fieldset id="new-location" class="form-grid" hidden disabled>
           <legend>New field site</legend>
-          <label>Country (required) <input name="site.country" required maxlength="100"></label>
-          <label>Region (required) <input name="site.region" required maxlength="150"></label>
-          <label class="full">Locality (required) <input name="site.locality" required maxlength="500"></label>
+          <label>{{ field_label("Country") }} <input name="site.country" required maxlength="100"></label>
+          <label>{{ field_label("Region") }} <input name="site.region" required maxlength="150"></label>
+          <label class="full">{{ field_label("Locality") }} <input name="site.locality" required maxlength="500"></label>
           <label>Altitude (m) <input name="site.altitude" type="number"></label>
           <label>Habitat <input name="site.habitat" maxlength="255"></label>
           <label>Latitude (decimal degrees) <input name="site.gps_lat" type="number" min="-90" max="90" step="any"></label>

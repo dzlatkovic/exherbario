@@ -33,4 +33,4 @@ bindForm("register", async (data) => {
   const voucher = await request("/api/specimen/create-new-specimen", {method: "POST", json: payload});
   open(voucher.specimen_id);
   return "Voucher registered.";
-});
+}, {fieldName: ([root, ...path]) => [root === "field_location" ? "site" : root, ...path].join(".")});

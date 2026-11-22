@@ -114,6 +114,8 @@ class ImageService:
         with SessionLocal() as db:
             repository = ImageRepository(db)
             image = repository.get_image_by_id(image_id, for_update=True)
+            if image.is_public or image.ever_public:
+                raise ImageInUseException("This photograph has been approved. Use Withdraw to remove it from public view.", 409)
             if image.plantnet_results:
                 raise ImageInUseException("Remove linked identification results before deleting this image.", 409)
             path = ImageService.storage_path(image.file_path)

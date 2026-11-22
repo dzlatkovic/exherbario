@@ -15,7 +15,7 @@ from app.chemistry.repository import ChemistryRepository
 from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, SampleIn, StudyIn, Technique,
                                    VoucherLinkIn, run_metadata_for)
 from app.chemistry.schemas.chemistry_schemas import MAX_SAMPLE_VOUCHERS
-from app.db import new_id
+from app.db import lock_for_update, new_id
 from app.file_storage import FILES_ROOT, archive_member, store_upload
 from app.users.models import User
 
@@ -222,13 +222,19 @@ class ChemistryService:
         return content
 
     def set_study_visibility(self, study_id: str, is_public: bool, actor: User):
+        db = self.repository.db
+        lock_for_update(db, db.query(Study).filter_by(id=study_id)).first()
         study = self._study_for_actor(study_id, actor)
+        study.ever_public = study.ever_public or study.is_public or is_public
         study.is_public = is_public
         self.repository.save(study)
         return study
 
     def set_profile_visibility(self, profile_id: str, is_public: bool, actor: User):
+        db = self.repository.db
+        lock_for_update(db, db.query(Profile).filter_by(id=profile_id)).first()
         profile = self._profile_for_actor(profile_id, actor)
+        profile.ever_public = profile.ever_public or profile.is_public or is_public
         profile.is_public = is_public
         self.repository.save(profile)
         return profile

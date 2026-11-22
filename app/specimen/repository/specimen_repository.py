@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, select
 from app.config import settings
 from app.db import lock_for_update
+from app.deposition.references import draft_reference
 from app.field_loc.models import FieldLoc
 from app.specimen.models import Revision, ScientificCorrection, Specimen
 from app.specimen.exceptions import (
@@ -122,15 +123,19 @@ class SpecimenRepository:
             if specimen is None:
                 raise SpecimenNotFoundException(f"Specimen with provided ID: "
                                                 f"{specimen_id} not found.", 400)
+            if specimen.is_public or specimen.ever_public:
+                raise SpecimenInUseException("This voucher has been released. Use its visibility settings to withdraw it.")
+            draft = draft_reference(self.db, "specimen_ids", {specimen_id})
+            if draft:
+                raise SpecimenInUseException(f"Unlink this voucher from {draft} before deleting it.")
             self.db.delete(specimen)
             self.db.commit()
             return True
         except IntegrityError as error:
             self.db.rollback()
             raise SpecimenInUseException(
-                "Remove linked images and publications before deleting this specimen. "
-                "Specimens with determination history, corrections, weather records "
-                "or linked lab samples must be retained."
+                "This voucher has linked photographs, publications, samples, weather records, or correction history. "
+                "Review its linked records before deleting it."
             ) from error
 
     def read_specimen_by_reg_num(self, reg_no: str):

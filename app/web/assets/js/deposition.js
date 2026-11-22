@@ -1,9 +1,10 @@
 // Deposition page: edit the draft, release its records, preview the public snapshot and (curators) publish.
-import {VOUCHER_ROLES, bindForm, endpoint, find, node, request, requiredSelection, selectOptions, status, voucherLabel,
+import {VOUCHER_ROLES, bindForm, confirmAction, endpoint, find, node, request, requiredSelection, selectOptions, status, voucherLabel,
         voucherPicker} from "./core.js";
 
 const page = find("deposition");
 const draftForm = find("save-draft");
+const submission = find("submission");
 const state = {draft: null, dirty: true, approval: null, curator: page.dataset.curator === "true"};
 const names = new Map();
 
@@ -68,27 +69,61 @@ function clearPreview() {
 function updateReview() {
   find("validate").querySelector("button").disabled = !state.draft?.draft_revision || state.dirty;
   find("publish").querySelector("button").disabled = !state.approval || !state.curator;
+  const contributors = contributorInputs().filter(hasContributorValue);
+  const requirements = [
+    ["Title", Boolean(draftForm.elements.title.value.trim())],
+    ["License", Boolean(draftForm.elements.license.value.trim())],
+    ["At least one contributor with a name and role", contributors.length > 0 &&
+      contributors.every(([name, role]) => name.value.trim() && role.value.trim())],
+    ["At least one analytical run or stand-alone voucher", Boolean(profileIds().length || idList("specimen_ids").length)],
+  ];
+  const items = find("publication-requirements").children;
+  requirements.forEach(([label, done], index) => {
+    items[index].textContent = `${label} — ${done ? "Entered" : "Missing"}`;
+  });
   renderSubmission();
 }
 
-/** Researchers hand a saved draft to the curators; curators publish directly, so they don't see this. */
 function renderSubmission() {
-  const box = find("submission");
-  if (!box) return;
   const draft = state.draft;
-  box.hidden = !draft?.draft_revision;
-  if (box.hidden) return;
-  const submitted = draft.submitted_at;
+  const submitted = draft?.submitted_at;
+  find("discard-draft-actions").hidden = !draft?.draft_revision || Boolean(submitted);
+  find("discard-draft").textContent = draft?.latest_version ? "Discard correction draft" : "Discard draft";
+  submission.hidden = !draft?.draft_revision || (state.curator && !submitted);
+  if (submission.hidden) return;
   find("submission-text").textContent = submitted
-    ? `Submitted on ${submitted.slice(0, 10)}. Curators see it in their review list. You can keep editing; they review the latest saved draft.`
+    ? `Submitted on ${submitted.slice(0, 10)}. Take the draft back from review before discarding it.`
     : "When the draft is saved and its records are released, submit it. Curators then preview and publish it.";
-  find("submit-review").hidden = Boolean(submitted);
-  find("submit-review").disabled = state.dirty;
+  const submit = find("submit-review");
+  if (submit) {
+    submit.hidden = Boolean(submitted);
+    submit.disabled = state.dirty;
+  }
   find("take-back").hidden = !submitted;
 }
 
+find("discard-draft").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const draft = state.draft;
+  const label = button.textContent;
+  const message = draft.latest_version
+    ? "Permanently discard the pending correction. Published versions remain available at their existing URLs."
+    : "Permanently discard this deposition draft. Its linked vouchers and runs stay in the archive.";
+  button.disabled = true;
+  try {
+    if (!await confirmAction(label + "?", message, label)) return;
+    const path = `/api/depositions/${endpoint(draft.id)}/draft?expected_revision=${endpoint(draft.draft_revision)}`;
+    await request(path, {method: "DELETE"});
+    window.location.assign("/researcher");
+  } catch (error) {
+    status(find("discard-draft-feedback"), error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 async function changeSubmission(method) {
-  const feedback = find("submission").querySelector(".feedback");
+  const feedback = submission.querySelector(".feedback");
   try {
     const summary = await request(`/api/depositions/${endpoint(state.draft.id)}/submission`, {method});
     state.draft = {...state.draft, submitted_at: summary.submitted_at};
@@ -114,15 +149,25 @@ function profileIds() {
   return idList("profile_ids");
 }
 
+function contributorInputs() {
+  return Array.from(find("credit-rows").children, (row) => [...row.querySelectorAll("input")]);
+}
+
+function hasContributorValue(fields) {
+  return fields.some((field) => field.value.trim());
+}
+
 function addCredit(credit = {}) {
   const row = node("div", "", "credit-row");
   for (const [name, value] of [["Name", credit.name], ["Role", credit.role], ["ORCID", credit.orcid]]) {
-    const label = node("label", name);
+    const label = node("label");
+    const caption = node("span", name);
+    caption.append(" ", node("span", name === "ORCID" ? "Optional" : "Required for contributor", "field-note"));
     const input = node("input");
     input.value = value ?? "";
-    input.maxLength = 200;
+    input.maxLength = name === "ORCID" ? 19 : 200;
     input.dataset.credit = name.toLowerCase();
-    label.append(input);
+    label.append(caption, input);
     row.append(label);
   }
   const remove = node("button", "Remove", "secondary");
@@ -130,18 +175,22 @@ function addCredit(credit = {}) {
   remove.addEventListener("click", () => { row.remove(); markDirty(); });
   row.append(remove);
   find("credit-rows").append(row);
+  const fields = [...row.querySelectorAll("input")];
+  const updateRequired = () => {
+    const filled = hasContributorValue(fields);
+    fields[0].required = fields[1].required = filled;
+  };
+  row.addEventListener("input", updateRequired);
+  updateRequired();
 }
 
 function draftPayload(data) {
   const metadata = Object.fromEntries(data);
-  metadata.contributors = [...find("credit-rows").children].map((row) => ({
-    name: row.querySelector("[data-credit='name']").value.trim(),
-    role: row.querySelector("[data-credit='role']").value.trim(),
-    orcid: row.querySelector("[data-credit='orcid']").value.trim() || null,
-  })).filter((credit) => credit.name || credit.role || credit.orcid);
-  if (metadata.contributors.some((credit) => !credit.name || !credit.role)) {
-    throw new Error("Each contributor needs both a name and a role.");
-  }
+  metadata.contributors = contributorInputs().filter(hasContributorValue).map((fields, index) => {
+    for (const input of fields) input.dataset.errorField = `contributors.${index}.${input.dataset.credit}`;
+    const [name, role, orcid] = fields.map((input) => input.value.trim());
+    return {name, role, orcid: orcid || null};
+  });
   metadata.profile_ids = profileIds();
   metadata.specimen_ids = idList("specimen_ids");
   metadata.include_determiner_names = data.has("include_determiner_names");
@@ -291,7 +340,7 @@ bindForm("save-draft", async (data) => {
   find("publication-result").hidden = true;
   await refreshInputs();
   return "Draft saved.";
-});
+}, {fieldName: (path) => path.join(".")});
 bindForm("validate", async () => {
   const draft = requiredSelection(state.draft, "Save a draft first.");
   const preview = await request(`/api/depositions/${endpoint(draft.id)}/draft/preview`);

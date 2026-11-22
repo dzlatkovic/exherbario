@@ -98,7 +98,8 @@ class TestCuration(TestClass):
         review = signed_in("curator@example.org").get("/curation")
         assert review.status_code == 200 and f'href="/researcher/depositions/{deposition["id"]}"' in review.text
         assert 'id="submission"' in other.get(f"/researcher/depositions/{deposition['id']}").text
-        assert 'id="submission"' not in signed_in("curator@example.org").get(f"/researcher/depositions/{deposition['id']}").text
+        curator_editor = signed_in("curator@example.org").get(f"/researcher/depositions/{deposition['id']}").text
+        assert 'id="take-back"' in curator_editor and 'id="submit-review"' not in curator_editor
 
         publish(deposition["id"], curator)
         assert client.get("/api/depositions/review", headers=curator).json() == []

@@ -1,0 +1,7 @@
+{% macro delete_action(label, url, destination, message) -%}
+<span class="delete-action">
+  <button type="button" class="text-button danger" data-delete="{{ url }}" data-destination="{{ destination }}"
+          data-description="{{ message }}">{{ label }}</button>
+  <span class="feedback" role="status" hidden></span>
+</span>
+{%- endmacro %}

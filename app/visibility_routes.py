@@ -32,6 +32,7 @@ def set_voucher_visibility(specimen_id: str, state: VoucherVisibility, db: Sessi
     specimen = lock_for_update(db, db.query(Specimen).filter_by(specimen_id=specimen_id)).first()
     if specimen is None:
         raise HTTPException(404, "Specimen not found.")
+    specimen.ever_public = specimen.ever_public or specimen.is_public or state.is_public
     specimen.is_public = state.is_public
     specimen.public_location = state.public_location
     db.commit()
@@ -50,6 +51,7 @@ def set_photo_visibility(image_id: str, state: PhotoVisibility, db: Session = De
             ImageService.public_jpeg(image.file_path)
         except InvalidImageFileException as error:
             raise HTTPException(409, "A public copy could not be generated.") from error
+    image.ever_public = image.ever_public or image.is_public or state.is_public
     image.is_public = state.is_public
     db.commit()
     return state

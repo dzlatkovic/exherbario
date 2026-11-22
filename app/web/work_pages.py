@@ -84,12 +84,16 @@ def study(request: Request, study_id: str, db: Session = Depends(get_db)):
         SpreadsheetImport.study_id == record.id, SpreadsheetImport.status == "draft",
         true() if viewer["curator"] else SpreadsheetImport.owner_id == actor.user_id)
         .order_by(SpreadsheetImport.created_at.desc())).all()
+    import_count = db.scalar(select(func.count()).select_from(SpreadsheetImport).where(
+        SpreadsheetImport.study_id == record.id))
     vouchers = {sample_id: [{"id": link.specimen_id, "role": ROLE_LABELS.get(link.role, link.role),
                              "name": taxon_name or voucher.subnomen or "Unidentified specimen",
                              "accession": voucher.accession or voucher.reg_no, "redetermined": redetermined(link, voucher)}
                             for link, voucher, taxon_name in rows] for sample_id, rows in links.items()}
     return _web().render(request, "staff-study.html", study=record, samples=samples, vouchers=vouchers,
-                         preparations=by_sample, runs=runs, imports=imports, curator=viewer["curator"])
+                         preparations=by_sample, runs=runs, imports=imports, curator=viewer["curator"],
+                         preparation_count=len(preparations), run_count=len(profiles), import_count=import_count,
+                         has_released_runs=any(profile.is_public or profile.ever_public for profile, _, _ in profiles))
 
 
 @router.get("/researcher/profiles/{profile_id}")

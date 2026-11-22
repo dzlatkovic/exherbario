@@ -25,6 +25,7 @@ class Specimen(Base):
     collected_by = Column(String(50), ForeignKey("users.user_id"))
     verified_by = Column(String(50), ForeignKey("users.user_id"))
     is_public = Column(Boolean, nullable=False, server_default=false())
+    ever_public = Column(Boolean, nullable=False, server_default=false())
     public_location = Column(String(8), nullable=False, server_default="withheld")
     holding_type = Column(String(8))
     holding_institution = Column(String(120))

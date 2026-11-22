@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, String, Text
+from sqlalchemy import false, Boolean, Column, ForeignKey, String, Text
 
 from app.db import Base, new_id
 
@@ -12,3 +12,4 @@ class Study(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=False)
     is_public = Column(Boolean, nullable=False, default=False)
+    ever_public = Column(Boolean, nullable=False, server_default=false())

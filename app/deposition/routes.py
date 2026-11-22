@@ -78,6 +78,12 @@ def get_draft(deposition_id: str, actor: User = Depends(researcher), service=Dep
     return service.get_draft(deposition_id, actor)
 
 
+@router.delete("/{deposition_id}/draft", status_code=204)
+def discard_draft(deposition_id: str, expected_revision: str = Query(min_length=1, max_length=50),
+                  actor: User = Depends(researcher), service=Depends(get_service)):
+    service.discard_draft(deposition_id, expected_revision, actor)
+
+
 @router.put("/{deposition_id}/draft")
 def edit_draft(deposition_id: str, data: EditDraft, actor: User = Depends(researcher), service=Depends(get_service)):
     return service.edit(deposition_id, data, actor)

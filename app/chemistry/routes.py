@@ -15,6 +15,7 @@ from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, P
 from app.chemistry.services import ChemistryService
 from app.chemistry.schemas.import_schemas import AssignmentIn, RowReviewIn
 from app.chemistry.services.compounds import CompoundRegistry
+from app.chemistry.services.deletion import ChemistryDeletion
 from app.chemistry.services.export import ExportService
 from app.chemistry.services.imports import ImportService
 from app.db import get_db
@@ -59,6 +60,33 @@ def create_study(data: StudyIn, actor: User = Depends(authenticated),
 def get_study(study_id: str, actor: User = Depends(authenticated),
               controller: ChemistryController = Depends(get_chemistry_controller)):
     return controller.get_study(study_id, actor)
+
+
+@chemistry_router.delete("/studies/{study_id}", status_code=204)
+def delete_study(study_id: str, samples: int = Query(ge=0), preparations: int = Query(ge=0),
+                 runs: int = Query(ge=0), imports: int = Query(ge=0),
+                 actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    ChemistryDeletion(db).delete_study(study_id, actor, (samples, preparations, runs, imports))
+
+
+@chemistry_router.delete("/samples/{sample_id}", status_code=204)
+def delete_sample(sample_id: str, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    ChemistryDeletion(db).delete_sample(sample_id, actor)
+
+
+@chemistry_router.delete("/preparations/{preparation_id}", status_code=204)
+def delete_preparation(preparation_id: str, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    ChemistryDeletion(db).delete_preparation(preparation_id, actor)
+
+
+@chemistry_router.delete("/profiles/{profile_id}", status_code=204)
+def delete_profile(profile_id: str, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    ChemistryDeletion(db).delete_profile(profile_id, actor)
+
+
+@chemistry_router.delete("/imports/{import_id}", status_code=204)
+def discard_import(import_id: str, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    ChemistryDeletion(db).discard_import(import_id, actor)
 
 
 @chemistry_router.post("/studies/{study_id}/samples", status_code=201)
