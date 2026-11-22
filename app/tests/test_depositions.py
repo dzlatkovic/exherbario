@@ -92,7 +92,7 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     preview = first_preview.json()
     first_url = preview["snapshot"]["url"]
     assert first_url.startswith(BASE_URL + "/api/depositions/public/EXU/")
-    assert preview["snapshot"]["schema_version"] == 5
+    assert preview["snapshot"]["schema_version"] == 6
     assert preview["snapshot"]["identifier"] == first_url.replace("/api/depositions/public/", "/depositions/")
     assert [voucher["id"] for voucher in preview["snapshot"]["vouchers"]] == [specimen.specimen_id]
     assert client.get(first_url).status_code == 404

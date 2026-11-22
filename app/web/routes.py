@@ -110,6 +110,9 @@ def profile_vouchers(snapshot):
             pairs[profile["id"]] = [(profile["voucher"], {"role": profile["sample"].get("voucher_relationship")})]
         else:
             pairs[profile["id"]] = [(by_id[link["id"]], link) for link in profile["sample"]["vouchers"]]
+    # From schema 6: samples and preparations deposited without runs.
+    for preparation in snapshot.get("preparations") or []:
+        pairs[preparation["id"]] = [(by_id[link["id"]], link) for link in preparation["sample"]["vouchers"]]
     linked = {voucher["id"] for vouchers in pairs.values() for voucher, _ in vouchers}
     return pairs, [voucher for voucher in snapshot.get("vouchers") or [] if voucher["id"] not in linked]
 

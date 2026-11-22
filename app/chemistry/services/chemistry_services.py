@@ -138,6 +138,13 @@ class ChemistryService:
             raise ChemistryError(409, "Withdraw the sample's released profiles before removing a voucher.")
         self.repository.delete(link)
 
+    def get_preparation(self, preparation_id: str, actor: User):
+        preparation = self.repository.get_preparation(preparation_id)
+        if not preparation:
+            raise ChemistryError(404, "Preparation not found.")
+        sample = self._sample_for_actor(preparation.sample_id, actor)
+        return preparation, sample, self.repository.get_study(sample.study_id)
+
     def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
         self._sample_for_actor(sample_id, actor)
         preparation = Preparation(sample_id=sample_id, **data.model_dump())

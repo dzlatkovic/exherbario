@@ -31,16 +31,29 @@
         </fieldset>
         <fieldset class="stack">
           <legend>Analytical runs</legend>
-          <p class="muted small">Add at least one run or stand-alone voucher to publish.</p>
+          <p class="muted small">Runs from your studies, with their samples, preparations and linked vouchers.</p>
           <ul id="profile-list" class="picker-results"></ul>
           <div class="form-grid">
             <label>Study <select id="choose-study"><option value="">Select a study</option></select></label>
             <label>Run <select id="choose-profile"><option value="">Select a run</option></select></label>
           </div>
+          <p id="profile-choice-status" class="feedback small" role="status"></p>
           <button type="button" id="attach-profile" class="secondary">Add run</button>
         </fieldset>
         <fieldset class="stack">
-          <legend>Vouchers without analytical runs</legend>
+          <legend>Samples and preparations without runs</legend>
+          <p class="muted small">Material deposited without analytical results, for example an extract tested only in a bioassay
+            or an essential oil reported by its yield. The sample's provenance, the preparation and its linked vouchers are included.</p>
+          <ul id="preparation-list" class="picker-results"></ul>
+          <div class="form-grid">
+            <label>Study <select id="choose-preparation-study"><option value="">Select a study</option></select></label>
+            <label>Preparation <select id="choose-preparation"><option value="">Select a preparation</option></select></label>
+          </div>
+          <button type="button" id="attach-preparation" class="secondary">Add preparation</button>
+        </fieldset>
+        <fieldset class="stack">
+          <legend>Vouchers on their own</legend>
+          <p class="muted small">Vouchers deposited without samples or runs. Vouchers linked to the runs and preparations above are included automatically.</p>
           <ul id="voucher-list" class="picker-results"></ul>
           <div id="draft-voucher-picker" class="picker">
             <div class="inline-form">
@@ -58,6 +71,7 @@
             <label class="check"><input name="include_collector_names" type="checkbox"> Include recorded collector names</label>
             <label class="check"><input name="include_determiner_names" type="checkbox"> Include recorded determiner names</label>
             <label>Run IDs <textarea name="profile_ids" rows="2" spellcheck="false"></textarea></label>
+            <label>Preparation IDs <textarea name="preparation_ids" rows="2" spellcheck="false"></textarea></label>
             <label>Voucher IDs <textarea name="specimen_ids" rows="2" spellcheck="false"></textarea></label>
           </div>
         </details>
@@ -80,9 +94,9 @@
         <li>Title</li>
         <li>License</li>
         <li>At least one contributor with a name and role</li>
-        <li>At least one analytical run or stand-alone voucher</li>
+        <li>At least one run, preparation or voucher</li>
       </ul>
-      <p class="muted small">Selected runs, their studies, and all linked or stand-alone vouchers must be released.</p>
+      <p class="muted small">Selected runs, their studies, the studies of selected preparations, and all linked or stand-alone vouchers must be released.</p>
       <p id="inputs-status" class="feedback" role="status"></p>
       <div id="release-inputs"></div>
       <form id="validate" class="stack">

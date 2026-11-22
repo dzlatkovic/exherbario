@@ -54,6 +54,9 @@ class Draft(DepositionInput):
     profile_ids: Annotated[conlist(Identifier, max_length=50), AfterValidator(unique_items)] = Field(default_factory=list)
     specimen_ids: Annotated[conlist(Identifier, max_length=MAX_VOUCHERS), AfterValidator(unique_items)] = Field(
         default_factory=list)
+    # Samples and preparations deposited without analytical runs, e.g. extracts tested only in bioassays.
+    preparation_ids: Annotated[conlist(Identifier, max_length=50), AfterValidator(unique_items)] = Field(
+        default_factory=list)
     include_determiner_names: bool = False
     include_collector_names: bool = False
     correction_reason: Reason | None = None

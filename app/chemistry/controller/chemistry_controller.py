@@ -130,6 +130,11 @@ class ChemistryController:
     def remove_sample_voucher(self, sample_id: str, specimen_id: str, actor: User):
         self.service.remove_sample_voucher(sample_id, specimen_id, actor)
 
+    def get_preparation(self, preparation_id: str, actor: User):
+        preparation, sample, study = self.service.get_preparation(preparation_id, actor)
+        return {**preparation_summary(preparation), "sample_code": sample.code,
+                "study": {"id": study.id, "title": study.title}}
+
     def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
         return {"id": self.service.create_preparation(sample_id, data, actor).id}
 

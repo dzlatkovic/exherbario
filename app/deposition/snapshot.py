@@ -96,6 +96,32 @@ def selected_records(db, deposition, profile_ids):
     }
 
 
+def selected_preparations(db, deposition, preparation_ids):
+    """Preparations deposited without runs, from studies the draft owner may deposit."""
+    owner = db.get(User, deposition.owner_id)
+    if not preparation_ids or owner is None or not owner.is_active:
+        return {}
+    records = db.execute(
+        select(Preparation, LabSample, Study)
+        .join(LabSample, Preparation.sample_id == LabSample.id)
+        .join(Study, LabSample.study_id == Study.id)
+        .where(Preparation.id.in_(preparation_ids))
+    ).all()
+    links = ChemistryRepository(db).list_sample_links(sorted({sample.id for _, sample, _ in records}))
+    return {
+        preparation.id: (preparation, sample, study, links[sample.id])
+        for preparation, sample, study in records
+        if (owner.is_superuser or study.owner_id == owner.user_id)
+    }
+
+
+def _preparation_metadata(preparation):
+    return {"id": preparation.id, "batch_code": preparation.batch_code, "kind": preparation.kind,
+            "method_reference": preparation.method_reference,
+            "plant_material_mass_g": preparation.plant_material_mass_g,
+            "method_parameters": preparation.method_parameters, "yield_percent": preparation.yield_percent}
+
+
 def _sample_metadata(sample, links):
     return {
         "id": sample.id, "code": sample.code, **{name: getattr(sample, name) for name in PROVENANCE},
@@ -128,8 +154,8 @@ def registered_institution(db, code):
 def build_snapshot(db, deposition):
     draft = Draft.model_validate(deposition.draft)
     required = [name for name in ("title", "license", "contributors") if not getattr(draft, name)]
-    if not (draft.profile_ids or draft.specimen_ids):
-        required.append("profile_ids or specimen_ids")
+    if not (draft.profile_ids or draft.specimen_ids or draft.preparation_ids):
+        required.append("profile_ids, preparation_ids or specimen_ids")
     if required:
         raise HTTPException(409, "Complete the draft fields: " + ", ".join(required))
     base = public_base_url()
@@ -141,10 +167,22 @@ def build_snapshot(db, deposition):
     ):
         raise HTTPException(409, "Select released profiles from studies available to the draft owner, "
                                  "with every linked voucher released.")
+    preparations = selected_preparations(db, deposition, draft.preparation_ids)
+    if set(preparations) != set(draft.preparation_ids) or any(
+        not (study.is_public and links and all(voucher.is_public for _, voucher, _ in links))
+        for _, _, study, links in preparations.values()
+    ):
+        raise HTTPException(409, "Select preparations from released studies available to the draft owner, "
+                                 "with every linked voucher released.")
+    with_runs = {preparation.id for _, preparation, *_ in records.values()}
+    if with_runs & set(preparations):
+        raise HTTPException(409, "A selected preparation is already included through its runs. "
+                                 "Remove it from the preparations without runs.")
     listed = selected_vouchers(db, draft.specimen_ids)
     if set(listed) != set(draft.specimen_ids) or not all(voucher.is_public for voucher, _ in listed.values()):
         raise HTTPException(409, "Select vouchers that exist and have been released by a curator.")
-    linked_ids = [link.specimen_id for *_, links in records.values() for link, _, _ in links]
+    linked_ids = [link.specimen_id for *_, links in [*records.values(), *preparations.values()]
+                  for link, _, _ in links]
     linked = selected_vouchers(db, [specimen_id for specimen_id in linked_ids if specimen_id not in listed])
     measurements = {profile_id: [] for profile_id in draft.profile_ids}
     corrections = {profile_id: [] for profile_id in draft.profile_ids}
@@ -178,16 +216,19 @@ def build_snapshot(db, deposition):
             "measurements": measurements[profile_id], "compound_corrections": corrections[profile_id],
             "study": {"id": study.id, "title": study.title},
             "sample": _sample_metadata(sample, links),
-            "preparation": {"id": preparation.id, "batch_code": preparation.batch_code, "kind": preparation.kind,
-                            "method_reference": preparation.method_reference,
-                            "plant_material_mass_g": preparation.plant_material_mass_g,
-                            "method_parameters": preparation.method_parameters,
-                            "yield_percent": preparation.yield_percent},
+            "preparation": _preparation_metadata(preparation),
             "file": {"name": profile.source_name, "source_fidelity": profile.source_fidelity,
                      "sha256": sha256(content).hexdigest(), "size": len(content), "url": f"{url}/files/{profile_id}",
                      **({"spreadsheet": {"name": spreadsheet.source_name, "sha256": spreadsheet.source_sha256,
                                          "column": profile.import_column}} if spreadsheet else {})},
         })
+    prepared = []
+    for preparation_id in draft.preparation_ids:
+        preparation, sample, study, links = preparations[preparation_id]
+        for link, _, _ in links:
+            vouchers.setdefault(link.specimen_id, linked.get(link.specimen_id) or listed[link.specimen_id])
+        prepared.append({**_preparation_metadata(preparation), "study": {"id": study.id, "title": study.title},
+                         "sample": _sample_metadata(sample, links)})
     snapshot = jsonable_encoder({
         "schema_version": SCHEMA_VERSION, "institution": deposition.institution,
         "institution_name": institution.name,
@@ -204,5 +245,6 @@ def build_snapshot(db, deposition):
         "correction_reason": draft.correction_reason,
         "vouchers": [_voucher_metadata(voucher, taxon, draft) for voucher, taxon in vouchers.values()],
         "profiles": profiles,
+        "preparations": prepared,
     })
     return snapshot, files

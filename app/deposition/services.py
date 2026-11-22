@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, undefer
 
-from app.chemistry.models import Profile
+from app.chemistry.models import Preparation, Profile
 from app.db import lock_for_update, new_id
 from app.external.lookups import parse_retrieved_at, record_import
 from app.specimen.models import Specimen
@@ -20,7 +20,8 @@ from app.users.models import User
 from .models import (
     Deposition, DepositionArticle, DepositionDOI, DepositionFile, DepositionVersion, DepositionWithdrawal, Institution,
 )
-from .snapshot import build_snapshot, registered_institution, selected_records, selected_vouchers, version_url
+from .snapshot import (build_snapshot, registered_institution, selected_preparations, selected_records, selected_vouchers,
+                       version_url)
 
 
 def utc_now():
@@ -192,6 +193,8 @@ class DepositionService:
         specimen_ids = deposition.draft.get("specimen_ids", []) if deposition.draft else []
         records = selected_records(self.db, deposition, profile_ids)
         vouchers = selected_vouchers(self.db, specimen_ids)
+        preparation_ids = deposition.draft.get("preparation_ids", []) if deposition.draft else []
+        preparations = selected_preparations(self.db, deposition, preparation_ids)
         return {
             "vouchers": [
                 {
@@ -214,7 +217,22 @@ class DepositionService:
                 }
                 for profile, _, _, study, links in records.values()
             ],
-            "unavailable": len(profile_ids) - len(records) + len(specimen_ids) - len(vouchers),
+            "preparations": [
+                {
+                    "preparation": {"id": preparation.id, "batch_code": preparation.batch_code,
+                                    "kind": preparation.kind, "sample_code": sample.code},
+                    "study": {"id": study.id, "title": study.title, "is_public": study.is_public},
+                    "vouchers": [{
+                        "id": voucher.specimen_id, "role": link.role,
+                        "name": voucher.subnomen or taxon_name, "accession": voucher.accession or voucher.reg_no,
+                        "is_public": bool(voucher.is_public), "public_location": voucher.public_location,
+                    } for link, voucher, taxon_name in links],
+                }
+                for preparation, sample, study, links in (preparations[preparation_id] for preparation_id in preparation_ids
+                                                          if preparation_id in preparations)
+            ],
+            "unavailable": len(profile_ids) - len(records) + len(specimen_ids) - len(vouchers)
+                           + len(preparation_ids) - len(preparations),
         }
 
     def edit(self, deposition_id, data, actor):
@@ -233,6 +251,7 @@ class DepositionService:
 
     def _check_draft_references(self, data):
         for ids, column, label in ((data.profile_ids, Profile.id, "run"),
+                                   (data.preparation_ids, Preparation.id, "preparation"),
                                    (data.specimen_ids, Specimen.specimen_id, "voucher")):
             if ids and len(list(self.db.scalars(select(column).where(column.in_(ids))))) != len(ids):
                 raise HTTPException(409, f"A linked {label} no longer exists. Remove it from the draft and save again.")

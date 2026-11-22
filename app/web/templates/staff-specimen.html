@@ -47,11 +47,10 @@
     </form>
   </details>
   {% if not (specimen.is_public or specimen.ever_public) %}
-  <details class="form-details">
-    <summary>Manage voucher</summary>
+  <p class="link-row small">
     {{ delete_action("Delete voucher", "/api/specimen/delete-specimen?specimen_id=" ~ specimen.specimen_id, "/curation/vouchers",
         "Permanently delete voucher " ~ (specimen.accession or specimen.reg_no or specimen.specimen_id) ~ ".") }}
-  </details>
+  </p>
   {% endif %}
   {% endif %}
 </header>

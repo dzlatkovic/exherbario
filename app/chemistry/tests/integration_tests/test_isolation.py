@@ -151,7 +151,7 @@ class TestIsolation(TestClass):
             "contributors": [{"name": "F. Scientist", "role": "analyst"}], "profile_ids": [profile["id"]]}).json()
         snapshot = client.get(f"/api/depositions/{draft['id']}/draft/preview", headers=curator).json()["snapshot"]
         frozen = {row["feature"]: row for row in snapshot["profiles"][0]["measurements"]}
-        assert snapshot["schema_version"] == 5 and snapshot["profiles"][0]["technique"] == "isolation"
+        assert snapshot["schema_version"] == 6 and snapshot["profiles"][0]["technique"] == "isolation"
         assert (frozen["Compound 1"]["structure"]["smiles"], frozen["Compound 1"]["optical_rotation"]) == (
             parse_structure(PHENYLETHANOL)["smiles"], "[α]D20 −35 (c 0.1, MeOH)")
         assert snapshot["profiles"][0]["compound_corrections"][0]["new_structure_id"] == structure_id

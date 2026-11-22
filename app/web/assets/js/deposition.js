@@ -7,6 +7,7 @@ const draftForm = find("save-draft");
 const submission = find("submission");
 const state = {draft: null, dirty: true, approval: null, curator: page.dataset.curator === "true"};
 const names = new Map();
+const KINDS = {extract: "Extract", essential_oil: "Essential oil"};
 
 function ensureInstitution(code) {
   const select = draftForm.elements.institution;
@@ -21,6 +22,10 @@ async function nameOf(kind, id) {
         if (kind === "profile") {
           const profile = await request(`/api/chemistry/profiles/${endpoint(id)}`);
           return `Run ${profile.run_code} · ${profile.technique ?? profile.analytical_method}`;
+        }
+        if (kind === "preparation") {
+          const preparation = await request(`/api/chemistry/preparations/${endpoint(id)}`);
+          return `Sample ${preparation.sample_code} · ${preparation.batch_code} · ${KINDS[preparation.kind] ?? preparation.kind}`;
         }
         const voucher = await request(`/api/specimen/get-specimen-by-id?specimen_id=${endpoint(id)}`);
         return [voucher.subnomen, voucherLabel(voucher)].filter(Boolean).join(" · ");
@@ -51,6 +56,7 @@ function renderList(list, field, kind) {
 
 function renderSelections() {
   renderList(find("profile-list"), "profile_ids", "profile");
+  renderList(find("preparation-list"), "preparation_ids", "preparation");
   renderList(find("voucher-list"), "specimen_ids", "voucher");
 }
 
@@ -75,7 +81,8 @@ function updateReview() {
     ["License", Boolean(draftForm.elements.license.value.trim())],
     ["At least one contributor with a name and role", contributors.length > 0 &&
       contributors.every(([name, role]) => name.value.trim() && role.value.trim())],
-    ["At least one analytical run or stand-alone voucher", Boolean(profileIds().length || idList("specimen_ids").length)],
+    ["At least one run, preparation or voucher",
+      Boolean(profileIds().length || idList("preparation_ids").length || idList("specimen_ids").length)],
   ];
   const items = find("publication-requirements").children;
   requirements.forEach(([label, done], index) => {
@@ -193,6 +200,7 @@ function draftPayload(data) {
   });
   metadata.profile_ids = profileIds();
   metadata.specimen_ids = idList("specimen_ids");
+  metadata.preparation_ids = idList("preparation_ids");
   metadata.include_determiner_names = data.has("include_determiner_names");
   metadata.include_collector_names = data.has("include_collector_names");
   for (const name of ["title", "license", "correction_reason"]) {
@@ -222,6 +230,7 @@ function setDraft(draft, loadFields) {
     }
     form.elements.profile_ids.value = (data.profile_ids ?? []).join("\n");
     form.elements.specimen_ids.value = (data.specimen_ids ?? []).join("\n");
+    form.elements.preparation_ids.value = (data.preparation_ids ?? []).join("\n");
     form.elements.include_determiner_names.checked = data.include_determiner_names ?? false;
     form.elements.include_collector_names.checked = data.include_collector_names ?? false;
     find("credit-rows").replaceChildren();
@@ -241,12 +250,13 @@ async function refreshInputs() {
     const result = await request(`/api/depositions/${endpoint(draftId)}/draft/inputs`);
     if (state.draft?.id !== draftId) return;
     if (result.unavailable) {
-      status(find("inputs-status"), `${result.unavailable} selected profile(s) or voucher(s) are unavailable.`, true);
-    } else if (result.inputs.length || result.vouchers?.length) {
+      status(find("inputs-status"), `${result.unavailable} selected run(s), preparation(s) or voucher(s) are unavailable.`, true);
+    } else if (result.inputs.length || result.vouchers?.length || result.preparations?.length) {
       status(find("inputs-status"), "Release prerequisites");
     }
     for (const voucher of result.vouchers ?? []) panel.append(renderVoucher(voucher));
     for (const entry of result.inputs) panel.append(renderInput(entry));
+    for (const entry of result.preparations ?? []) panel.append(renderInput(entry));
   } catch (error) {
     status(find("inputs-status"), error.message, true);
   }
@@ -301,16 +311,18 @@ function renderVoucher(voucher) {
   return card;
 }
 
-function renderInput({profile, study, vouchers}) {
+/** A selected run (profile) or a preparation without runs, with what must be released before publication. */
+function renderInput({profile, preparation, study, vouchers}) {
   const card = node("article", "", "requirement");
   const visibility = (item) => item.is_public ? "Released" : "Private";
   const roles = Object.fromEntries(VOUCHER_ROLES);
   card.append(
-    node("h3", profile.name),
+    node("h3", profile ? profile.name
+      : `Sample ${preparation.sample_code} · ${preparation.batch_code} · ${KINDS[preparation.kind] ?? preparation.kind}`),
     ...vouchers.map((voucher) => node("p", `Voucher ${[voucher.name, voucher.accession].filter(Boolean).join(" · ")
       || voucher.id} (${roles[voucher.role] ?? voucher.role}) · ${visibility(voucher)}`)),
     node("p", `Study ${study.title} · ${visibility(study)}`),
-    node("p", `Profile · ${visibility(profile)}`),
+    node("p", profile ? `Profile · ${visibility(profile)}` : "Preparation without runs · released with its study"),
   );
   if (!state.curator) return card;
   const controls = node("div", "", "requirement-actions");
@@ -318,7 +330,7 @@ function renderInput({profile, study, vouchers}) {
     voucherRelease(voucher, controls, `Release voucher ${voucher.accession || voucher.id}`);
   }
   for (const [item, label, group] of [[study, "study", "studies"], [profile, "profile", "profiles"]]) {
-    if (!item.is_public) {
+    if (item && !item.is_public) {
       controls.append(releaseButton(`Release ${label}`, `/api/chemistry/${group}/${endpoint(item.id)}/visibility`,
         () => ({is_public: true})));
     }
@@ -352,10 +364,14 @@ bindForm("validate", async () => {
   for (const profile of snapshot.profiles) {
     profiles.append(node("li", `${profile.file.name} · ${profile.analytical_method} · ${profile.unit}`));
   }
+  for (const preparation of snapshot.preparations ?? []) {
+    profiles.append(node("li", `Sample ${preparation.sample.code} · ${preparation.batch_code} · `
+      + `${KINDS[preparation.kind] ?? preparation.kind} (no runs)`));
+  }
   for (const voucher of snapshot.vouchers ?? []) {
     const linked = (profile) => profile.voucher
       ? profile.voucher.id === voucher.id : profile.sample.vouchers.some((link) => link.id === voucher.id);
-    if (!snapshot.profiles.some(linked)) {
+    if (![...snapshot.profiles, ...(snapshot.preparations ?? [])].some(linked)) {
       profiles.append(node("li", `Voucher ${voucher.accession ?? voucher.reg_no ?? voucher.id}`));
     }
   }
@@ -391,6 +407,20 @@ find("choose-study").addEventListener("change", async (event) => {
   const profiles = event.target.value ? (await request(`/api/chemistry/studies/${endpoint(event.target.value)}`)).profiles : [];
   selectOptions(find("choose-profile"), profiles.map((profile) => ({id: profile.id,
     label: `Sample ${profile.sample_code} · run ${profile.run_code}${profile.is_public ? "" : " (private)"}`})), "Select a run");
+  status(find("profile-choice-status"), event.target.value && !profiles.length
+    ? "This study has no runs yet. Confirm a results-table import in the study, or add its preparations below." : "");
+});
+find("choose-preparation-study").addEventListener("change", async (event) => {
+  const study = event.target.value ? await request(`/api/chemistry/studies/${endpoint(event.target.value)}`) : null;
+  const codes = Object.fromEntries((study?.samples ?? []).map((sample) => [sample.id, sample.code]));
+  const withRuns = new Set((study?.profiles ?? []).map((profile) => profile.preparation_id));
+  selectOptions(find("choose-preparation"), (study?.preparations ?? []).map((preparation) => ({id: preparation.id,
+    label: `Sample ${codes[preparation.sample_id] ?? "?"} · ${preparation.batch_code} · ${KINDS[preparation.kind] ?? preparation.kind}`
+      + (withRuns.has(preparation.id) ? " (has runs)" : "")})), "Select a preparation");
+});
+find("attach-preparation").addEventListener("click", () => {
+  const id = find("choose-preparation").value;
+  if (id) addId("preparation_ids", id);
 });
 find("attach-profile").addEventListener("click", () => {
   const id = find("choose-profile").value;
@@ -404,7 +434,9 @@ async function startDeposition() {
   const [institutions, studies] = await Promise.all([request("/api/institutions"), request("/api/chemistry/studies")]);
   selectOptions(draftForm.elements.institution, institutions.map((item) => ({id: item.code, label: `${item.code} · ${item.name}`})),
     institutions.length ? "Choose an institution" : "No institution registered yet");
-  selectOptions(find("choose-study"), studies.studies.map((study) => ({id: study.id, label: study.title})), "Select a study");
+  for (const select of [find("choose-study"), find("choose-preparation-study")]) {
+    selectOptions(select, studies.studies.map((study) => ({id: study.id, label: study.title})), "Select a study");
+  }
   if (page.dataset.deposition) {
     setDraft(await request(`/api/depositions/${endpoint(page.dataset.deposition)}/draft`), true);
     await refreshInputs();

@@ -118,6 +118,12 @@ def remove_sample_voucher(sample_id: str, specimen_id: str, actor: User = Depend
     controller.remove_sample_voucher(sample_id, specimen_id, actor)
 
 
+@chemistry_router.get("/preparations/{preparation_id}")
+def get_preparation(preparation_id: str, actor: User = Depends(authenticated),
+                    controller: ChemistryController = Depends(get_chemistry_controller)):
+    return controller.get_preparation(preparation_id, actor)
+
+
 @chemistry_router.post("/samples/{sample_id}/preparations", status_code=201)
 def create_preparation(sample_id: str, data: PreparationIn, actor: User = Depends(authenticated),
                        controller: ChemistryController = Depends(get_chemistry_controller)):

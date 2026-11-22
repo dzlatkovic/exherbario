@@ -15,8 +15,10 @@ MAX_MANIFEST_BYTES = 128 * 1024
 # Version 3 lists every voucher linked to each profile's sample, with its role.
 # Version 4 adds the technique, run metadata, identification evidence, compounds and compound corrections.
 # 5: isolation profiles, co-injection and structure-elucidation evidence, author-supplied structures.
-SCHEMA_VERSION = 5
+# 6: samples and preparations deposited without analytical runs ("preparations").
+SCHEMA_VERSION = 6
 MAX_PROFILES = 50
+MAX_PREPARATIONS = 50
 MAX_VOUCHERS = 250
 
 
@@ -30,7 +32,7 @@ def snapshot_digest(snapshot) -> str:
 
 def manifest_for(snapshot, encoded: bytes) -> dict:
     schema = snapshot["schema_version"]
-    if schema not in (1, 2, 3, 4, 5):
+    if schema not in (1, 2, 3, 4, 5, 6):
         raise ValueError("Unsupported deposition snapshot version.")
     profiles = snapshot["profiles"]
     if schema == 1:
@@ -53,6 +55,17 @@ def manifest_for(snapshot, encoded: bytes) -> dict:
                 profile["sample"]["vouchers"] and all(link["id"] in voucher_ids for link in profile["sample"]["vouchers"])
                 for profile in profiles):
             raise ValueError("Each voucher linked to a profile's sample must be listed in the snapshot.")
+        if schema >= 6:
+            preparations = snapshot["preparations"]
+            if not isinstance(preparations, list) or len(preparations) > MAX_PREPARATIONS:
+                raise ValueError("The snapshot may list at most 50 preparations without runs.")
+            preparation_ids = [preparation["id"] for preparation in preparations]
+            if len(set(preparation_ids)) != len(preparation_ids) or not all(
+                    isinstance(preparation_id, str) and preparation_id for preparation_id in preparation_ids):
+                raise ValueError("Invalid or duplicate preparation ID in the snapshot.")
+            if not all(preparation["sample"]["vouchers"] and all(
+                    link["id"] in voucher_ids for link in preparation["sample"]["vouchers"]) for preparation in preparations):
+                raise ValueError("Each voucher linked to a preparation's sample must be listed in the snapshot.")
     digest = sha256(encoded).hexdigest()
     entries = [{"path": SNAPSHOT_NAME, "size": len(encoded), "sha256": digest}]
     profile_ids = set()

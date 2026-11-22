@@ -226,7 +226,7 @@ class TestSampleVouchers(TestClass):
         preview = client.get(f"{path}/draft/preview", headers=curator)
         assert preview.status_code == 200, preview.text
         snapshot = preview.json()["snapshot"]
-        assert snapshot["schema_version"] == 5
+        assert snapshot["schema_version"] == 6
         assert sorted(voucher["id"] for voucher in snapshot["vouchers"]) == sorted([first, second])
         sample = snapshot["profiles"][0]["sample"]
         assert [(link["id"], link["role"]) for link in sample["vouchers"]] == [

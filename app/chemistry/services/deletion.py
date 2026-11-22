@@ -43,6 +43,11 @@ class ChemistryDeletion:
         if draft:
             raise ChemistryError(409, f"Remove the linked runs from {draft} before deleting.")
 
+    def _check_preparations(self, preparation_ids, actor):
+        draft = draft_reference(self.db, "preparation_ids", set(preparation_ids), actor)
+        if draft:
+            raise ChemistryError(409, f"Remove the linked preparations from {draft} before deleting.")
+
     def _delete_runs(self, profile_ids):
         if profile_ids:
             structures = set(self.db.scalars(select(Measurement.structure_id).where(
@@ -87,6 +92,7 @@ class ChemistryDeletion:
         if expected_counts is not None and expected_counts != (len(samples), len(preparations), len(profiles), len(imports)):
             raise ChemistryError(409, "The study contents changed. Reload the page and review them before deleting.")
         self._check_runs(profiles, actor)
+        self._check_preparations(preparations, actor)
         sources = [row.source_path for row in [*profiles, *imports]]
         self._delete_runs([profile.id for profile in profiles])
         self.db.execute(delete(SpreadsheetImport).where(SpreadsheetImport.study_id == study_id))
@@ -118,6 +124,7 @@ class ChemistryDeletion:
         if any(column.get("preparation_id") == preparation_id
                for assignment in imports for column in (assignment or {}).get("columns", [])):
             raise ChemistryError(409, "An unfinished import uses this preparation. Reassign its column or discard the import first.")
+        self._check_preparations([preparation_id], actor)
         self.db.delete(preparation)
         self._commit()
 

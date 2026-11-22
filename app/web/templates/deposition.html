@@ -21,6 +21,32 @@
   'same_population': 'Same population as the voucher', 'collected_alongside': 'Collected alongside the voucher',
   'cultivated_from': 'Cultivated from the voucher', 'reference_for_commercial_material': 'Reference for commercial material',
 } %}
+{% macro linked_vouchers(pairs, roles) %}
+  {% for voucher, link in pairs %}
+  <h4>{{ roles.get(link.role, link.role) }}</h4>
+  <dl class="facts">
+    {{ voucher_facts(voucher) }}
+    {% if link.determination_at_link %}{% set at_link = link.determination_at_link %}
+    <div><dt>Determination when linked</dt><dd>{{ at_link.name_as_recorded or at_link.taxon_name or 'Undetermined' }}{% if at_link.date %} · {{ at_link.date }}{% endif %}{% if at_link.recorded == 'at_migration' %} <span class="muted">(recorded when sample links were introduced)</span>{% endif %}</dd></div>
+    {% endif %}
+    {% if link.redetermined_since_linking %}<div><dt>Note</dt><dd>The voucher was redetermined after this sample was linked.</dd></div>{% endif %}
+  </dl>
+  {% endfor %}
+{% endmacro %}
+{% macro sample_and_preparation(sample, preparation) %}
+  <div><dt>Sample</dt><dd>{{ sample.code }} · {{ sample.plant_part }}{% if sample.plant_part_note %} ({{ sample.plant_part_note }}){% endif %}</dd></div>
+  {% if sample.material_state %}<div><dt>Material state</dt><dd>{{ sample.material_state | capitalize }}</dd></div>{% endif %}
+  {% if sample.collection_date %}<div><dt>Sample collected</dt><dd>{{ sample.collection_date }}</dd></div>{% endif %}
+  {% if sample.phenological_stage %}<div><dt>Phenological stage</dt><dd>{{ sample.phenological_stage }}</dd></div>{% endif %}
+  {% if sample.site and sample.site.location %}<div><dt>Sample region</dt><dd>{{ sample.site.location.region or '' }}{% if sample.site.location.region and sample.site.location.country %}, {% endif %}{{ sample.site.location.country or '' }}</dd></div>{% endif %}
+  {% if sample.drying_notes %}<div><dt>Drying</dt><dd>{{ sample.drying_notes }}</dd></div>{% endif %}
+  {% if sample.storage_notes %}<div><dt>Storage</dt><dd>{{ sample.storage_notes }}</dd></div>{% endif %}
+  <div><dt>Preparation</dt><dd>{{ preparation.kind | replace('_', ' ') | capitalize }} · {{ preparation.batch_code }}</dd></div>
+  <div><dt>Preparation method</dt><dd>{{ preparation.method_reference }}</dd></div>
+  {% if preparation.method_parameters %}<div><dt>Method and parameters</dt><dd>{{ preparation.method_parameters }}</dd></div>{% endif %}
+  {% if preparation.yield_percent is not none %}<div><dt>Yield</dt><dd>{{ preparation.yield_percent }}% (w/w){% if preparation.plant_material_mass_g %} from {{ preparation.plant_material_mass_g }} g{% endif %}</dd></div>
+  {% elif preparation.plant_material_mass_g %}<div><dt>Plant material</dt><dd>{{ preparation.plant_material_mass_g }} g</dd></div>{% endif %}
+{% endmacro %}
 {% block body %}
   {% if problem %}
     <section class="hero">
@@ -84,27 +110,9 @@
               {% set sample = profile.sample %}
               <article class="panel profile">
                 <h3>{{ voucher_name(linked[profile.id][0][0]) }} · {{ sample.code }}</h3>
-                {% for voucher, link in linked[profile.id] %}
-                <h4>{{ roles.get(link.role, link.role) }}</h4>
+                {{ linked_vouchers(linked[profile.id], roles) }}
                 <dl class="facts">
-                  {{ voucher_facts(voucher) }}
-                  {% if link.determination_at_link %}{% set at_link = link.determination_at_link %}
-                  <div><dt>Determination when linked</dt><dd>{{ at_link.name_as_recorded or at_link.taxon_name or 'Undetermined' }}{% if at_link.date %} · {{ at_link.date }}{% endif %}{% if at_link.recorded == 'at_migration' %} <span class="muted">(recorded when sample links were introduced)</span>{% endif %}</dd></div>
-                  {% endif %}
-                  {% if link.redetermined_since_linking %}<div><dt>Note</dt><dd>The voucher was redetermined after this sample was linked.</dd></div>{% endif %}
-                </dl>
-                {% endfor %}
-                <dl class="facts">
-                  <div><dt>Sample</dt><dd>{{ sample.code }} · {{ sample.plant_part }}{% if sample.plant_part_note %} ({{ sample.plant_part_note }}){% endif %}</dd></div>
-                  {% if sample.material_state %}<div><dt>Material state</dt><dd>{{ sample.material_state | capitalize }}</dd></div>{% endif %}
-                  {% if sample.collection_date %}<div><dt>Sample collected</dt><dd>{{ sample.collection_date }}</dd></div>{% endif %}
-                  {% if sample.phenological_stage %}<div><dt>Phenological stage</dt><dd>{{ sample.phenological_stage }}</dd></div>{% endif %}
-                  {% if sample.site and sample.site.location %}<div><dt>Sample region</dt><dd>{{ sample.site.location.region or '' }}{% if sample.site.location.region and sample.site.location.country %}, {% endif %}{{ sample.site.location.country or '' }}</dd></div>{% endif %}
-                  {% if sample.drying_notes %}<div><dt>Drying</dt><dd>{{ sample.drying_notes }}</dd></div>{% endif %}
-                  {% if sample.storage_notes %}<div><dt>Storage</dt><dd>{{ sample.storage_notes }}</dd></div>{% endif %}
-                  <div><dt>Preparation</dt><dd>{{ profile.preparation.kind | replace('_', ' ') | capitalize }} · {{ profile.preparation.batch_code }}</dd></div>
-                  <div><dt>Preparation method</dt><dd>{{ profile.preparation.method_reference }}</dd></div>
-                  {% if profile.preparation.yield_percent is not none %}<div><dt>Yield</dt><dd>{{ profile.preparation.yield_percent }}% (w/w){% if profile.preparation.plant_material_mass_g %} from {{ profile.preparation.plant_material_mass_g }} g{% endif %}</dd></div>{% endif %}
+                  {{ sample_and_preparation(sample, profile.preparation) }}
                   {% if profile.technique %}<div><dt>Technique</dt><dd>{{ profile.technique }}{% if profile.run_metadata and profile.run_metadata.column %} · {{ profile.run_metadata.column }}{% endif %}</dd></div>{% endif %}
                   <div><dt>Analytical method</dt><dd>{{ profile.analytical_method }}</dd></div>
                   <div><dt>Measurement basis</dt><dd>{{ profile.measurement_basis | replace('_', ' ') | capitalize }} · {{ profile.unit }}</dd></div>
@@ -114,6 +122,21 @@
                     <p class="muted">{{ profile.file.size }} bytes · {{ profile.file.source_fidelity | replace('-', ' ') | capitalize }}</p></div>
                   <details><summary>SHA-256</summary><code class="break">{{ profile.file.sha256 }}</code></details>
                 </div>
+              </article>
+            {% endfor %}
+          </section>
+          {% endif %}
+          {% if snapshot.preparations %}
+          <section aria-labelledby="preparations-title">
+            <h2 id="preparations-title">Samples and preparations without analytical runs</h2>
+            {% for preparation in snapshot.preparations %}
+              <article class="panel profile">
+                <h3>{{ voucher_name(linked[preparation.id][0][0]) }} · {{ preparation.sample.code }} · {{ preparation.batch_code }}</h3>
+                {{ linked_vouchers(linked[preparation.id], roles) }}
+                <dl class="facts">
+                  {{ sample_and_preparation(preparation.sample, preparation) }}
+                  <div><dt>Preparation identifier</dt><dd class="break">{{ preparation.id }}</dd></div>
+                </dl>
               </article>
             {% endfor %}
           </section>

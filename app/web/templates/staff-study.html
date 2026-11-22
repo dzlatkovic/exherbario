@@ -19,11 +19,10 @@
       data-confirm="{{ 'Withdraw this study from public view?' if study.is_public else 'Release this study? Profiles appear publicly only when they and all their vouchers are released too.' }}">{{ 'Withdraw study' if study.is_public else 'Release study' }}</button>{% endif %}
   </p>
   {% if not (study.is_public or study.ever_public or has_released_runs) %}
-  <details class="form-details">
-    <summary>Manage study</summary>
+  <p class="link-row small">
     {{ delete_action("Delete study", "/api/chemistry/studies/" ~ study.id ~ "?samples=" ~ (samples | length) ~ "&preparations=" ~ preparation_count ~ "&runs=" ~ run_count ~ "&imports=" ~ import_count, "/researcher",
         "Permanently delete “" ~ study.title ~ "” and its contents (" ~ (samples | length) ~ " samples, " ~ preparation_count ~ " preparations, " ~ run_count ~ " runs, " ~ import_count ~ " imports). Linked vouchers stay in the archive.") }}
-  </details>
+  </p>
   {% endif %}
 </header>
 
