@@ -65,8 +65,10 @@ class TestPreparationDeposits(TestClass):
         assert [(link["id"], link["role"]) for link in deposited["sample"]["vouchers"]] == [(voucher, "sampled_from_voucher")]
         assert [item["id"] for item in snapshot["vouchers"]] == [voucher]
 
-        approval = {key: preview.json()[key] for key in ("draft_revision", "snapshot_sha256")}
+        approval = {key: preview.json()[key] for key in ("draft_revision", "snapshot_sha256", "releases_sha256")}
         assert client.post(f"{path}/publish", headers=owner, json=approval).status_code == 403
+        unapproved = {**approval, "releases_sha256": None}
+        assert client.post(f"{path}/publish", headers=curator, json=unapproved).status_code == 409
         assert client.post(f"{path}/publish", headers=curator, json=approval).status_code == 200
         assert client.get(f"{study_url}", headers=owner).json()["is_public"] is True
         assert client.get(f"/api/specimen/{voucher}").status_code == 200  # released with the version
@@ -91,6 +93,32 @@ class TestPreparationDeposits(TestClass):
         assert verify_archive(tmp_path / "version.zip", digest)["snapshot_sha256"] == digest
         # Released with its study, so it is retained.
         assert client.delete(f"{BASE}/preparations/{preparation}", headers=owner).status_code == 409
+
+    def test_runs_made_public_as_a_side_effect_are_listed_and_approved(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(settings, "PUBLIC_BASE_URL", "https://herbar.example.edu")
+        owner, curator = self.setup_people()
+        (voucher,), _ = vouchers(1)
+        assert client.post("/api/institutions", headers=curator, json={"code": "EXU", "name": "Example"}).status_code == 201
+        study_url = self.create_study(owner)  # private
+        sample = client.post(f"{study_url}/samples", headers=owner,
+                             json=sample_payload([(voucher, "sampled_from_voucher")], code="S1")).json()["id"]
+        hidden_run = self.add_profile(owner, curator, sample)  # marked released, hidden by the private study
+        release_voucher(curator, voucher)
+        assert client.get(f"{BASE}/public/profiles/{hidden_run}").status_code == 404
+        extract = client.post(f"{BASE}/samples/{sample}/preparations", headers=owner, json=EXTRACT).json()["id"]
+        draft = client.post("/api/depositions", headers=owner, json={
+            "institution": "EXU", "title": "Extract", "license": "CC BY 4.0",
+            "contributors": [{"name": "F. Scientist", "role": "analyst"}], "preparation_ids": [extract]}).json()
+        preview = client.get(f"/api/depositions/{draft['id']}/draft/preview", headers=curator).json()
+        also = preview["releases"]["also_public_runs"]
+        assert [(item["id"], item["run_code"], item["sample_code"]) for item in also] == [(hidden_run, "R-1", "S1")]
+        assert preview["releases_sha256"]
+        approval = {key: preview[key] for key in ("draft_revision", "snapshot_sha256", "releases_sha256")}
+        assert client.post(f"/api/depositions/{draft['id']}/publish", headers=curator, json={
+            **approval, "releases_sha256": None}).status_code == 409
+        assert client.post(f"/api/depositions/{draft['id']}/publish", headers=curator, json=approval).status_code == 200
+        assert client.get(f"{BASE}/public/profiles/{hidden_run}").status_code == 200
 
     def test_a_preparation_is_not_deposited_twice(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

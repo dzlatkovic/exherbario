@@ -32,6 +32,20 @@ def record_of(compound: Compound) -> dict:
             "synonyms": compound.synonyms}
 
 
+RACEMIC_PREFIXES = ("(+-)-", "(+/-)-", "(±)-", "rac-", "dl-")
+
+
+def same_preferred_name(record: dict, name: str) -> bool:
+    """Whether a name is the record's preferred name. A racemic prefix, as in PubChem's "(+-)-alpha-Pinene",
+    counts as the same name when the record has no stereochemistry: that is the CID chosen for an achiral column."""
+    if name_key(record["title"]) == name_key(name):
+        return True
+    title = record["title"].strip().lower()
+    prefix = next((item for item in RACEMIC_PREFIXES if title.startswith(item)), None)
+    return bool(prefix and record.get("inchikey") and stereo_unspecified(record["inchikey"])
+                and name_key(record["title"].strip()[len(prefix):]) == name_key(name))
+
+
 def depiction_url(smiles: str) -> str:
     return "/api/chemistry/depict.svg?smiles=" + quote(smiles, safe="")
 
@@ -215,7 +229,7 @@ class CompoundRegistry:
                     "problem": "PubChem could not be reached."}
         if not records:
             return {"proposal": None, "method": None, "status": "unmatched", "candidates": []}
-        if name_key(records[0]["title"]) == name_key(name):
+        if same_preferred_name(records[0], name):
             # PubChem's preferred name is exactly the name in the table: accepted, still changeable in review.
             return {"proposal": records[0], "method": "pubchem_title", "status": "confirmed", "candidates": records}
         return {"proposal": records[0], "method": "pubchem_name", "status": "needs_review", "candidates": records}

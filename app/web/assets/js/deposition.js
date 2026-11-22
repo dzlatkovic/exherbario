@@ -377,7 +377,8 @@ bindForm("validate", async () => {
   const draft = requiredSelection(state.draft, "Save a draft first.");
   const preview = await request(`/api/depositions/${endpoint(draft.id)}/draft/preview`);
   if (state.dirty || state.draft !== draft) throw new Error("The draft changed. Save and preview it again.");
-  state.approval = {draft_revision: preview.draft_revision, snapshot_sha256: preview.snapshot_sha256};
+  state.approval = {draft_revision: preview.draft_revision, snapshot_sha256: preview.snapshot_sha256,
+    ...(preview.releases_sha256 ? {releases_sha256: preview.releases_sha256} : {})};
   const snapshot = preview.snapshot;
   const summary = find("preview-summary");
   const profiles = node("ul");
@@ -406,8 +407,13 @@ bindForm("validate", async () => {
   const releaseNote = pending.length
     ? node("p", `Publishing also releases: ${pending.join("; ")}.`, "notice")
     : node("p", "Everything in this version is already released.", "muted small");
+  // Runs outside this version that the releases above make public, because they were already marked released.
+  const alsoPublic = releases.also_public_runs ?? [];
+  const sideEffects = alsoPublic.length ? node("p", "These runs are not in this version but become public too: "
+    + alsoPublic.map((item) => `run ${item.run_code} of sample ${item.sample_code} (${item.study})`).join("; ") + ".",
+    "notice warning") : "";
   summary.replaceChildren(node("h4", snapshot.title),
-    node("p", `${snapshot.institution_name} · Version ${snapshot.version} · ${snapshot.license}`), releaseNote, profiles,
+    node("p", `${snapshot.institution_name} · Version ${snapshot.version} · ${snapshot.license}`), releaseNote, sideEffects, profiles,
     node("p", `Identifier ${snapshot.identifier}`, "break"),
     node("p", `Snapshot SHA-256 ${preview.snapshot_sha256}`, "break"));
   find("preview-json").textContent = JSON.stringify(snapshot, null, 2);

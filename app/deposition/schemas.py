@@ -82,6 +82,8 @@ class EditDraft(Draft):
 class PublishDraft(DepositionInput):
     draft_revision: Identifier
     snapshot_sha256: Digest
+    # From the preview: required when publishing releases records or makes other runs public.
+    releases_sha256: Digest | None = None
 
 
 def lower_doi(value):

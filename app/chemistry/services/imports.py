@@ -287,7 +287,9 @@ class ImportService:
         return {"profiles": profiles, "rows": rows, "errors": errors, "warnings": warnings}, {"rows": review}
 
     def _propose(self, owner_id, name, key, identifiers, decision):
-        if decision is not None:
+        # A decision is kept only for the same name with the same identifiers: a CID, InChIKey, CAS or SMILES
+        # added, changed or removed by a new column assignment reopens the row.
+        if decision is not None and (decision.get("identifiers") or {}) == identifiers:
             return decision
         base = {"name": name, "key": key, "identifiers": identifiers}
         try:

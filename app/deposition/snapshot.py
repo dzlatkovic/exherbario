@@ -5,12 +5,12 @@ from urllib.parse import urlsplit
 
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.catalog import public_location
 from app.chemistry.records import correction_record, measurement_record
 from app.chemistry.sample_links import PROVENANCE, determination_at_link, public_site, redetermined
-from app.chemistry.models import LabSample, Preparation, Profile, SpreadsheetImport, Study
+from app.chemistry.models import LabSample, Preparation, Profile, SampleVoucher, SpreadsheetImport, Study
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.services.chemistry_services import ChemistryService
 from app.chemistry.services.profile_import import MAX_CSV_BYTES
@@ -19,7 +19,7 @@ from app.specimen.models import Specimen
 from app.taxonomy.models import Taxonomy
 from app.users.models import User
 
-from .archive import MAX_VOUCHERS, SCHEMA_VERSION
+from .archive import MAX_VOUCHERS, SCHEMA_VERSION, canonical_json
 from .models import Institution
 from .schemas import Draft
 
@@ -176,11 +176,52 @@ def releases_for(records, preparations, listed):
             "vouchers": [item for item in vouchers.values() if not item.is_public]}
 
 
+def newly_visible_runs(db, releases, selected_ids):
+    """Runs outside the deposition that releasing its studies and vouchers makes public.
+
+    A run is public when it, its study and every voucher linked to its sample are released. A run that is already
+    marked released but hidden by a private study or voucher becomes visible once that study or voucher is
+    released, so the curator must see it before approving."""
+    study_ids = {item.id for item in releases["studies"]}
+    voucher_ids = {item.specimen_id for item in releases["vouchers"]}
+    if not (study_ids or voucher_ids):
+        return []
+    rows = db.execute(
+        select(Profile, LabSample, Study)
+        .join(Preparation, Profile.preparation_id == Preparation.id)
+        .join(LabSample, Preparation.sample_id == LabSample.id)
+        .join(Study, LabSample.study_id == Study.id)
+        .where(Profile.is_public.is_(True), Profile.id.not_in(list(selected_ids)), or_(
+            Study.id.in_(study_ids),
+            LabSample.id.in_(select(SampleVoucher.sample_id).where(SampleVoucher.specimen_id.in_(voucher_ids)))))
+        .order_by(Study.title, LabSample.code, Profile.run_code)).all()
+    links = ChemistryRepository(db).list_sample_links(sorted({sample.id for _, sample, _ in rows}))
+    visible = []
+    for profile, sample, study in rows:
+        vouchers = [voucher for _, voucher, _ in links[sample.id]]
+        before = study.is_public and vouchers and all(voucher.is_public for voucher in vouchers)
+        after = (study.is_public or study.id in study_ids) and vouchers and all(
+            voucher.is_public or voucher.specimen_id in voucher_ids for voucher in vouchers)
+        if after and not before:
+            visible.append((profile, sample, study))
+    return visible
+
+
 def release_summary(releases) -> dict:
     return {"studies": [{"id": item.id, "title": item.title} for item in releases["studies"]],
             "runs": [{"id": item.id, "run_code": item.run_code} for item in releases["profiles"]],
             "vouchers": [{"id": item.specimen_id, "accession": item.accession or item.reg_no,
-                          "public_location": item.public_location} for item in releases["vouchers"]]}
+                          "public_location": item.public_location} for item in releases["vouchers"]],
+            # Not in the deposition, already marked released, and made public by the releases above.
+            "also_public_runs": [{"id": profile.id, "run_code": profile.run_code, "sample_code": sample.code,
+                                  "study": study.title} for profile, sample, study in releases.get("also_visible", [])]}
+
+
+def release_digest(summary) -> str | None:
+    """What the curator approves besides the snapshot; None when publishing changes no visibility."""
+    if not any(summary.values()):
+        return None
+    return sha256(canonical_json(summary)).hexdigest()
 
 
 def build_snapshot(db, deposition, releases=None):
@@ -222,6 +263,7 @@ def build_snapshot(db, deposition, releases=None):
     found = releases_for(records, preparations, listed)
     if releases is not None:
         releases.update(found)
+        releases["also_visible"] = newly_visible_runs(db, found, set(records))
     linked_ids = [link.specimen_id for *_, links in [*records.values(), *preparations.values()]
                   for link, _, _ in links]
     linked = selected_vouchers(db, [specimen_id for specimen_id in linked_ids if specimen_id not in listed])

@@ -286,3 +286,28 @@ class TestSpreadsheetImport(TestClass):
         with TestingSessionLocal() as db:
             row = db.query(Measurement).filter_by(profile_id=profile_id).one()
         assert (row.library_match, row.library_score, row.ri_exp) == ("alpha-Pinene", 94, 932)
+
+
+class TestReviewDecisionsFollowIdentifiers(TestClass):
+    setup_study = TestSpreadsheetImport.setup_study
+    upload = TestSpreadsheetImport.upload
+
+    def test_a_new_identifier_reopens_a_decided_row(self, pubchem, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        owner, study, (first, _) = self.setup_study()
+        draft = self.upload(owner, study, workbook([["Compound", "CID", "S1"], ["Limonene", 6654, 40]]))
+        url = f"{BASE}/imports/{draft['id']}"
+        assignment = {"sheet": "Table 2", "header_row": 1, "settings": SETTINGS, "columns": [
+            {"index": 0, "role": "name"}, {"index": 1, "role": "ignore"},
+            {"index": 2, "role": "sample", "preparation_id": first}]}
+        client.put(f"{url}/assignment", headers=owner, json=assignment)
+        decided = {row["name"]: row for row in client.post(f"{url}/match", headers=owner).json()["review"]}
+        assert (decided["Limonene"]["status"], decided["Limonene"]["match"]["cid"]) == ("confirmed", 22311)
+
+        # The table also has a CID column: mapping it changes what identifies the row, so the row is reviewed again.
+        assignment["columns"][1]["role"] = "cid"
+        review = client.put(f"{url}/assignment", headers=owner, json=assignment).json()["review"]
+        assert review[0]["status"] != "confirmed"
+        review = {row["name"]: row for row in client.post(f"{url}/match", headers=owner).json()["review"]}
+        assert (review["Limonene"]["status"], review["Limonene"]["match"]["cid"]) == ("needs_review", 6654)
+        assert client.post(f"{url}/confirm", headers=owner).status_code == 409  # the reopened row needs a decision

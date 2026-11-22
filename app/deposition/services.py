@@ -20,7 +20,7 @@ from app.users.models import User
 from .models import (
     Deposition, DepositionArticle, DepositionDOI, DepositionFile, DepositionVersion, DepositionWithdrawal, Institution,
 )
-from .snapshot import (build_snapshot, landing_path, registered_institution, release_summary, selected_preparations, selected_records, selected_vouchers,
+from .snapshot import (build_snapshot, landing_path, registered_institution, release_digest, release_summary, selected_preparations, selected_records, selected_vouchers,
                        version_url)
 
 
@@ -281,8 +281,10 @@ class DepositionService:
             raise HTTPException(409, "Create a draft before previewing.")
         releases = {}
         snapshot, _ = build_snapshot(self.db, deposition, releases)
+        summary = release_summary(releases)
         return {"draft_revision": deposition.draft_revision, "snapshot": snapshot,
-                "snapshot_sha256": snapshot_digest(snapshot), "releases": release_summary(releases)}
+                "snapshot_sha256": snapshot_digest(snapshot), "releases": summary,
+                "releases_sha256": release_digest(summary)}
 
     @staticmethod
     def _version_identity(deposition, version):
@@ -314,6 +316,9 @@ class DepositionService:
         digest = snapshot_digest(snapshot)
         if digest != data.snapshot_sha256:
             raise HTTPException(409, "The linked records or files changed. Review a new preview.")
+        if release_digest(release_summary(releases)) != data.releases_sha256:
+            raise HTTPException(409, "What publishing would release or make public changed since the preview, "
+                                     "or was not approved. Review a new preview.")
         version = DepositionVersion(
             deposition_id=deposition.id, number=snapshot["version"], draft_revision=data.draft_revision,
             published_by=actor.user_id, published_at=utc_now(), snapshot=snapshot, snapshot_sha256=digest,

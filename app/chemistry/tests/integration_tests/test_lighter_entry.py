@@ -42,7 +42,7 @@ class TestLighterEntry(TestClass):
 
         preview = client.get(f"/api/depositions/{draft['id']}/draft/preview", headers=curator)
         assert preview.status_code == 200, preview.text
-        approval = {key: preview.json()[key] for key in ("draft_revision", "snapshot_sha256")}
+        approval = {key: preview.json()[key] for key in ("draft_revision", "snapshot_sha256", "releases_sha256")}
         assert client.post(f"/api/depositions/{draft['id']}/publish", headers=curator, json=approval).status_code == 200
         frozen = client.put(f"{BASE}/preparations/{first['id']}", headers=owner, json={**OIL, "yield_percent": 0.5})
         assert frozen.status_code == 409 and "published deposition" in frozen.json()["detail"]
