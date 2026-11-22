@@ -2,10 +2,10 @@ name: Documentation site
 
 on:
   pull_request:
-    paths: ['docs/**', 'mkdocs.yml', 'requirements-docs.txt', '.github/workflows/docs-pages.yml']
+    paths: ['docs/**', 'app/web/assets/fonts/**', 'website/docs_fonts.py', 'mkdocs.yml', 'requirements-docs.txt', '.github/workflows/docs-pages.yml']
   push:
     branches: [main]
-    paths: ['docs/**', 'mkdocs.yml', 'requirements-docs.txt', '.github/workflows/docs-pages.yml']
+    paths: ['docs/**', 'app/web/assets/fonts/**', 'website/docs_fonts.py', 'mkdocs.yml', 'requirements-docs.txt', '.github/workflows/docs-pages.yml']
   workflow_dispatch:
 
 permissions:

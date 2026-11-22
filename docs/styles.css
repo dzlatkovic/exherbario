@@ -1,8 +1,21 @@
 :root {
+  --bs-font-sans-serif: "Fira Sans", system-ui, sans-serif;
+  --bs-font-monospace: "Fira Mono", ui-monospace, monospace;
+  --bs-body-line-height: 1.55;
   --bs-link-color: #215e49;
   --bs-link-hover-color: #164435;
   --bs-link-color-rgb: 33, 94, 73;
   --bs-link-hover-color-rgb: 22, 68, 53;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -.005em;
+}
+
+strong, b {
+  font-weight: 600;
 }
 
 [data-bs-theme="dark"] {

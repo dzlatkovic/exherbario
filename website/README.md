@@ -17,13 +17,13 @@ python -m mkdocs build --strict
 python -m mkdocs serve --dev-addr 127.0.0.1:8001
 ```
 
-In a second terminal, run `python -m http.server 8002 --bind 127.0.0.1 --directory website/landing` to preview the homepage. The links between the two sites use their public domain names.
+In a second terminal, run `python website/build_landing.py`, then `python -m http.server 8002 --bind 127.0.0.1 --directory dist/landing` to preview the homepage. The links between the two sites use their public domain names.
 
 ## Configure GitHub Pages
 
 1. Verify `exherbario.org` under your GitHub account’s **Settings → Pages** using the TXT record GitHub gives you. Keep this TXT record in DNS.
 2. In **exherbario → Settings → Pages**, select **GitHub Actions**. When the documentation changes reach `main`, the documentation workflow builds and publishes the site. You can also run **Documentation site** manually from the Actions tab. Set the custom domain to `docs.exherbario.org`.
-3. Create a public `exherbarium-website` repository and copy the files inside `website/landing/`, including `.nojekyll`, to the root of its `main` branch. In **Settings → Pages**, select **Deploy from a branch**, then `main` and `/ (root)`. Set the custom domain to `exherbario.org`. GitHub will add a `CNAME` file to that branch. Keep it when updating the homepage.
+3. Build the homepage with `python website/build_landing.py`. Copy the contents of `dist/landing/`, including the `fonts/` folder and `.nojekyll`, to the root of the public `exherbarium-website` repository’s `main` branch. In **Settings → Pages**, select **Deploy from a branch**, then `main` and `/ (root)`. Set the custom domain to `exherbario.org`. GitHub will add a `CNAME` file to that branch. Keep it when updating the homepage.
 4. Set the DNS records below. After GitHub reports the DNS checks passed and the certificates are ready, enable **Enforce HTTPS** for both repositories. Open both URLs and follow the links between them.
 
 ## DNS records
