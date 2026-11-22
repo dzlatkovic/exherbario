@@ -5,8 +5,10 @@ from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr
 from .chemistry_schemas import Basis, Technique, optional_text
 
 ColumnRole = Literal["name", "rt", "ri_exp", "ri_ref", "ri_ref_source", "id_basis", "id_level", "cid", "cas",
-                     "inchikey", "n", "library_match", "library_score", "mz_obs", "adduct", "mass_error_ppm",
-                     "msms_match", "sample", "sd", "ignore"]
+                     "inchikey", "smiles", "n", "library_match", "library_score", "mz_obs", "adduct", "mass_error_ppm",
+                     "msms_match", "standard_source", "standard_reference", "data_accessions", "nmr_experiments",
+                     "nmr_solvent", "purity_percent", "novelty", "literature_doi", "optical_rotation", "ecd", "ccdc",
+                     "configuration_type", "configuration", "sample", "sd", "ignore"]
 
 
 class ProfileSettings(BaseModel):

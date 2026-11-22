@@ -31,3 +31,16 @@ class ImportTemplate(Base):
     name = Column(String(120), nullable=False)
     layout = Column(JSON, nullable=False)
     created_at = Column(DateTime, nullable=False)
+
+
+class ConditionPreset(Base):
+    """Run conditions or a preparation method an author saved by name; applying one fills in the form."""
+    __tablename__ = "chemistry_condition_preset"
+    __table_args__ = (UniqueConstraint("owner_id", "kind", "name", name="uq_chemistry_condition_preset_name"),)
+
+    id = Column(String(50), primary_key=True, default=new_id)
+    owner_id = Column(String(50), ForeignKey("users.user_id"), nullable=False)
+    kind = Column(String(20), nullable=False)  # run or preparation
+    name = Column(String(120), nullable=False)
+    values = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, nullable=False)

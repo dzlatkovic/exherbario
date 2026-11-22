@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_evidence.html" import extra_headers, extra_cells %}
 {% from "_delete_action.html" import delete_action %}
 {% block title %}Run {{ profile.run_code }} · {{ study.title }} · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/profile.js"></script><script type="module" src="/assets/herbar/js/deletion.js"></script>{% endblock %}
@@ -9,6 +10,9 @@
   {%- elif row.value is none and row.qualifier == '<LOQ' -%}&lt; LOQ
   {%- else -%}{{ '%g' | format(row.value) }}{% if row.qualifier %} ({{ row.qualifier }}){% endif %}{% if row.sd is not none %} ± {{ '%g' | format(row.sd) }}{% endif %}
   {%- endif -%}
+{%- endmacro -%}
+{%- macro assignment(cid, structure_id) -%}
+  {%- if cid %}CID {{ cid }}{% elif structure_id %}structure from the authors{% else %}unidentified{% endif -%}
 {%- endmacro -%}
 {% block body %}
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/researcher/studies/{{ study.id }}">{{ study.title }}</a></nav>
@@ -41,6 +45,7 @@
         {% if has('ri_ref') %}<th scope="col" class="number">RI ref.</th>{% endif %}
         {% if has('mz_obs') %}<th scope="col" class="number">m/z</th>{% endif %}
         {% if has('id_basis') %}<th scope="col">Identification</th>{% endif %}
+        {{ extra_headers(has) }}
         <th scope="col">Assigned compound</th>
       </tr></thead>
       <tbody>
@@ -53,7 +58,12 @@
           {% if has('ri_ref') %}<td class="number">{{ '%g' | format(row.ri_ref) if row.ri_ref is not none }}</td>{% endif %}
           {% if has('mz_obs') %}<td class="number">{{ '%g' | format(row.mz_obs) if row.mz_obs is not none }}{% if row.adduct %} {{ row.adduct }}{% endif %}</td>{% endif %}
           {% if has('id_basis') %}<td>{{ row.id_basis | replace(';', ', ') if row.id_basis }}{% if row.id_level %} · MSI {{ row.id_level }}{% endif %}</td>{% endif %}
-          <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ compound.title }}</a> <span class="muted small mono">CID {{ compound.cid }}</span>{% else %}<span class="muted">Unlinked</span>{% endif %}</td>
+          {{ extra_cells(row, has) }}
+          <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ compound.title }}</a> <span class="muted small mono">CID {{ compound.cid }}</span>
+            {%- elif row.structure %}<details class="structure-details"><summary>Structure from the authors · {{ row.structure.molecular_formula }}</summary>
+              <img class="structure" src="/api/chemistry/depict.svg?smiles={{ row.structure.smiles | urlencode }}" alt="Structure of {{ row.feature }}" width="260" height="200">
+              <span class="mono small break">{{ row.structure.inchikey }}</span></details>
+            {%- else %}<span class="muted">Unlinked</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -67,7 +77,7 @@
       <p class="muted small">Values and the source file are never changed. The correction is logged with your reason and shown with the run.</p>
       <label>Measurement <select name="feature" required>
         <option value="">Choose a measurement</option>
-        {% for row, compound in measurements %}<option value="{{ row.feature }}">{{ row.feature }}{% if compound %} (now CID {{ compound.cid }}){% endif %}</option>{% endfor %}
+        {% for row, compound in measurements %}<option value="{{ row.feature }}">{{ row.feature }}{% if compound %} (now CID {{ compound.cid }}){% elif row.structure %} (now the authors' structure){% endif %}</option>{% endfor %}
       </select></label>
       <div class="inline-form">
         <label>Find the compound <input id="compound-query" type="search" maxlength="300" placeholder="Name, CAS, CID or InChIKey"></label>
@@ -77,6 +87,8 @@
       <label>New assignment <select name="cid">
         <option value="">Mark as unidentified</option>
       </select></label>
+      <label>Or give the structure <textarea name="smiles" maxlength="20000" rows="2" class="mono"
+        placeholder="SMILES or molfile. PubChem's CID is used when PubChem has this exact structure."></textarea></label>
       <label>Reason <textarea name="reason" required maxlength="1000" rows="2"></textarea></label>
       <button class="primary">Save correction</button>
       <p class="feedback" role="status"></p>
@@ -89,7 +101,7 @@
   <h2 id="corrections-title">Correction log</h2>
   <ul class="plain-list">
     {% for item in corrections %}
-      <li><span>{{ item.feature }}: CID {{ item.old_cid or '—' }} → {{ item.new_cid or 'unidentified' }}</span>
+      <li><span>{{ item.feature }}: {{ assignment(item.old_cid, item.old_structure_id) }} → {{ assignment(item.new_cid, item.new_structure_id) }}</span>
         <span class="muted small">{{ item.reason }} · {{ item.corrected_at.strftime('%Y-%m-%d %H:%M') }}</span></li>
     {% endfor %}
   </ul>

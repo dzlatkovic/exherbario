@@ -2,12 +2,12 @@
 
 from logging import getLogger
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import (LabSample, Measurement, MeasurementCorrection, Preparation, Profile,
-                                  SampleVoucher, SpreadsheetImport, Study)
+from app.chemistry.models import (ChemistryStructure, LabSample, Measurement, MeasurementCorrection, Preparation,
+                                  Profile, SampleVoucher, SpreadsheetImport, Study)
 from app.db import lock_for_update
 from app.deposition.references import draft_reference
 from app.file_storage import FILES_ROOT, archive_member
@@ -45,9 +45,26 @@ class ChemistryDeletion:
 
     def _delete_runs(self, profile_ids):
         if profile_ids:
+            structures = set(self.db.scalars(select(Measurement.structure_id).where(
+                Measurement.profile_id.in_(profile_ids), Measurement.structure_id.is_not(None))))
+            for old, new in self.db.execute(select(MeasurementCorrection.old_structure_id,
+                                                   MeasurementCorrection.new_structure_id)
+                                            .where(MeasurementCorrection.profile_id.in_(profile_ids))):
+                structures |= {old, new} - {None}
             self.db.execute(delete(MeasurementCorrection).where(MeasurementCorrection.profile_id.in_(profile_ids)))
             self.db.execute(delete(Measurement).where(Measurement.profile_id.in_(profile_ids)))
             self.db.execute(delete(Profile).where(Profile.id.in_(profile_ids)))
+            self._delete_unused_structures(structures)
+
+    def _delete_unused_structures(self, structure_ids):
+        """Author-supplied structures only these runs used; they were never public, since the runs were private."""
+        for structure_id in structure_ids:
+            in_use = self.db.scalar(select(Measurement.profile_id).where(Measurement.structure_id == structure_id).limit(1))
+            in_use = in_use or self.db.scalar(select(MeasurementCorrection.id).where(or_(
+                MeasurementCorrection.old_structure_id == structure_id,
+                MeasurementCorrection.new_structure_id == structure_id)).limit(1))
+            if not in_use:
+                self.db.execute(delete(ChemistryStructure).where(ChemistryStructure.id == structure_id))
 
     def _commit(self, sources=()):
         self.db.commit()

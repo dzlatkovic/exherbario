@@ -16,6 +16,7 @@ from app.chemistry.models import ImportTemplate, LabSample, Preparation, Profile
 from app.chemistry.names import name_key
 from app.chemistry.pubchem import PubChemUnavailable
 from app.chemistry.sample_links import utc_now
+from app.chemistry.schemas.chemistry_schemas import basis_problem
 from app.chemistry.schemas.import_schemas import AssignmentIn, RowReviewIn
 from app.db import lock_for_update
 from app.file_storage import FILES_ROOT, archive_member, store_upload
@@ -31,7 +32,11 @@ from .spreadsheet import (MAX_BYTES, MAX_ROWS, MAX_SAMPLES, PREVIEW_ROWS, cell_r
 EVIDENCE_ROLES = {"rt": "rt_min", "ri_exp": "ri_exp", "ri_ref": "ri_ref", "ri_ref_source": "ri_ref_source",
                   "id_basis": "id_basis", "id_level": "id_level", "cid": "cid", "cas": "cas", "inchikey": "inchikey",
                   "n": "n", "library_match": "library_match", "library_score": "library_score",
-                  "mz_obs": "mz_obs", "adduct": "adduct", "mass_error_ppm": "mass_error_ppm", "msms_match": "msms_match"}
+                  "mz_obs": "mz_obs", "adduct": "adduct", "mass_error_ppm": "mass_error_ppm", "msms_match": "msms_match",
+                  **{role: role for role in ("smiles", "standard_source", "standard_reference", "data_accessions",
+                                             "nmr_experiments", "nmr_solvent", "purity_percent", "novelty",
+                                             "literature_doi", "optical_rotation", "ecd", "ccdc",
+                                             "configuration_type", "configuration")}}
 CONFIDENCE_BY_LEVEL = {1: "identified", 2: "annotated", 3: "tentative", 4: "unknown"}
 MATCH_BATCH = 25
 DECIDED = {"confirmed", "unidentified"}
@@ -190,6 +195,8 @@ class ImportService:
                 settings["run_metadata"] = {}
             if settings["measurement_basis"] == "peak_area_percent" and settings["unit"] != "%":
                 errors.append(f"{where}: use % as the unit for peak-area percentages.")
+            elif problem := basis_problem(settings["technique"], settings["measurement_basis"], settings["unit"]):
+                errors.append(f"{where}: {problem}")
             profiles.append({"index": column.index, "header": heading, "preparation_id": preparation_id,
                              "run_code": run_code, "settings": settings, "sd_index": sd_columns.get(column.index)})
 
@@ -372,6 +379,9 @@ class ImportService:
         else:
             if not row["record"]:
                 raise ChemistryError(409, "Choose a compound before switching to its parent.")
+            if row["record"]["cid"] is None:
+                raise ChemistryError(409, "A structure supplied by the author has no PubChem parent. "
+                                          "Correct the SMILES if the stereochemistry is wrong.")
             parent = self.registry.parent(row["record"]["cid"], row["record"])
             row = {**row, "status": "confirmed", "method": "parent", "record": _slim(parent)}
         rows[str(row_number)] = row
@@ -454,9 +464,13 @@ class ImportService:
             raise ChemistryError(409, "Confirm a compound or mark the row unidentified for rows "
                                  + ", ".join(map(str, open_rows[:20])) + (" …" if len(open_rows) > 20 else "") + ".")
         included = {str(row["row"]) for row in preview["rows"] if row["included"]}
-        registered = set()
+        registered, structures = set(), {}
         for number, row in review.items():
             if number in included and row["status"] == "confirmed":
+                if row["record"]["cid"] is None:
+                    # A structure PubChem does not have; the SMILES in the table identifies it in later imports.
+                    structures[number] = self.registry.register_structure(row["record"], row["name"], record.owner_id).id
+                    continue
                 if row["record"]["cid"] not in registered:
                     self.registry.register(row["record"])
                     registered.add(row["record"]["cid"])
@@ -473,16 +487,21 @@ class ImportService:
                     decision = review[str(row["row"])]
                     evidence = dict(row["evidence"])
                     level = evidence.get("id_level")
+                    confirmed = decision["status"] == "confirmed"
                     rows.append({
                         "feature": row["name"], "value": cell["value"], "status": cell["status"],
                         "confidence": CONFIDENCE_BY_LEVEL.get(level, data.settings.confidence),
-                        "cid": decision["record"]["cid"] if decision["status"] == "confirmed" else None,
-                        "compound_match": decision["method"] if decision["status"] == "confirmed" else "unidentified",
+                        "cid": decision["record"]["cid"] if confirmed else None,
+                        "compound_match": decision["method"] if confirmed else "unidentified",
+                        **({"structure_id": structures[str(row["row"])], "smiles": decision["record"]["smiles"]}
+                           if str(row["row"]) in structures else {}),
                         **({"qualifier": cell["qualifier"]} if cell["qualifier"] else {}),
                         **({"sd": cell["sd"]} if cell.get("sd") is not None and cell["status"] == "measured" else {}),
                         **evidence,
                     })
                 content = canonical_csv(rows).encode("utf-8")
+                # The SMILES is in the run file; the measurement links the stored structure instead.
+                rows = [{key: value for key, value in row.items() if key != "smiles"} for row in rows]
                 settings = profile["settings"]
                 created.append(self.chemistry.store_profile(
                     profile["preparation_id"], profile["run_code"], settings["analytical_method"],
@@ -503,6 +522,7 @@ def canonical_csv(rows: list[dict]) -> str:
     output = StringIO(newline="")
     writer = csv.writer(output, lineterminator="\r\n")
     columns = [column for column in CSV_COLUMNS if column not in ("inchikey", "cas")]
+    # structure_id is internal: the run file carries the structure itself as SMILES.
     used = [column for column in columns if column in ("feature", "value", "confidence", "status")
             or any(row.get(column) is not None for row in rows)]
     writer.writerow(used)

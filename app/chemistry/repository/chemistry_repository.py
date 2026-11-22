@@ -5,8 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import (Compound, LabSample, Measurement, MeasurementCorrection, Preparation,
-                                  Profile, SampleVoucher, Study)
+from app.chemistry.models import (ChemistryStructure, Compound, LabSample, Measurement, MeasurementCorrection,
+                                  Preparation, Profile, SampleVoucher, Study)
 from app.field_loc.models import FieldLoc
 from app.publication.models import Publication
 from app.specimen.models import Specimen
@@ -147,6 +147,19 @@ class ChemistryRepository:
 
     def get_compound(self, cid: int):
         return self.db.get(Compound, cid)
+
+    def list_released_structure_profiles(self, structure_id: str):
+        """Released profiles with a measurement of this author-supplied structure."""
+        used = select(Measurement.profile_id).where(Measurement.structure_id == structure_id)
+        return self.db.execute(self._released_profiles().where(Profile.id.in_(used))
+                               .order_by(LabSample.code, Profile.run_code)).all()
+
+    def get_public_structure(self, structure_id: str):
+        """An author-supplied structure, once a released profile reports it; until then it is unpublished."""
+        structure = self.db.get(ChemistryStructure, structure_id)
+        if structure is None or not self.list_released_structure_profiles(structure_id):
+            return None
+        return structure
 
     def get_measurement(self, profile_id: str, feature: str):
         return self.db.get(Measurement, (profile_id, feature))

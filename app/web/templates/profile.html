@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_evidence.html" import extra_headers, extra_cells %}
 {% block title %}{{ 'Sample ' ~ sample.code ~ ' · ' if profile }}Profile · Ex Herbario{% endblock %}
 {%- macro amount(row, unit) -%}
   {%- if row.status == 'not_detected' -%}<span class="muted">nd</span>
@@ -7,6 +8,9 @@
   {%- elif row.value is none and row.qualifier == '<LOQ' -%}&lt; LOQ
   {%- else -%}{{ '%g' | format(row.value) }}{% if row.qualifier %} ({{ row.qualifier }}){% endif %}{% if row.sd is not none %} ± {{ '%g' | format(row.sd) }}{% endif %}
   {%- endif -%}
+{%- endmacro -%}
+{%- macro assignment(cid, structure_id) -%}
+  {%- if cid %}CID {{ cid }}{% elif structure_id %}structure from the authors{% else %}unidentified{% endif -%}
 {%- endmacro -%}
 {% block body %}
 {% if not profile %}
@@ -39,18 +43,21 @@
             {% if has('ri_ref') %}<th scope="col" class="number">RI ref.</th>{% endif %}
             {% if has('mz_obs') %}<th scope="col" class="number">m/z</th>{% endif %}
             {% if has('id_basis') %}<th scope="col">Identification</th>{% endif %}
+            {{ extra_headers(has) }}
           </tr></thead>
           <tbody>
           {% for row, compound in measurements %}
             <tr>
-              <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ row.feature }}</a>{% else %}{{ row.feature }}{% endif %}
-                {% if row.cid is none %}<span class="muted small"> · unlinked</span>{% endif %}</td>
+              <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ row.feature }}</a>
+                {%- elif row.structure %}<a href="/structures/{{ row.structure.id }}">{{ row.feature }}</a><span class="muted small"> · structure from the authors</span>
+                {%- else %}{{ row.feature }}<span class="muted small"> · unlinked</span>{% endif %}</td>
               <td class="number">{{ amount(row, profile.unit) }}</td>
               {% if has('rt_min') %}<td class="number">{{ '%g' | format(row.rt_min) if row.rt_min is not none }}</td>{% endif %}
               {% if has('ri_exp') %}<td class="number">{{ '%g' | format(row.ri_exp) if row.ri_exp is not none }}</td>{% endif %}
               {% if has('ri_ref') %}<td class="number">{{ '%g' | format(row.ri_ref) if row.ri_ref is not none }}</td>{% endif %}
               {% if has('mz_obs') %}<td class="number">{{ '%g' | format(row.mz_obs) if row.mz_obs is not none }}{% if row.adduct %} {{ row.adduct }}{% endif %}</td>{% endif %}
               {% if has('id_basis') %}<td>{{ row.id_basis | replace(';', ', ') if row.id_basis }}{% if row.id_level %} · MSI {{ row.id_level }}{% endif %}</td>{% endif %}
+              {{ extra_cells(row, has) }}
             </tr>
           {% endfor %}
           </tbody>
@@ -64,7 +71,7 @@
       <h2 id="corrections-title">Compound corrections</h2>
       <ul class="plain-list">
         {% for item in corrections %}
-          <li><span>{{ item.feature }}: CID {{ item.old_cid or '—' }} → {{ item.new_cid or 'unidentified' }}</span>
+          <li><span>{{ item.feature }}: {{ assignment(item.old_cid, item.old_structure_id) }} → {{ assignment(item.new_cid, item.new_structure_id) }}</span>
             <span class="muted small">{{ item.reason }} · {{ item.corrected_at.date() }}</span></li>
         {% endfor %}
       </ul>

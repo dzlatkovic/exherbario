@@ -22,9 +22,10 @@ find("compound-search").addEventListener("click", async () => {
 });
 
 bindForm(form, async (data) => {
-  const cid = data.get("cid") ? Number(data.get("cid")) : null;
+  const smiles = (data.get("smiles") ?? "").trim();
+  const cid = data.get("cid") && !smiles ? Number(data.get("cid")) : null;
   await request(`/api/chemistry/profiles/${endpoint(profileId)}/measurements/${endpoint(data.get("feature"))}/compound`,
-    {method: "PUT", json: {cid, reason: data.get("reason").trim()}});
+    {method: "PUT", json: {cid, ...(smiles ? {smiles} : {}), reason: data.get("reason").trim()}});
   window.location.reload();
   return "Saved.";
 });

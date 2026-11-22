@@ -1,5 +1,7 @@
 // Results-table import: assign columns, preview, review PubChem matches and confirm. Reopening resumes the import.
-import {bindForm, bindRunFields, endpoint, find, node, request, runMetadata, selectOptions, status} from "./core.js";
+import {bindForm, bindRunFields, endpoint, filledFields, find, node, request, runMetadata, selectOptions, status} from "./core.js";
+import {bindPresetControl, preparationPreset, runPreset} from "./presets.js";
+import {bindSampleFields} from "./sample-form.js";
 
 // Long runs report progress and can be stopped between batches; whatever was done is kept.
 const LOOKUP_BATCH = 5;
@@ -18,9 +20,85 @@ const IMPORT_ROLES = [
   ["cas", "CAS"], ["inchikey", "InChIKey"], ["n", "Replicates (n)"],
   ["library_match", "MS library match (GC-MS)"], ["library_score", "Library match score (GC-MS)"],
   ["mz_obs", "Observed m/z (LC-MS)"], ["adduct", "Adduct (LC-MS)"], ["mass_error_ppm", "Mass error, ppm (LC-MS)"],
-  ["msms_match", "MS/MS match (LC-MS)"],
+  ["msms_match", "MS/MS match (LC-MS)"], ["smiles", "Structure (SMILES)"],
+  ["standard_source", "Standard source (commercial, synthesized…)"], ["standard_reference", "Standard reference"],
+  ["nmr_experiments", "NMR experiments (isolation)"], ["nmr_solvent", "NMR solvent (isolation)"],
+  ["novelty", "New or known (isolation)"], ["literature_doi", "Literature DOI (isolation)"],
+  ["optical_rotation", "Optical rotation (isolation)"], ["ecd", "ECD (isolation)"], ["ccdc", "CCDC number (isolation)"],
+  ["configuration_type", "Configuration: absolute or relative (isolation)"],
+  ["configuration", "How configuration was determined (isolation)"], ["purity_percent", "Purity % (isolation)"],
+  ["data_accessions", "Data accessions (nmrXiv, GNPS…)"],
 ];
 const importState = {record: null, sheets: [], columns: [], rowOverrides: {}, review: [], study: null};
+const preparationDialog = find("import-preparation-dialog");
+const preparationForm = find("import-create-preparation");
+const newSampleFields = find("import-new-sample");
+const sampleFields = bindSampleFields(newSampleFields);
+const sampleChoice = preparationForm.elements.existing_sample;
+const cancelPreparation = find("import-cancel-preparation");
+let targetColumn;
+bindPresetControl(find("import-preparation-fields").querySelector(".preset-control"),
+  preparationPreset(find("import-preparation-fields")));
+
+function renderPreparationFields() {
+  find("import-sample-choice").hidden = !importState.study.samples.length;
+  sampleChoice.disabled = !importState.study.samples.length;
+  newSampleFields.hidden = newSampleFields.disabled = sampleChoice.value !== "new";
+  const essentialOil = preparationForm.elements.kind.value === "essential_oil";
+  preparationForm.elements.yield_percent.required = essentialOil;
+  find("import-yield-required").hidden = !essentialOil;
+}
+
+function openPreparation(column) {
+  targetColumn = column;
+  preparationForm.reset();
+  sampleFields.reset();
+  const samples = importState.study.samples;
+  const bestMatch = samples.find((sample) => sample.code.toLowerCase() === column.header.toLowerCase());
+  sampleChoice.replaceChildren(new Option("Create a new sample", "new"),
+    ...samples.map((sample) => new Option(sample.code, sample.id)));
+  sampleChoice.value = bestMatch?.id ?? "new";
+  preparationForm.elements.code.value = column.header.slice(0, preparationForm.elements.code.maxLength);
+  find("import-preparation-title").textContent = `Create a preparation for ${columnLetter(column.index)} · ${column.header}`;
+  status(preparationForm.querySelector(":scope > .feedback"));
+  renderPreparationFields();
+  preparationDialog.showModal();
+}
+
+sampleChoice.addEventListener("change", renderPreparationFields);
+preparationForm.elements.kind.addEventListener("change", renderPreparationFields);
+cancelPreparation.addEventListener("click", () => preparationDialog.close());
+preparationDialog.addEventListener("cancel", (event) => {
+  if (cancelPreparation.disabled) event.preventDefault();
+});
+
+function preparationChanged(message) {
+  importState.ready = false;
+  find("import-preview").hidden = true;
+  status(find("import-column-status"), message);
+}
+
+bindForm(preparationForm, async (data) => {
+  const fieldData = (fieldset) => [...data].filter(([name]) => fieldset.elements.namedItem(name));
+  const payload = {preparation: filledFields(fieldData(find("import-preparation-fields")))};
+  if (sampleChoice.value === "new") payload.sample = sampleFields.payload(fieldData(newSampleFields));
+  else payload.sample_id = sampleChoice.value;
+  cancelPreparation.disabled = true;
+  try {
+    const {sample, preparation} = await request(`/api/chemistry/studies/${endpoint(studyId)}/sample-preparations`,
+      {method: "POST", json: payload});
+    if (payload.sample) importState.study.samples.push(sample);
+    importState.study.preparations.push(preparation);
+    targetColumn.preparation_id = preparation.id;
+    preparationDialog.close();
+    renderImportColumns();
+    preparationChanged(`Attached ${sample.code} · ${preparation.batch_code}. Preview to save column assignments.`);
+    find("import-columns").querySelector(`[data-preparation-column="${targetColumn.index}"]`)?.focus();
+    return "Preparation created.";
+  } finally {
+    cancelPreparation.disabled = false;
+  }
+}, {fieldName: (path) => path.at(-1)});
 
 function columnLetter(index) {
   let letters = "";
@@ -48,6 +126,19 @@ function guessRole(header, previousRole) {
   if (/ppm|mass error|mass accuracy|δ ?m|Δ ?m/i.test(text)) return "mass_error_ppm";
   if (/ms\/ms|msms|ms2|fragment/.test(text)) return "msms_match";
   const retentionIndex = /\b(ri|ki|ai|lri)\b|retention ind/.test(text);
+  if (/smiles/.test(text)) return "smiles";
+  if (/standard|authentic/.test(text) && /source|origin|supplier/.test(text)) return "standard_source";
+  if (/standard|authentic/.test(text) && /ref|lot|doi/.test(text)) return "standard_reference";
+  if (/solvent/.test(text)) return "nmr_solvent";
+  if (/nmr|experiments/.test(text)) return "nmr_experiments";
+  if (/purity/.test(text)) return "purity_percent";
+  if (/^(new|novel|known)|new or known|novelty/.test(text)) return "novelty";
+  if (/optical rotation|\[α\]|rotation/.test(text)) return "optical_rotation";
+  if (/\becd\b|circular dichroism/.test(text)) return "ecd";
+  if (/ccdc|x-?ray|crystal/.test(text)) return "ccdc";
+  if (/configuration/.test(text)) return /type|absolute or relative/.test(text) ? "configuration_type" : "configuration";
+  if (/accession|repository|nmrxiv|gnps|metabolights/.test(text)) return "data_accessions";
+  if (!retentionIndex && /\bdoi\b|literature/.test(text)) return "literature_doi";
   if (!retentionIndex && /score|\bsi\b|\brsi\b|match factor|similarity/.test(text)) return "library_score";
   if (!retentionIndex && /library|\bnist\b|wiley|\bhit\b/.test(text)) return "library_match";
   if (/^n$|replicates?|^n ?=/.test(text)) return "n";
@@ -129,16 +220,24 @@ function renderImportColumns() {
     const details = row.insertCell();
     if (column.role === "sample") {
       const preparation = document.createElement("select");
+      preparation.setAttribute("aria-label", `Preparation for ${column.header}`);
+      preparation.dataset.preparationColumn = column.index;
       preparation.append(new Option("Match by sample code", ""));
       for (const option of preparationOptions()) preparation.append(new Option(option.label, option.id));
       preparation.value = column.preparation_id;
-      preparation.addEventListener("change", () => { column.preparation_id = preparation.value; });
+      preparation.addEventListener("change", () => {
+        column.preparation_id = preparation.value;
+        preparationChanged("Preview to save column assignments.");
+      });
+      const create = node("button", "Create preparation", "text-button");
+      create.type = "button";
+      create.addEventListener("click", () => openPreparation(column));
       const runCode = document.createElement("input");
       runCode.placeholder = `Run code (default ${column.header})`;
       runCode.maxLength = 80;
       runCode.value = column.run_code;
       runCode.addEventListener("input", () => { column.run_code = runCode.value; });
-      details.append(preparation, runCode);
+      details.append(preparation, create, runCode);
     } else if (column.role === "sd") {
       const pair = document.createElement("select");
       for (const sample of samples) pair.append(new Option(`SD of ${sample.header}`, sample.index));
@@ -185,7 +284,7 @@ function compoundCell(match) {
   image.alt = `Structure of ${match.title}`;
   image.loading = "lazy";
   const facts = node("div");
-  facts.append(node("strong", match.title), node("div", `CID ${match.cid} · ${match.molecular_formula ?? ""}`
+  facts.append(node("strong", match.title), node("div", `${match.cid ? `CID ${match.cid}` : "Structure from your SMILES"} · ${match.molecular_formula ?? ""}`
     + (match.monoisotopic_mass ? ` · ${Number(match.monoisotopic_mass).toFixed(4)}` : "")),
     node("div", match.inchikey ?? "", "break"), node("div", match.smiles ?? "", "break muted"));
   cell.append(image, facts);
@@ -208,7 +307,8 @@ function renderImportReview() {
     node("th", "Change"));
   const methods = {alias: "your earlier choice", registry_name: "registry name", registry_synonym: "registry synonym",
     pubchem_name: "PubChem name search", cas: "CAS in table", cid: "CID in table", inchikey: "InChIKey in table",
-    manual: "chosen", parent: "parent compound"};
+    manual: "chosen", parent: "parent compound", smiles: "SMILES in table",
+    author_structure: "your structure; not in PubChem"};
   for (const item of importState.review) {
     const row = table.insertRow();
     row.insertCell().textContent = item.row;
@@ -226,9 +326,12 @@ function renderImportReview() {
       actions.append(element);
     };
     if (item.match && item.status !== "confirmed") button("Accept", () => reviewAction(item.row, {action: "accept"}));
-    if (item.candidates.length > 1) {
+    if (item.candidates.some((candidate) => candidate.cid !== item.match?.cid)) {
       const pick = document.createElement("select");
-      for (const candidate of item.candidates) pick.append(new Option(`${candidate.title} (CID ${candidate.cid})`, candidate.cid));
+      pick.setAttribute("aria-label", "PubChem search results");
+      for (const candidate of item.candidates.filter((entry) => entry.cid)) {
+        pick.append(new Option(`${candidate.title} (CID ${candidate.cid})`, candidate.cid));
+      }
       actions.append(pick);
       button("Use", () => reviewAction(item.row, {action: "choose", cid: Number(pick.value)}));
     }
@@ -244,7 +347,7 @@ function renderImportReview() {
       item.candidates = found;
       renderImportReview();
     });
-    if (item.match && item.status !== "unidentified") button("Parent", () => reviewAction(item.row, {action: "parent"}));
+    if (item.match?.cid && item.status !== "unidentified") button("Parent", () => reviewAction(item.row, {action: "parent"}));
     if (item.status !== "unidentified") button("Unidentified", () => reviewAction(item.row, {action: "unidentified"}));
   }
   const open = importState.review.filter((item) => !["confirmed", "unidentified"].includes(item.status)).length;
@@ -414,6 +517,18 @@ function applySettings(form, settings) {
 async function startImport() {
   const form = find("import-assign");
   bindRunFields(form);
+  bindPresetControl(form.querySelector(".preset-control[data-kind='run']"), runPreset(form, runMetadata));
+  // An isolation reports isolated amounts; other techniques do not.
+  form.elements.technique.addEventListener("change", () => {
+    const basis = form.elements.measurement_basis;
+    if (form.elements.technique.value === "isolation" && basis.value !== "isolated_mass") {
+      basis.value = "isolated_mass";
+      if (form.elements.unit.value === "%") form.elements.unit.value = "mg";
+    } else if (form.elements.technique.value !== "isolation" && basis.value === "isolated_mass") {
+      basis.value = "peak_area_percent";
+      form.elements.unit.value = "%";
+    }
+  });
   const [record, study, templates] = await Promise.all([
     request(`/api/chemistry/imports/${endpoint(importId)}`), request(`/api/chemistry/studies/${endpoint(studyId)}`),
     request("/api/chemistry/import-templates")]);

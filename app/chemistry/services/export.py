@@ -12,9 +12,12 @@ MAX_EXPORT_PROFILES = 500
 PROFILE_COLUMNS = ("study_id", "profile_id", "sample_code", "plant_part", "material_state", "batch_code",
                    "preparation_kind", "yield_percent", "run_code", "technique", "analytical_method",
                    "measurement_basis", "unit", "voucher_ids", "voucher_roles", "taxa", "redetermined")
-MEASUREMENT_COLUMNS = ("feature", "cid", "compound_title", "molecular_formula", "inchikey", "status", "value",
-                       "qualifier", "sd", "n", "confidence", "rt_min", "ri_exp", "ri_ref", "ri_ref_source", "id_basis",
-                       "id_level", "library_match", "library_score", "mz_obs", "adduct", "mass_error_ppm")
+MEASUREMENT_COLUMNS = ("feature", "cid", "compound_title", "molecular_formula", "inchikey", "smiles",
+                       "structure_source", "status", "value", "qualifier", "sd", "n", "confidence", "rt_min", "ri_exp",
+                       "ri_ref", "ri_ref_source", "id_basis", "id_level", "library_match", "library_score", "mz_obs",
+                       "adduct", "mass_error_ppm", "standard_source", "standard_reference", "nmr_experiments",
+                       "nmr_solvent", "purity_percent", "novelty", "literature_doi", "optical_rotation", "ecd", "ccdc",
+                       "configuration_type", "configuration", "data_accessions")
 WIDE_CELL = {"trace": "tr", "<LOQ": "<LOQ"}
 
 
@@ -43,11 +46,13 @@ def _profile_fields(profile, preparation, sample, links):
 
 
 def wide_key(measurement) -> tuple:
-    """Linked compounds are keyed by CID; unlinked ones by name and experimental RI."""
+    """Linked compounds are keyed by CID, author-supplied structures by InChIKey, the rest by name and RI."""
     if measurement.cid is not None:
         return (0, measurement.cid, f"cid:{measurement.cid}")
+    if measurement.structure_id is not None:
+        return (1, measurement.structure.inchikey, f"inchikey:{measurement.structure.inchikey}")
     label = f"name:{measurement.feature}" + (f" @RI {measurement.ri_exp:g}" if measurement.ri_exp is not None else "")
-    return (1, label.casefold(), label)
+    return (2, label.casefold(), label)
 
 
 def _wide_cell(measurement) -> str:
@@ -102,9 +107,12 @@ class ExportService:
             fields = _profile_fields(profile, preparation, sample, links[sample.id])
             for row, compound in measurements[profile.id]:
                 values = {name: getattr(row, name, None) for name in MEASUREMENT_COLUMNS}
-                values.update(compound_title=compound.title if compound else None,
-                              molecular_formula=compound.molecular_formula if compound else None,
-                              inchikey=compound.inchikey if compound else None)
+                structure = row.structure
+                source = compound or structure
+                values.update(compound_title=compound.title if compound else structure.name if structure else None,
+                              molecular_formula=source.molecular_formula if source else None,
+                              inchikey=source.inchikey if source else None, smiles=source.smiles if source else None,
+                              structure_source="PubChem" if compound else "author" if structure else None)
                 writer.writerow([_text(fields[name]) for name in PROFILE_COLUMNS]
                                 + [_text(values[name]) for name in MEASUREMENT_COLUMNS])
         return output.getvalue()

@@ -20,7 +20,16 @@ ROLE_LABELS = {
 RUN_LABELS = {"column": "Column", "stationary_phase": "Stationary phase", "polarity_class": "Column polarity",
               "temperature_programme": "Temperature programme", "carrier_gas": "Carrier gas",
               "alkane_series": "Alkane reference series", "ri_type": "RI type", "mobile_phase": "Mobile phase",
-              "gradient": "Gradient", "ionisation_mode": "Ionisation mode", "mass_analyser": "Mass analyser"}
+              "gradient": "Gradient", "ionisation_mode": "Ionisation mode", "mass_analyser": "Mass analyser",
+              "isolation_procedure": "Isolation procedure", "nmr_spectrometer": "NMR spectrometer",
+              "nmr_frequency_mhz": "NMR frequency (MHz)", "nmr_solvent": "NMR solvent",
+              "hrms_instrument": "HRMS instrument", "hrms_ionisation": "HRMS ionisation",
+              "data_accessions": "Data in external repositories"}
+
+
+def has_values(measurements):
+    """For templates: has("a", "b") is true when any measurement records any of these fields."""
+    return lambda *names: any(getattr(row, name) is not None for row, _ in measurements for name in names)
 PUBCHEM_IMAGES = "; img-src 'self' https://pubchem.ncbi.nlm.nih.gov"
 
 
@@ -76,8 +85,17 @@ def profile_page(request: Request, profile_id: str, db: Session = Depends(get_db
                   # Elution order when retention times exist, as in a GC results table.
                   measurements=sorted(measurements, key=lambda item: (item[0].rt_min is None, item[0].rt_min or 0,
                                                                       item[0].feature.casefold())),
-                  corrections=corrections, run_labels=RUN_LABELS,
-                  has=lambda name: any(getattr(row, name) is not None for row, _ in measurements))
+                  corrections=corrections, run_labels=RUN_LABELS, has=has_values(measurements))
+
+
+@router.get("/structures/{structure_id}")
+def structure_page(request: Request, structure_id: str, db: Session = Depends(get_db)):
+    repository = ChemistryRepository(db)
+    structure = repository.get_public_structure(structure_id[:50])
+    if structure is None:
+        return render(request, "structure.html", status=404, structure=None)
+    return render(request, "structure.html", structure=structure,
+                  profiles=repository.list_released_structure_profiles(structure.id))
 
 
 @router.get("/compounds/{cid}")

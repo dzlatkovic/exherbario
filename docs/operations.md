@@ -31,6 +31,8 @@ Migration `0015` adds `external_lookup_cache`, which can be emptied at any time,
 
 Migration `0016` adds the ORCID iD, the name ORCID returned and the link date to accounts. Downgrade is blocked while any account has a linked iD. Migration `0017` adds `taxon_literature_compound`, the curator-published LOTUS lists; it holds only copies of Wikidata data that can be published again.
 
+Migration `0019` adds `chemistry_condition_preset`, the run conditions and preparation methods researchers save for reuse; dropping it loses no results. Migration `0020` adds `chemistry_structure` for structures authors supply that PubChem does not have, and co-injection and structure-determination evidence on measurements. Downgrade is blocked once any structure or new evidence is recorded. Install `rdkit` from `requirements.txt` before upgrading.
+
 ### Preview migration 0004
 
 With writers stopped and a verified snapshot available, run the preview against revision `0003`. If rehearsing from an earlier revision, first upgrade a restored copy to `0003`.

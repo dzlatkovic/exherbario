@@ -84,6 +84,9 @@ export function bindForm(target, handler, {fieldName} = {}) {
     const clearOnEdit = (event) => clearError(event.target);
     form.addEventListener("input", clearOnEdit);
     form.addEventListener("change", clearOnEdit);
+    form.addEventListener("reset", () => {
+      for (const field of errors.keys()) clearError(field);
+    });
   }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -227,10 +230,10 @@ export const VOUCHER_ROLES = [
 export function bindRunFields(form) {
   const technique = form.querySelector(".technique");
   const render = () => {
-    const kind = technique.value.startsWith("GC") ? "gc" : "lc";
+    const kind = technique.value.startsWith("GC") ? "gc" : technique.value === "isolation" ? "isolation" : "lc";
     for (const field of form.querySelectorAll(".run-fields [data-for]")) {
-      field.hidden = field.dataset.for !== kind;
-      field.querySelector("input, select").disabled = field.hidden;
+      field.hidden = !field.dataset.for.split(" ").includes(kind);
+      field.querySelector("input, select, textarea").disabled = field.hidden;
     }
   };
   technique.addEventListener("change", render);

@@ -61,6 +61,43 @@ class TestSpreadsheetImport(TestClass):
         assert upload.status_code == 201, upload.text
         return upload.json()
 
+    def test_upload_before_creating_the_sample_and_preparation(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        owner = headers_for(UserServices.create_user("Lab", "Owner", "lab@example.org", "password"))
+        (voucher,), _ = vouchers(1)
+        study = client.post(f"{BASE}/studies", headers=owner, json={"title": "New study"}).json()["id"]
+        draft = self.upload(owner, study, workbook([["Compound", "S1"], ["Unknown peak", 5]]))
+        import_url = f"{BASE}/imports/{draft['id']}"
+        assignment = {"sheet": "Table 2", "header_row": 1, "settings": SETTINGS,
+                      "columns": [{"index": 0, "role": "name"}, {"index": 1, "role": "sample"}]}
+        preview = client.put(f"{import_url}/assignment", headers=owner, json=assignment).json()["preview"]
+        assert any("choose the lab sample preparation" in error for error in preview["errors"])
+
+        create_url = f"{BASE}/studies/{study}/sample-preparations"
+        sample = sample_payload([(voucher, "sampled_from_voucher")], code="S1")
+        preparation = {"batch_code": "B1", "kind": "essential_oil", "method_reference": "Test method"}
+        assert client.post(create_url, headers=owner, json={"sample": sample, "preparation": preparation}).status_code == 422
+        assert client.get(f"{BASE}/studies/{study}", headers=owner).json()["samples"] == []
+        response = client.post(create_url, headers=owner,
+                               json={"sample": sample, "preparation": {**preparation, "yield_percent": 1}})
+        assert response.status_code == 201, response.text
+        result = response.json()
+        assert result["sample"]["code"] == "S1"
+        assert result["preparation"]["sample_id"] == result["sample"]["id"]
+
+        assignment["columns"][1]["preparation_id"] = result["preparation"]["id"]
+        preview = client.put(f"{import_url}/assignment", headers=owner, json=assignment).json()["preview"]
+        assert preview["errors"] == []
+        assert client.put(f"{import_url}/rows/2/compound", headers=owner,
+                          json={"action": "unidentified"}).status_code == 200
+        confirmed = client.post(f"{import_url}/confirm", headers=owner)
+        assert confirmed.status_code == 201, confirmed.text
+        assert confirmed.json()["profiles"][0]["preparation_id"] == result["preparation"]["id"]
+
+        second = client.post(create_url, headers=owner, json={"sample_id": result["sample"]["id"],
+                             "preparation": {"batch_code": "B2", "kind": "extract", "method_reference": "Test extract"}})
+        assert second.status_code == 201 and second.json()["sample"] == result["sample"]
+
     def test_full_import(self, pubchem, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         owner, study, (first, second) = self.setup_study()

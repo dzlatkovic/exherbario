@@ -3,10 +3,11 @@
   <option value="GC-MS">GC-MS</option><option value="GC-FID">GC-FID</option>
   <option value="LC-MS">LC-MS</option><option value="LC-MS/MS">LC-MS/MS</option>
   <option value="HPLC-DAD">HPLC-DAD</option>
+  <option value="isolation">Isolation and structure elucidation</option>
 </select></label>
 <fieldset class="form-grid run-fields full">
   <legend>Run</legend>
-  <label>Column <input name="run.column" maxlength="200"></label>
+  <label data-for="gc lc">Column <input name="run.column" maxlength="200"></label>
   <label data-for="gc">{{ field_label("Column polarity") }} <select name="run.polarity_class" required>
     <option value="">Select column polarity</option>
     <option value="non-polar">Non-polar</option><option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
@@ -27,4 +28,13 @@
     <option>APCI-</option><option>APPI+</option><option>APPI-</option>
   </select></label>
   <label data-for="lc">Mass analyser <input name="run.mass_analyser" maxlength="100"></label>
+  <label data-for="isolation" class="full">Isolation procedure <textarea name="run.isolation_procedure" maxlength="2000" rows="3"
+    placeholder="e.g. CH2Cl2 extract; silica gel CC (hexane–EtOAc); semi-preparative HPLC, C18, MeOH–H2O"></textarea></label>
+  <label data-for="isolation">NMR spectrometer <input name="run.nmr_spectrometer" maxlength="200" placeholder="e.g. Bruker Avance III"></label>
+  <label data-for="isolation">NMR frequency (MHz, ¹H) <input name="run.nmr_frequency_mhz" type="number" min="1" max="2000" step="any"></label>
+  <label data-for="isolation">NMR solvent <input name="run.nmr_solvent" maxlength="100" placeholder="e.g. CDCl3"></label>
+  <label data-for="isolation">HRMS instrument <input name="run.hrms_instrument" maxlength="200"></label>
+  <label data-for="isolation">HRMS ionisation <input name="run.hrms_ionisation" maxlength="40" placeholder="e.g. ESI+"></label>
+  <label class="full">Data in external repositories <input name="run.data_accessions" maxlength="500"
+    placeholder="Optional: nmrXiv, MetaboLights or GNPS accessions, or the supporting-information DOI"></label>
 </fieldset>

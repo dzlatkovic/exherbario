@@ -13,8 +13,8 @@ from app.chemistry.exceptions import ChemistryError
 from app.chemistry.models import LabSample, MeasurementCorrection, Preparation, Profile, Study
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, SampleIn, StudyIn, Technique,
-                                   VoucherLinkIn, run_metadata_for)
-from app.chemistry.schemas.chemistry_schemas import MAX_SAMPLE_VOUCHERS
+                                   SamplePreparationIn, VoucherLinkIn, run_metadata_for)
+from app.chemistry.schemas.chemistry_schemas import MAX_SAMPLE_VOUCHERS, basis_problem
 from app.db import lock_for_update, new_id
 from app.file_storage import FILES_ROOT, archive_member, store_upload
 from app.users.models import User
@@ -80,15 +80,32 @@ class ChemistryService:
             raise ChemistryError(404, "Voucher specimen not found: " + ", ".join(missing))
         return found
 
-    def create_sample(self, study_id: str, data: SampleIn, actor: User):
-        self._study_for_actor(study_id, actor)
+    def _new_sample(self, study_id: str, data: SampleIn):
         vouchers = self._vouchers([link.specimen_id for link in data.vouchers])
         if data.field_loc_id and not self.repository.field_loc_exists(data.field_loc_id):
             raise ChemistryError(404, "Field location not found.")
         sample = LabSample(id=new_id(), study_id=study_id, **data.model_dump(exclude={"vouchers"}))
         links = [new_link(sample.id, *vouchers[link.specimen_id], link.role) for link in data.vouchers]
+        return sample, links
+
+    def create_sample(self, study_id: str, data: SampleIn, actor: User):
+        self._study_for_actor(study_id, actor)
+        sample, links = self._new_sample(study_id, data)
         self.repository.save(sample, *links)
         return sample
+
+    def create_sample_preparation(self, study_id: str, data: SamplePreparationIn, actor: User):
+        self._study_for_actor(study_id, actor)
+        if data.sample is not None:
+            sample, links = self._new_sample(study_id, data.sample)
+        else:
+            sample = self.repository.get_sample(data.sample_id)
+            if sample is None or sample.study_id != study_id:
+                raise ChemistryError(404, "Sample not found in this study.")
+            links = []
+        preparation = Preparation(sample_id=sample.id, **data.preparation.model_dump())
+        self.repository.save(sample, *links, preparation)
+        return sample, preparation
 
     def _sample_for_actor(self, sample_id: str, actor: User):
         sample = self.repository.get_sample(sample_id)
@@ -140,6 +157,8 @@ class ChemistryService:
             raise ChemistryError(422, "Enter a run code, analytical method, and unit.")
         if measurement_basis == "peak_area_percent" and unit != "%":
             raise ChemistryError(422, "Use % as the unit for normalized peak-area percentages.")
+        if problem := basis_problem(technique, measurement_basis, unit):
+            raise ChemistryError(422, problem)
         run = validated_run(technique, run_metadata)
         content = source_file.read(MAX_CSV_BYTES + 1)
         try:
@@ -152,7 +171,11 @@ class ChemistryService:
             match = self.registry.lookup_identifiers(**identifiers) if identifiers else None
             if match:
                 record, method = match
-                row["cid"], row["compound_match"] = self.registry.register(record).cid, method
+                if record["cid"] is None:
+                    row["structure_id"] = self.registry.register_structure(record, row["feature"], actor.user_id).id
+                    row["compound_match"] = method
+                else:
+                    row["cid"], row["compound_match"] = self.registry.register(record).cid, method
         filename = PurePosixPath((source_name or "profile.csv").replace("\\", "/")).name
         profile = self.store_profile(preparation_id, run_code, analytical_method, measurement_basis, unit, technique,
                                      run, filename, content, source, rows)
@@ -180,20 +203,30 @@ class ChemistryService:
         return profile
 
     def correct_compound(self, profile_id: str, feature: str, data: CompoundCorrectionIn, actor: User):
-        """Reassign a measurement's compound. Values and the source file stay as they are; the change is logged."""
+        """Reassign a measurement's compound: a PubChem CID, a structure given as SMILES, or none.
+        Values and the source file stay as they are; the change is logged."""
         self._profile_for_actor(profile_id, actor)
         measurement = self.repository.get_measurement(profile_id, feature)
         if measurement is None:
             raise ChemistryError(404, "Measurement not found.")
-        if measurement.cid == data.cid:
+        cid, structure_id = data.cid, None
+        if data.smiles is not None:
+            record, _ = self.registry.lookup_identifiers(smiles=data.smiles)
+            if record["cid"] is None:
+                existing = record["structure_id"]
+                structure_id = existing or self.registry.register_structure(record, measurement.feature, actor.user_id).id
+            else:
+                cid = record["cid"]
+        if (measurement.cid, measurement.structure_id) == (cid, structure_id):
             raise ChemistryError(409, "The measurement already has this compound assignment.")
-        if data.cid is not None:
-            self.registry.get(data.cid)
+        if cid is not None:
+            self.registry.get(cid)
         correction = MeasurementCorrection(profile_id=profile_id, feature=measurement.feature, old_cid=measurement.cid,
-                                           new_cid=data.cid, actor_id=actor.user_id, reason=data.reason,
+                                           new_cid=cid, old_structure_id=measurement.structure_id,
+                                           new_structure_id=structure_id, actor_id=actor.user_id, reason=data.reason,
                                            corrected_at=utc_now())
-        measurement.cid = data.cid
-        measurement.compound_match = "correction" if data.cid else "unidentified"
+        measurement.cid, measurement.structure_id = cid, structure_id
+        measurement.compound_match = "correction" if cid or structure_id else "unidentified"
         self.repository.save(correction)
         return correction
 

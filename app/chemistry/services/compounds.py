@@ -1,13 +1,16 @@
 """The local compound registry, author aliases and compound matching, backed by PubChem."""
 
+from urllib.parse import quote
+
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import Compound, CompoundAlias, CompoundName
+from app.chemistry.models import ChemistryStructure, Compound, CompoundAlias, CompoundName
 from app.chemistry.names import INCHIKEY, cas_numbers, name_key, stereo_unspecified, valid_cas
 from app.chemistry.pubchem import PubChemClient, PubChemUnavailable, structure_image_url
 from app.chemistry.sample_links import utc_now
+from app.chemistry.structures import StructureError, parse_structure
 
 UNAVAILABLE = "PubChem could not be reached. Try again later, or enter a CID that is already registered."
 
@@ -29,10 +32,32 @@ def record_of(compound: Compound) -> dict:
             "synonyms": compound.synonyms}
 
 
+def depiction_url(smiles: str) -> str:
+    return "/api/chemistry/depict.svg?smiles=" + quote(smiles, safe="")
+
+
+def structure_summary(structure: ChemistryStructure) -> dict:
+    return {"id": structure.id, "name": structure.name, "molecular_formula": structure.molecular_formula,
+            "monoisotopic_mass": structure.monoisotopic_mass, "inchi": structure.inchi,
+            "inchikey": structure.inchikey, "smiles": structure.smiles, "source": "author-supplied",
+            "submitted_at": structure.submitted_at}
+
+
+def structure_record(structure: dict, existing: ChemistryStructure | None = None) -> dict:
+    """A review candidate for a structure the author supplied and PubChem does not have."""
+    return {"cid": None, "structure_id": existing.id if existing else None,
+            "title": existing.name if existing else "Structure supplied by the author", "iupac_name": None,
+            **{key: structure[key] for key in ("molecular_formula", "monoisotopic_mass", "inchi", "inchikey", "smiles")},
+            "synonyms": []}
+
+
 def candidate_summary(record: dict) -> dict:
     """What the review shows for a candidate."""
-    return {key: record[key] for key in ("cid", "title", "molecular_formula", "monoisotopic_mass", "inchikey",
-                                         "smiles")} | {"structure_image": structure_image_url(record["cid"])}
+    summary = {key: record[key] for key in ("cid", "title", "molecular_formula", "monoisotopic_mass", "inchikey",
+                                            "smiles")}
+    if record["cid"] is None:
+        return summary | {"author_structure": True, "structure_image": depiction_url(record["smiles"])}
+    return summary | {"structure_image": structure_image_url(record["cid"])}
 
 
 class CompoundRegistry:
@@ -69,6 +94,21 @@ class CompoundRegistry:
         """Store a PubChem record the author confirmed."""
         return self._store(record)
 
+    def register_structure(self, record: dict, name: str, owner_id: str) -> ChemistryStructure:
+        """Store an author-supplied structure the author confirmed; the same structure is stored once."""
+        structure = self.db.scalar(select(ChemistryStructure).where(ChemistryStructure.inchikey == record["inchikey"]))
+        if structure is None:
+            computed = parse_structure(record["smiles"])
+            if computed["inchikey"] != record["inchikey"]:
+                raise ChemistryError(409, "The structure changed during review. Look it up again.")
+            structure = ChemistryStructure(
+                name=name[:500], submitted_by=owner_id, submitted_at=utc_now(),
+                **{key: computed[key] for key in ("inchikey", "inchi", "smiles", "molecular_formula",
+                                                  "monoisotopic_mass")})
+            self.db.add(structure)
+            self.db.flush()
+        return structure
+
     def _lookup(self, namespace: str, identifier) -> dict | None:
         """A record from the registry, else from PubChem, without storing it."""
         if namespace == "cid":
@@ -99,18 +139,36 @@ class CompoundRegistry:
             raise ChemistryError(404, f"PubChem has no compound with CID {cid}.")
         return self._store(record)
 
-    def lookup_identifiers(self, cid=None, inchikey=None, cas=None) -> tuple[dict, str] | None:
-        """Resolve identifiers given in a file. When several are given they must name the same compound."""
+    def _structure_lookup(self, smiles: str) -> dict:
+        """The registered or PubChem compound with the structure's InChIKey, else the author's structure itself."""
+        try:
+            structure = parse_structure(smiles)
+        except StructureError as error:
+            raise ChemistryError(422, str(error)) from error
+        if self.db.scalar(select(Compound.cid).where(Compound.inchikey == structure["inchikey"]).limit(1)) is None:
+            existing = self.db.scalar(select(ChemistryStructure).where(
+                ChemistryStructure.inchikey == structure["inchikey"]))
+            if existing is not None:
+                return structure_record(structure, existing)
+        return self._lookup("inchikey", structure["inchikey"]) or structure_record(structure)
+
+    def lookup_identifiers(self, cid=None, inchikey=None, cas=None, smiles=None) -> tuple[dict, str] | None:
+        """Resolve identifiers given in a file. When several are given they must name the same compound.
+
+        With a SMILES (or molfile) the InChIKey is computed from it; a structure PubChem does not have is
+        returned as an author-supplied record (``cid`` None), which is stored only when the author confirms it."""
         found = []
         for namespace, value, lookup in (("cid", cid, lambda: self._lookup("cid", cid)),
-                                         ("inchikey", inchikey, lambda: self._lookup("inchikey", inchikey)),
+                                         ("smiles", smiles, lambda: self._structure_lookup(smiles)),
+                                         ("inchikey", None if smiles else inchikey,
+                                          lambda: self._lookup("inchikey", inchikey)),
                                          ("cas", cas, lambda: self._cas_lookup(cas))):
             if value is None or value == "":
                 continue
             record = lookup()
             if record is None:
                 raise ChemistryError(404, f"PubChem has no compound for {namespace} {value}.")
-            found.append((record, namespace))
+            found.append((record, "author_structure" if record["cid"] is None else namespace))
         if len({record["cid"] for record, _ in found}) > 1:
             raise ChemistryError(422, "The CID, InChIKey and CAS given for one row name different compounds.")
         return found[0] if found else None

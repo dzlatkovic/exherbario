@@ -23,6 +23,22 @@ class Compound(Base):
     retrieved_at = Column(DateTime, nullable=False)
 
 
+class ChemistryStructure(Base):
+    """A structure supplied by an author (SMILES or molfile) for a compound PubChem does not have, e.g. a new
+    natural product. Identifiers are computed locally with RDKit; it is public once a released profile uses it."""
+    __tablename__ = "chemistry_structure"
+
+    id = Column(String(50), primary_key=True, default=new_id)
+    inchikey = Column(String(27), nullable=False, unique=True)
+    inchi = Column(Text, nullable=False)
+    smiles = Column(Text, nullable=False)
+    molecular_formula = Column(String(100), nullable=False)
+    monoisotopic_mass = Column(Double, nullable=False)
+    name = Column(String(500), nullable=False)
+    submitted_by = Column(String(50), ForeignKey("users.user_id"), nullable=False)
+    submitted_at = Column(DateTime, nullable=False)
+
+
 class CompoundAlias(Base):
     """An author's confirmed name-to-compound choice, reused in later imports."""
     __tablename__ = "compound_alias"
@@ -45,6 +61,8 @@ class MeasurementCorrection(Base):
     feature = Column(String(160), nullable=False)
     old_cid = Column(Integer)
     new_cid = Column(Integer)
+    old_structure_id = Column(String(50), ForeignKey("chemistry_structure.id"))
+    new_structure_id = Column(String(50), ForeignKey("chemistry_structure.id"))
     actor_id = Column(String(50), ForeignKey("users.user_id"), nullable=False)
     reason = Column(String(1000), nullable=False)
     corrected_at = Column(DateTime, nullable=False)

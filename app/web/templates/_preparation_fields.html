@@ -1,0 +1,15 @@
+{% from "_form_labels.html" import field_label %}
+{% from "_preset_control.html" import preset_control %}
+<div class="form-grid">
+  {{ preset_control("preparation", "Saved method", "e.g. Hydrodistillation, Clevenger, 3 h") }}
+  <label>{{ field_label("Batch code") }} <input name="batch_code" required maxlength="80"></label>
+  <label>{{ field_label("Type") }} <select name="kind" required>
+    {% if choose_details %}<option value="">Choose preparation type</option>{% endif %}
+    <option value="essential_oil">Essential oil</option><option value="extract">Extract</option>
+  </select></label>
+  <label>Plant material (g) <input name="plant_material_mass_g" type="number" min="0" step="any"></label>
+  <label><span>Yield (% w/w){% if choose_details %} <span class="field-note" id="import-yield-required" hidden>Required for essential oils</span>{% endif %}</span>
+    <input name="yield_percent" type="number" min="0" max="100" step="any"></label>
+</div>
+<label>{{ field_label("Method reference") }} <input name="method_reference" required maxlength="500"></label>
+<label>Method and parameters <input name="method_parameters" maxlength="1000" placeholder="e.g. hydrodistillation, Clevenger apparatus, 3 h"></label>

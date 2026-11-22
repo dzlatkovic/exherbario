@@ -1,0 +1,11 @@
+{% macro preset_control(kind, label, hint) -%}
+<div class="preset-control full" data-kind="{{ kind }}">
+  <div class="preset-row">
+    <label>{{ label }} <select class="preset-select" disabled><option value="">None saved yet</option></select></label>
+    <button type="button" class="text-button preset-delete" hidden>Delete</button>
+    <label>Save as <input class="preset-name" maxlength="120" placeholder="{{ hint }}" autocomplete="off"></label>
+    <button type="button" class="secondary preset-save">Save</button>
+  </div>
+  <p class="feedback small" role="status"></p>
+</div>
+{%- endmacro %}

@@ -1,17 +1,19 @@
 from datetime import date
 from typing import Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, confloat, conint, constr, model_validator
 
 Code = constr(strip_whitespace=True, min_length=1, max_length=80)
 Identifier = constr(strip_whitespace=True, min_length=1, max_length=50)
-Basis = Literal["concentration", "peak_area", "peak_area_percent"]
+Basis = Literal["concentration", "peak_area", "peak_area_percent", "isolated_mass"]
 PlantPart = Literal["leaf", "flower", "inflorescence", "aerial parts", "stem", "root", "rhizome", "bark",
                     "fruit", "seed", "whole plant", "other"]
 MaterialState = Literal["fresh", "air-dried", "oven-dried", "freeze-dried"]
 VoucherRole = Literal["sampled_from_voucher", "same_individual", "same_population", "collected_alongside",
                       "cultivated_from", "reference_for_commercial_material"]
-Technique = Literal["GC-MS", "GC-FID", "LC-MS", "LC-MS/MS", "HPLC-DAD"]
+# "isolation": compounds isolated from a preparation, with their structures determined (NMR, HRMS, X-ray…).
+Technique = Literal["GC-MS", "GC-FID", "LC-MS", "LC-MS/MS", "HPLC-DAD", "isolation"]
+ISOLATED_UNITS = ("mg", "g", "µg")
 VOUCHER_ROLES = get_args(VoucherRole)
 MAX_SAMPLE_VOUCHERS = 20
 
@@ -73,6 +75,7 @@ class GCRun(BaseModel):
     carrier_gas: optional_text(100) = None
     alkane_series: optional_text(200) = None
     ri_type: Literal["linear_temperature_programmed", "isothermal_kovats"] | None = None
+    data_accessions: optional_text(500) = None
 
 
 class LCRun(BaseModel):
@@ -83,12 +86,36 @@ class LCRun(BaseModel):
     gradient: optional_text(1000) = None
     ionisation_mode: Literal["ESI+", "ESI-", "APCI+", "APCI-", "APPI+", "APPI-"] | None = None
     mass_analyser: optional_text(100) = None
+    data_accessions: optional_text(500) = None
+
+
+class IsolationRun(BaseModel):
+    """Conditions shared by the compounds of one isolation; each compound may add its own details."""
+    model_config = ConfigDict(extra="forbid")
+
+    isolation_procedure: optional_text(2000) = None
+    nmr_spectrometer: optional_text(200) = None
+    nmr_frequency_mhz: confloat(gt=0, le=2000, allow_inf_nan=False) | None = None
+    nmr_solvent: optional_text(100) = None
+    hrms_instrument: optional_text(200) = None
+    hrms_ionisation: optional_text(40) = None
+    data_accessions: optional_text(500) = None
 
 
 def run_metadata_for(technique: str, data: dict | None) -> dict:
     """Validate run metadata for a technique; GC runs need the column polarity class for RI checks."""
-    model = GCRun if technique in ("GC-MS", "GC-FID") else LCRun
+    model = GCRun if technique in ("GC-MS", "GC-FID") else IsolationRun if technique == "isolation" else LCRun
     return model.model_validate(data or {}).model_dump(exclude_none=True)
+
+
+def basis_problem(technique: str | None, basis: str, unit: str) -> str | None:
+    """An isolation reports isolated amounts, and only an isolation does."""
+    if (technique == "isolation") != (basis == "isolated_mass"):
+        return ("Record isolated compounds with the isolation technique and the isolated-amount basis "
+                "(and use that basis only for isolations).")
+    if basis == "isolated_mass" and unit.replace("μ", "µ").replace("ug", "µg") not in ISOLATED_UNITS:
+        return "Give isolated amounts in mg, g or µg."
+    return None
 
 
 class PreparationIn(BaseModel):
@@ -106,11 +133,81 @@ class PreparationIn(BaseModel):
         return self
 
 
+def run_problems(error: ValidationError) -> str:
+    return "; ".join(f"{'.'.join(map(str, item['loc'])) or 'run metadata'}: {item['msg']}" for item in error.errors())
+
+
+class RunPresetValues(BaseModel):
+    """Saved run conditions: what the results-table settings and the run fields hold."""
+    model_config = ConfigDict(extra="forbid")
+
+    technique: Technique
+    analytical_method: optional_text(120) = None
+    measurement_basis: Basis | None = None
+    unit: optional_text(40) = None
+    run_metadata: dict | None = None
+
+    @model_validator(mode="after")
+    def valid_run(self):
+        try:
+            self.run_metadata = run_metadata_for(self.technique, self.run_metadata)
+        except ValidationError as error:
+            raise ValueError(f"Invalid run conditions for {self.technique}: {run_problems(error)}") from None
+        return self
+
+
+class PreparationPresetValues(BaseModel):
+    """A saved preparation method. Batch code, mass and yield belong to each preparation."""
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["extract", "essential_oil"]
+    method_reference: constr(strip_whitespace=True, min_length=1, max_length=500)
+    method_parameters: optional_text(1000) = None
+
+
+PRESET_VALUES = {"run": RunPresetValues, "preparation": PreparationPresetValues}
+
+
+class ConditionPresetIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["run", "preparation"]
+    name: constr(strip_whitespace=True, min_length=1, max_length=120)
+    values: dict
+
+    @model_validator(mode="after")
+    def valid_values(self):
+        self.values = PRESET_VALUES[self.kind].model_validate(self.values).model_dump(exclude_none=True)
+        return self
+
+
+class SamplePreparationIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sample_id: Identifier | None = None
+    sample: SampleIn | None = None
+    preparation: PreparationIn
+
+    @model_validator(mode="after")
+    def choose_sample(self):
+        if (self.sample_id is None) == (self.sample is None):
+            raise ValueError("Choose an existing sample or enter details for a new sample.")
+        return self
+
+
 class CompoundCorrectionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cid: conint(gt=0, lt=2 ** 31) | None
+    cid: conint(gt=0, lt=2 ** 31) | None = None
+    # A structure as SMILES or molfile; PubChem's CID is used when PubChem has the same InChIKey.
+    smiles: constr(strip_whitespace=True, min_length=1, max_length=20000) | None = None
     reason: constr(strip_whitespace=True, min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def one_assignment(self):
+        if self.cid is not None and self.smiles is not None:
+            raise ValueError("Give either a CID or a structure, not both.")
+        return self
 
 
 class PublicState(BaseModel):

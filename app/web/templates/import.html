@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_form_labels.html" import field_label %}
 {% from "_delete_action.html" import delete_action %}
+{% from "_preset_control.html" import preset_control %}
 {% block title %}Import {{ record.source_name }} · Ex Herbario{% endblock %}
 {% block head %}<script type="module" src="/assets/herbar/js/import.js"></script><script type="module" src="/assets/herbar/js/deletion.js"></script>{% endblock %}
 {% block body %}
@@ -21,17 +22,21 @@
     <div class="form-grid">
       <label>{{ field_label("Sheet") }} <select name="sheet" required id="import-sheet"></select></label>
       <label>{{ field_label("Header row") }} <input name="header_row" id="import-header-row" type="number" min="1" max="1000" value="1" required></label>
-      <label>Saved layout <select id="import-template"><option value="">None</option></select></label>
+      <label>Saved column layout <select id="import-template"><option value="">None</option></select></label>
     </div>
     <div class="table-scroll"><table id="import-grid" class="grid"></table></div>
     <h3>Columns</h3>
+    <p class="muted small">For each sample column, select an existing preparation or create one here.</p>
+    <p id="import-column-status" class="feedback" role="status"></p>
     <div class="table-scroll"><table id="import-columns" class="grid"></table></div>
     <h3>Settings for all sample columns</h3>
     <div class="form-grid">
+      {{ preset_control("run", "Saved run conditions", "e.g. HP-5MS, 60–246 °C at 3 °C/min") }}
       {% include "_run_fields.html" %}
       <label>{{ field_label("Measurement basis") }} <select name="measurement_basis" required>
         <option value="peak_area_percent">Peak-area percentage</option>
         <option value="peak_area">Peak area</option><option value="concentration">Concentration</option>
+        <option value="isolated_mass">Isolated amount (isolation)</option>
       </select></label>
       <label>{{ field_label("Unit") }} <input name="unit" value="%" required maxlength="40"></label>
       <label>{{ field_label("Analytical method") }} <input name="analytical_method" required maxlength="120"></label>
@@ -40,7 +45,7 @@
         <option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
       </select></label>
       <label>RI tolerance <input name="ri_tolerance" type="number" min="1" max="500" value="20"></label>
-      <label>{{ field_label("Save this layout as", "Optional") }} <input name="save_template" maxlength="120"></label>
+      <label>{{ field_label("Save this column layout as", "Optional") }} <input name="save_template" maxlength="120"></label>
     </div>
     <button class="secondary">Preview</button>
     <p class="feedback" role="status"></p>
@@ -68,4 +73,25 @@
     <p id="import-confirm-status" class="feedback" role="status"></p>
   </div>
 </section>
+<dialog id="import-preparation-dialog" class="import-preparation-dialog" aria-labelledby="import-preparation-title">
+  <h2 id="import-preparation-title">Create a preparation</h2>
+  <form id="import-create-preparation" class="stack">
+    <label id="import-sample-choice">{{ field_label("Sample") }}
+      <select name="existing_sample" required></select>
+    </label>
+    <fieldset id="import-new-sample" class="stack">
+      <legend>New sample</legend>
+      {% with choose_details=true %}{% include "_sample_fields.html" %}{% endwith %}
+    </fieldset>
+    <fieldset id="import-preparation-fields" class="stack">
+      <legend>Preparation</legend>
+      {% with choose_details=true %}{% include "_preparation_fields.html" %}{% endwith %}
+    </fieldset>
+    <div class="link-row">
+      <button class="primary" type="submit">Create and attach</button>
+      <button type="button" class="secondary" id="import-cancel-preparation">Cancel</button>
+    </div>
+    <p class="feedback" role="status"></p>
+  </form>
+</dialog>
 {% endblock %}

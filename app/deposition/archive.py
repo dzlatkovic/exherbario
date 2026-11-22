@@ -14,7 +14,8 @@ MAX_SNAPSHOT_BYTES = 96 * 1024 * 1024
 MAX_MANIFEST_BYTES = 128 * 1024
 # Version 3 lists every voucher linked to each profile's sample, with its role.
 # Version 4 adds the technique, run metadata, identification evidence, compounds and compound corrections.
-SCHEMA_VERSION = 4
+# 5: isolation profiles, co-injection and structure-elucidation evidence, author-supplied structures.
+SCHEMA_VERSION = 5
 MAX_PROFILES = 50
 MAX_VOUCHERS = 250
 
@@ -29,7 +30,7 @@ def snapshot_digest(snapshot) -> str:
 
 def manifest_for(snapshot, encoded: bytes) -> dict:
     schema = snapshot["schema_version"]
-    if schema not in (1, 2, 3, 4):
+    if schema not in (1, 2, 3, 4, 5):
         raise ValueError("Unsupported deposition snapshot version.")
     profiles = snapshot["profiles"]
     if schema == 1:

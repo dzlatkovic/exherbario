@@ -135,7 +135,7 @@ class TestCompounds(TestClass):
             "institution": "EXU", "title": "Oil", "license": "CC BY 4.0",
             "contributors": [{"name": "F. Scientist", "role": "analyst"}], "profile_ids": [profile_id]}).json()
         snapshot = client.get(f"/api/depositions/{created['id']}/draft/preview", headers=curator).json()["snapshot"]
-        assert snapshot["schema_version"] == 4
+        assert snapshot["schema_version"] == 5
         frozen = snapshot["profiles"][0]
         assert frozen["technique"] == "GC-MS" and frozen["preparation"]["yield_percent"] == 0.42
         rows = {row["feature"]: row for row in frozen["measurements"]}

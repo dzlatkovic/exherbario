@@ -10,7 +10,7 @@ from app.chemistry.models import LabSample, Preparation, Profile, Study
 from app.chemistry.sample_links import (PROVENANCE, current_determination, determination_at_link, public_site,
                                         redetermined)
 from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, PublicState, SampleIn, StudyIn,
-                                   Technique, VoucherLinkIn)
+                                   SamplePreparationIn, Technique, VoucherLinkIn)
 from app.chemistry.services import ChemistryService
 from app.chemistry.records import correction_record, measurement_record, preparation_summary
 from app.chemistry.services.compounds import candidate_summary, compound_summary
@@ -117,6 +117,10 @@ class ChemistryController:
 
     def create_sample(self, study_id: str, data: SampleIn, actor: User):
         return {"id": self.service.create_sample(study_id, data, actor).id}
+
+    def create_sample_preparation(self, study_id: str, data: SamplePreparationIn, actor: User):
+        sample, preparation = self.service.create_sample_preparation(study_id, data, actor)
+        return {"sample": {"id": sample.id, "code": sample.code}, "preparation": preparation_summary(preparation)}
 
     def add_sample_voucher(self, sample_id: str, data: VoucherLinkIn, actor: User):
         link = self.service.add_sample_voucher(sample_id, data, actor)

@@ -117,6 +117,8 @@ class TestCatalog(TestClass):
             "/api/chemistry/public/studies/{study_id}", "/api/chemistry/public/profiles/{profile_id}",
             "/api/chemistry/public/specimens/{specimen_id}/profiles", "/api/chemistry/public/compounds/{cid}",
             "/api/chemistry/public/export", "/api/chemistry/public/taxa/{taxon_id}/literature-compounds",
+            "/api/chemistry/public/structures/{structure_id}",
+            "/api/chemistry/public/structures/{structure_id}/depiction.svg",
             "/api/dwca.zip",
             "/api/depositions/public", "/api/depositions/public/{institution}/{accession}/versions/{number}",
             "/api/depositions/public/{institution}/{accession}/versions/{number}/archive.zip",

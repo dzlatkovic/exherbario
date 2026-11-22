@@ -1,5 +1,7 @@
 """Routes for studies, samples, chemical profiles, compounds, imports and exports."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, constr
@@ -11,13 +13,16 @@ from app.chemistry.controller.import_controller import ImportController
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.pubchem import PubChemClient
 from app.chemistry.schemas import (Basis, CompoundCorrectionIn, PreparationIn, PublicState, SampleIn, StudyIn,
-                                   Technique, VoucherLinkIn)
+                                   SamplePreparationIn, Technique, VoucherLinkIn)
 from app.chemistry.services import ChemistryService
+from app.chemistry.schemas.chemistry_schemas import ConditionPresetIn
 from app.chemistry.schemas.import_schemas import AssignmentIn, RowReviewIn
-from app.chemistry.services.compounds import CompoundRegistry
+from app.chemistry.services.compounds import CompoundRegistry, structure_summary
+from app.chemistry.structures import StructureError, depiction_svg
 from app.chemistry.services.deletion import ChemistryDeletion
 from app.chemistry.services.export import ExportService
 from app.chemistry.services.imports import ImportService
+from app.chemistry.services.presets import PresetService, preset_summary
 from app.db import get_db
 from app.users.controller import JWTBearer
 from app.users.models import User
@@ -93,6 +98,12 @@ def discard_import(import_id: str, actor: User = Depends(authenticated), db: Ses
 def create_sample(study_id: str, data: SampleIn, actor: User = Depends(authenticated),
                   controller: ChemistryController = Depends(get_chemistry_controller)):
     return controller.create_sample(study_id, data, actor)
+
+
+@chemistry_router.post("/studies/{study_id}/sample-preparations", status_code=201)
+def create_sample_preparation(study_id: str, data: SamplePreparationIn, actor: User = Depends(authenticated),
+                              controller: ChemistryController = Depends(get_chemistry_controller)):
+    return controller.create_sample_preparation(study_id, data, actor)
 
 
 @chemistry_router.post("/samples/{sample_id}/vouchers", status_code=201)
@@ -178,6 +189,22 @@ def confirm_import(import_id: str, actor: User = Depends(authenticated),
     return controller.confirm(import_id, actor)
 
 
+@chemistry_router.get("/condition-presets")
+def list_condition_presets(kind: Literal["run", "preparation"] | None = None, actor: User = Depends(authenticated),
+                           db: Session = Depends(get_db)):
+    return [preset_summary(preset) for preset in PresetService(db).list(actor, kind)]
+
+
+@chemistry_router.put("/condition-presets")
+def save_condition_preset(data: ConditionPresetIn, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    return preset_summary(PresetService(db).save(data, actor))
+
+
+@chemistry_router.delete("/condition-presets/{preset_id}", status_code=204)
+def delete_condition_preset(preset_id: str, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
+    PresetService(db).delete(preset_id, actor)
+
+
 @chemistry_router.get("/import-templates")
 def list_import_templates(actor: User = Depends(authenticated),
                           controller: ImportController = Depends(get_import_controller)):
@@ -216,6 +243,38 @@ def export_profiles(profile_id: list[str] = Query(default_factory=list, max_leng
     return Response(content, media_type="text/csv; charset=utf-8", headers={
         "Content-Disposition": f'attachment; filename="herbar-chemistry-{format}.csv"',
         "X-Content-Type-Options": "nosniff"})
+
+
+# Drawings are generated, not uploaded; the policy keeps an SVG opened on its own from running anything.
+SVG_HEADERS = {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+               "X-Content-Type-Options": "nosniff"}
+
+
+@chemistry_router.get("/depict.svg", response_class=Response)
+def depict(smiles: str = Query(min_length=1, max_length=4000), actor: User = Depends(authenticated)):
+    """A drawing of a structure under review."""
+    try:
+        svg = depiction_svg(smiles)
+    except StructureError as error:
+        raise HTTPException(422, str(error)) from error
+    return Response(svg, media_type="image/svg+xml", headers={**SVG_HEADERS, "Cache-Control": "private, max-age=86400"})
+
+
+@chemistry_router.get("/public/structures/{structure_id}")
+def get_public_structure(structure_id: str = Path(max_length=50), db: Session = Depends(get_db)):
+    structure = ChemistryRepository(db).get_public_structure(structure_id)
+    if structure is None:
+        raise HTTPException(404, "Structure not found.")
+    return structure_summary(structure)
+
+
+@chemistry_router.get("/public/structures/{structure_id}/depiction.svg", response_class=Response)
+def public_structure_depiction(structure_id: str = Path(max_length=50), db: Session = Depends(get_db)):
+    structure = ChemistryRepository(db).get_public_structure(structure_id)
+    if structure is None:
+        raise HTTPException(404, "Structure not found.")
+    return Response(depiction_svg(structure.smiles), media_type="image/svg+xml",
+                    headers={**SVG_HEADERS, "Cache-Control": "public, max-age=86400"})
 
 
 @chemistry_router.get("/public/compounds/{cid}")

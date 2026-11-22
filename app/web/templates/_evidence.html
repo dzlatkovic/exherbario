@@ -1,0 +1,24 @@
+{# Evidence columns shared by the public and staff profile pages. `has(*names)` is true when any row has a value. #}
+{% set ELUCIDATION = ("novelty", "literature_doi", "nmr_experiments", "nmr_solvent", "optical_rotation", "ecd", "ccdc",
+                      "configuration_type", "configuration", "purity_percent", "data_accessions") %}
+{% macro extra_headers(has) -%}
+  {% if has("standard_source", "standard_reference") %}<th scope="col">Authentic sample</th>{% endif %}
+  {% if has(*ELUCIDATION) %}<th scope="col">Structure determination</th>{% endif %}
+{%- endmacro %}
+{% macro extra_cells(row, has) -%}
+  {% if has("standard_source", "standard_reference") %}<td>{{ (row.standard_source or "") | capitalize }}
+    {%- if row.standard_reference %}<span class="muted small">{{ " · " if row.standard_source }}{{ row.standard_reference }}</span>{% endif %}</td>{% endif %}
+  {% if has(*ELUCIDATION) %}<td><ul class="evidence-list">
+    {% if row.novelty == "new" %}<li><strong>New compound</strong></li>{% elif row.novelty == "known" %}<li>Known compound</li>{% endif %}
+    {% if row.literature_doi %}<li>Compared with <a href="https://doi.org/{{ row.literature_doi }}" rel="external">{{ row.literature_doi }}</a></li>{% endif %}
+    {% if row.nmr_experiments %}<li>NMR: {{ row.nmr_experiments | replace(";", ", ") }}{% if row.nmr_solvent %} ({{ row.nmr_solvent }}){% endif %}</li>
+    {% elif row.nmr_solvent %}<li>NMR solvent: {{ row.nmr_solvent }}</li>{% endif %}
+    {% if row.optical_rotation %}<li>Optical rotation: {{ row.optical_rotation }}</li>{% endif %}
+    {% if row.ecd %}<li>ECD: {{ row.ecd }}</li>{% endif %}
+    {% if row.ccdc %}<li>X-ray: {{ row.ccdc }}</li>{% endif %}
+    {% if row.configuration_type or row.configuration %}<li>Configuration: {{ (row.configuration_type or "") | replace("_", " ") }}
+      {%- if row.configuration %}{{ " · " if row.configuration_type }}{{ row.configuration }}{% endif %}</li>{% endif %}
+    {% if row.purity_percent is not none %}<li>Purity {{ "%g" | format(row.purity_percent) }}%</li>{% endif %}
+    {% if row.data_accessions %}<li>Data: {{ row.data_accessions }}</li>{% endif %}
+  </ul></td>{% endif %}
+{%- endmacro %}

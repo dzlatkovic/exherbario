@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ structure.name ~ ' · ' if structure }}Structure · Ex Herbario{% endblock %}
+{% block body %}
+{% if not structure %}
+  <section class="card narrow">
+    <h1 class="title">Structure unavailable</h1>
+    <p class="muted">This structure does not exist or is not part of a released profile.</p>
+  </section>
+{% else %}
+<header class="record-header">
+  <p class="overline">Structure supplied by the authors</p>
+  <h1 class="title plain">{{ structure.name }}</h1>
+  <p class="muted small">Not in PubChem when it was deposited. Identifiers were computed from the authors' structure with RDKit.</p>
+</header>
+<section class="card compound-card">
+  <img class="structure" src="/api/chemistry/public/structures/{{ structure.id }}/depiction.svg" alt="Structure of {{ structure.name }}" width="260" height="200">
+  <dl class="facts">
+    <div><dt>Formula</dt><dd>{{ structure.molecular_formula }}</dd></div>
+    <div><dt>Monoisotopic mass</dt><dd class="mono">{{ '%.4f' | format(structure.monoisotopic_mass) }}</dd></div>
+    <div><dt>InChIKey</dt><dd class="mono break">{{ structure.inchikey }}</dd></div>
+    <div><dt>InChI</dt><dd class="mono break">{{ structure.inchi }}</dd></div>
+    <div><dt>SMILES</dt><dd class="mono break">{{ structure.smiles }}</dd></div>
+  </dl>
+</section>
+{% if profiles %}
+<section class="card" aria-labelledby="profiles-title">
+  <h2 id="profiles-title">Reported in</h2>
+  <ul class="plain-list">
+    {% for profile, preparation, sample in profiles %}
+      <li><a href="/profiles/{{ profile.id }}">Sample {{ sample.code }} · run {{ profile.run_code }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

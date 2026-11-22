@@ -19,7 +19,7 @@ from app.deposition.services import DepositionService
 from app.users import orcid
 from app.users.models import User
 
-from .chemistry_pages import NoPubChem, ROLE_LABELS, RUN_LABELS
+from .chemistry_pages import NoPubChem, ROLE_LABELS, RUN_LABELS, has_values
 
 router = APIRouter(include_in_schema=False)
 PUBCHEM_IMAGES = ("default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; "
@@ -114,8 +114,7 @@ def profile(request: Request, profile_id: str, db: Session = Depends(get_db)):
     return _web().render(request, "staff-profile.html", profile=record, preparation=preparation, sample=sample,
                          study=repository.get_study(sample.study_id), measurements=measurements,
                          corrections=corrections, run_labels=RUN_LABELS, curator=viewer["curator"],
-                         has=lambda name: any(getattr(row, name) is not None for row, _ in measurements),
-                         headers={"Content-Security-Policy": PUBCHEM_IMAGES})
+                         has=has_values(measurements), headers={"Content-Security-Policy": PUBCHEM_IMAGES})
 
 
 @router.get("/researcher/studies/{study_id}/imports/{import_id}")

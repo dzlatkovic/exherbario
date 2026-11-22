@@ -123,6 +123,13 @@ pre { max-height: 19rem; overflow: auto; padding: .9rem; background: var(--bg); 
 dialog { max-width: min(29rem, calc(100% - 2rem)); background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow); }
 dialog::backdrop { background: #000a; }
+.evidence-list { margin: 0; padding-left: 1rem; font-size: .9em; }
+.structure-details img { display: block; background: #fff; border-radius: var(--radius); margin: .4rem 0; }
+.preset-control { border-left: 3px solid var(--line); padding-left: .75rem; }
+.preset-row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: end; }
+.preset-row label { flex: 1 1 14rem; }
+.preset-control .feedback:empty { display: none; }
+.import-preparation-dialog { width: min(42rem, calc(100% - 2rem)); max-width: none; }
 
 /* Section navigation in the workspace: chips on phones, a sticky list on wide screens. */
 .step-nav { display: flex; gap: .4rem; overflow-x: auto; position: sticky; top: 3.6rem; z-index: 5; padding: .4rem 0;
