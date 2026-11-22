@@ -41,6 +41,7 @@ Visitors browse released vouchers and published depositions. After signing in, *
 
 - [Vouchers, visibility and corrections](docs/vouchers.md): registering vouchers, public release, roles and scientific corrections.
 - [Phytochemistry](docs/chemistry.md): samples, preparations, profile import, PubChem compounds and CSV export.
+- [Preparing a results table with an AI assistant](docs/ai-extraction.md): the extraction prompt and the import template.
 - [Scientific depositions](docs/depositions.md): publishing, verifying archives, DOIs, corrections and withdrawal.
 - [Database, backups and migrations](docs/operations.md): storage, backup and restore, and upgrade notes.
 - [External lookups](docs/external-lookups.md): optional GBIF, Crossref, ROR, Index Herbariorum and LOTUS lookups, ORCID iDs, caching and offline use.

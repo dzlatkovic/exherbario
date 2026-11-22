@@ -151,7 +151,41 @@ def registered_institution(db, code):
     return institution
 
 
-def build_snapshot(db, deposition):
+def releases_for(records, preparations, listed):
+    """The private studies, runs and vouchers a deposition contains, which publishing releases.
+
+    A record that was released and then withdrawn is not released again silently: a curator releases it first."""
+    studies, profiles, vouchers = {}, {}, {}
+    for profile, _, _, study, links in records.values():
+        profiles[profile.id] = profile
+        studies[study.id] = study
+        vouchers.update((voucher.specimen_id, voucher) for _, voucher, _ in links)
+    for _, _, study, links in preparations.values():
+        studies[study.id] = study
+        vouchers.update((voucher.specimen_id, voucher) for _, voucher, _ in links)
+    vouchers.update((voucher.specimen_id, voucher) for voucher, _ in listed.values())
+    withdrawn = [f"study “{item.title}”" for item in studies.values() if item.ever_public and not item.is_public]
+    withdrawn += [f"run {item.run_code}" for item in profiles.values() if item.ever_public and not item.is_public]
+    withdrawn += [f"voucher {item.accession or item.reg_no or item.specimen_id}" for item in vouchers.values()
+                  if item.ever_public and not item.is_public]
+    if withdrawn:
+        raise HTTPException(409, "These were withdrawn from public view: " + ", ".join(withdrawn)
+                                 + ". Release them again, or remove them from the draft, before publishing.")
+    return {"studies": [item for item in studies.values() if not item.is_public],
+            "profiles": [item for item in profiles.values() if not item.is_public],
+            "vouchers": [item for item in vouchers.values() if not item.is_public]}
+
+
+def release_summary(releases) -> dict:
+    return {"studies": [{"id": item.id, "title": item.title} for item in releases["studies"]],
+            "runs": [{"id": item.id, "run_code": item.run_code} for item in releases["profiles"]],
+            "vouchers": [{"id": item.specimen_id, "accession": item.accession or item.reg_no,
+                          "public_location": item.public_location} for item in releases["vouchers"]]}
+
+
+def build_snapshot(db, deposition, releases=None):
+    """The public snapshot of a draft. Private records it contains are listed in ``releases`` (a dict filled in
+    when given), and are released by the publication itself."""
     draft = Draft.model_validate(deposition.draft)
     required = [name for name in ("title", "license", "contributors") if not getattr(draft, name)]
     if not (draft.profile_ids or draft.specimen_ids or draft.preparation_ids):
@@ -161,26 +195,33 @@ def build_snapshot(db, deposition):
     base = public_base_url()
     institution = registered_institution(db, deposition.institution)
     records = selected_records(db, deposition, draft.profile_ids)
-    if set(records) != set(draft.profile_ids) or any(
-        not (profile.is_public and study.is_public and links and all(voucher.is_public for _, voucher, _ in links))
-        for profile, _, _, study, links in records.values()
-    ):
-        raise HTTPException(409, "Select released profiles from studies available to the draft owner, "
-                                 "with every linked voucher released.")
+    if set(records) != set(draft.profile_ids) or not all(links for *_, links in records.values()):
+        raise HTTPException(409, "Select runs from studies available to the draft owner, each linked to a voucher.")
     preparations = selected_preparations(db, deposition, draft.preparation_ids)
-    if set(preparations) != set(draft.preparation_ids) or any(
-        not (study.is_public and links and all(voucher.is_public for _, voucher, _ in links))
-        for _, _, study, links in preparations.values()
-    ):
-        raise HTTPException(409, "Select preparations from released studies available to the draft owner, "
-                                 "with every linked voucher released.")
+    if set(preparations) != set(draft.preparation_ids) or not all(links for *_, links in preparations.values()):
+        raise HTTPException(409, "Select preparations from studies available to the draft owner, "
+                                 "each linked to a voucher.")
+    included = [(preparation, sample) for _, preparation, sample, *_ in records.values()]
+    included += [(preparation, sample) for preparation, sample, *_ in preparations.values()]
+    # Required reporting for essential oils; preparations may be created without it and completed later.
+    # One already published (recorded before yields were required) keeps being publishable in corrections.
+    repository = ChemistryRepository(db)
+    oils_without_yield = sorted({f"{preparation.batch_code} of sample {sample.code}" for preparation, sample in included
+                                 if preparation.kind == "essential_oil" and preparation.yield_percent is None
+                                 and not repository.preparation_is_deposited(preparation.id)})
+    if oils_without_yield:
+        raise HTTPException(409, "Add the essential-oil yield (% w/w) before publishing: preparation "
+                                 + ", ".join(oils_without_yield) + ".")
     with_runs = {preparation.id for _, preparation, *_ in records.values()}
     if with_runs & set(preparations):
         raise HTTPException(409, "A selected preparation is already included through its runs. "
                                  "Remove it from the preparations without runs.")
     listed = selected_vouchers(db, draft.specimen_ids)
-    if set(listed) != set(draft.specimen_ids) or not all(voucher.is_public for voucher, _ in listed.values()):
-        raise HTTPException(409, "Select vouchers that exist and have been released by a curator.")
+    if set(listed) != set(draft.specimen_ids):
+        raise HTTPException(409, "Select vouchers that exist.")
+    found = releases_for(records, preparations, listed)
+    if releases is not None:
+        releases.update(found)
     linked_ids = [link.specimen_id for *_, links in [*records.values(), *preparations.values()]
                   for link, _, _ in links]
     linked = selected_vouchers(db, [specimen_id for specimen_id in linked_ids if specimen_id not in listed])

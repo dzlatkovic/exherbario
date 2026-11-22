@@ -12,9 +12,9 @@
     <button class="primary">Search</button>
   </form>
   {% if released %}
-    <p class="muted small">{{ "{:,}".format(released) }} released specimen{{ '' if released == 1 else 's' }} · <a href="/specimens">Browse all</a> · <a href="/depositions">Published depositions</a></p>
+    <p class="muted small">{{ "{:,}".format(released) }} released specimen{{ '' if released == 1 else 's' }}</p>
   {% else %}
-    <p class="muted small">No specimens have been released yet. · <a href="/depositions">Published depositions</a></p>
+    <p class="muted small">No specimens have been released yet.</p>
   {% endif %}
 </section>
 {% endblock %}

@@ -20,7 +20,7 @@ from app.users.models import User
 from .models import (
     Deposition, DepositionArticle, DepositionDOI, DepositionFile, DepositionVersion, DepositionWithdrawal, Institution,
 )
-from .snapshot import (build_snapshot, registered_institution, selected_preparations, selected_records, selected_vouchers,
+from .snapshot import (build_snapshot, landing_path, registered_institution, release_summary, selected_preparations, selected_records, selected_vouchers,
                        version_url)
 
 
@@ -185,7 +185,13 @@ class DepositionService:
         return self._draft_summary(deposition)
 
     def get_draft(self, deposition_id, actor):
-        return self._draft_summary(self._deposition(deposition_id, actor))
+        deposition = self._deposition(deposition_id, actor)
+        summary = self._draft_summary(deposition)
+        if deposition.latest_version:
+            version = self.db.get(DepositionVersion, (deposition.id, deposition.latest_version))
+            summary["published"] = {"version": version.number, "page": landing_path(deposition, version.number),
+                                    "correction_start": correction_start(version.snapshot)}
+        return summary
 
     def draft_inputs(self, deposition_id, actor):
         deposition = self._deposition(deposition_id, actor)
@@ -273,9 +279,10 @@ class DepositionService:
         deposition = self._deposition(deposition_id, actor)
         if deposition.draft is None:
             raise HTTPException(409, "Create a draft before previewing.")
-        snapshot, _ = build_snapshot(self.db, deposition)
+        releases = {}
+        snapshot, _ = build_snapshot(self.db, deposition, releases)
         return {"draft_revision": deposition.draft_revision, "snapshot": snapshot,
-                "snapshot_sha256": snapshot_digest(snapshot)}
+                "snapshot_sha256": snapshot_digest(snapshot), "releases": release_summary(releases)}
 
     @staticmethod
     def _version_identity(deposition, version):
@@ -302,7 +309,8 @@ class DepositionService:
             return self._version_identity(deposition, prior)
         if deposition.draft is None or deposition.draft_revision != data.draft_revision:
             raise HTTPException(409, "The draft revision changed. Review a new preview.")
-        snapshot, files = build_snapshot(self.db, deposition)
+        releases = {}
+        snapshot, files = build_snapshot(self.db, deposition, releases)
         digest = snapshot_digest(snapshot)
         if digest != data.snapshot_sha256:
             raise HTTPException(409, "The linked records or files changed. Review a new preview.")
@@ -319,6 +327,10 @@ class DepositionService:
         self.db.add_all(DepositionFile(deposition_id=deposition.id, version=version.number,
                                        profile_id=profile_id, content=content)
                         for profile_id, content in files.items())
+        # Publishing is the curator's approval of everything the version contains: its private records go public
+        # with it, in the same transaction. Vouchers keep the public locality setting they have.
+        for record in (*releases["studies"], *releases["profiles"], *releases["vouchers"]):
+            record.is_public = record.ever_public = True
         self.db.commit()
         return self._version_identity(deposition, version)
 
@@ -446,3 +458,27 @@ class DepositionService:
                  for profile in version.snapshot["profiles"]}
         filename = f"{deposition.institution}-{deposition.accession}-v{version.number}.zip"
         return build_archive(version.snapshot, files), version.snapshot_sha256, filename
+
+
+def correction_start(snapshot) -> dict:
+    """A draft that repeats a published version, as the starting point of a correction."""
+    linked = set()
+    for profile in snapshot.get("profiles") or []:
+        if "voucher" in profile:
+            linked.add(profile["voucher"]["id"])
+        else:
+            linked.update(link["id"] for link in profile["sample"]["vouchers"])
+    for preparation in snapshot.get("preparations") or []:
+        linked.update(link["id"] for link in preparation["sample"]["vouchers"])
+    vouchers = snapshot.get("vouchers") or []
+    return {
+        "title": snapshot.get("title"), "description": snapshot.get("description") or "",
+        "license": snapshot.get("license"), "rights_statement": snapshot.get("rights_statement") or "",
+        "contributors": snapshot.get("contributors") or [],
+        "profile_ids": [profile["id"] for profile in snapshot.get("profiles") or []],
+        "preparation_ids": [preparation["id"] for preparation in snapshot.get("preparations") or []],
+        "specimen_ids": [voucher["id"] for voucher in vouchers if voucher["id"] not in linked],
+        # The snapshot holds these names only when the version included them.
+        "include_collector_names": any("collector_name" in voucher for voucher in vouchers),
+        "include_determiner_names": any("determiner_name" in (voucher.get("determination") or {}) for voucher in vouchers),
+    }

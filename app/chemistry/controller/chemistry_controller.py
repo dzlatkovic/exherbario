@@ -135,6 +135,9 @@ class ChemistryController:
         return {**preparation_summary(preparation), "sample_code": sample.code,
                 "study": {"id": study.id, "title": study.title}}
 
+    def update_preparation(self, preparation_id: str, data: PreparationIn, actor: User):
+        return preparation_summary(self.service.update_preparation(preparation_id, data, actor))
+
     def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
         return {"id": self.service.create_preparation(sample_id, data, actor).id}
 

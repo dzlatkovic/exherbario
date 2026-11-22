@@ -28,4 +28,26 @@ for (const form of document.querySelectorAll("form.add-preparation")) {
   });
 }
 
+for (const form of document.querySelectorAll("form.edit-preparation")) {
+  bindPresetControl(form.querySelector(".preset-control"), preparationPreset(form));
+  bindForm(form, async (data) => {
+    // Every field is sent, so a cleared value is cleared; an empty batch code keeps the current one.
+    const payload = Object.fromEntries([...data].filter(([name]) => !name.startsWith("run."))
+      .map(([name, value]) => [name, String(value).trim() === "" ? null : value]));
+    await request(`/api/chemistry/preparations/${endpoint(form.dataset.preparation)}`, {method: "PUT", json: payload});
+    reload();
+    return "Preparation saved.";
+  });
+}
+
+find("copy-ai-prompt")?.addEventListener("click", async () => {
+  const feedback = find("copy-ai-prompt-status");
+  try {
+    await navigator.clipboard.writeText(find("ai-prompt").textContent.trim());
+    feedback.textContent = "Copied.";
+  } catch {
+    feedback.textContent = "Copying is blocked here: select the text and copy it.";
+  }
+});
+
 bindPutButtons();

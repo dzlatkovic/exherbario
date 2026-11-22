@@ -25,7 +25,7 @@ class TestCompounds(TestClass):
         sample = client.post(f"{BASE}/studies/{study}/samples", headers=owner,
                              json=sample_payload([(voucher, "sampled_from_voucher")])).json()["id"]
         assert client.post(f"{BASE}/samples/{sample}/preparations", headers=owner, json={
-            "batch_code": "B", "kind": "essential_oil", "method_reference": "Hydrodistillation"}).status_code == 422
+            "batch_code": "B", "kind": "essential_oil", "method_reference": "Hydrodistillation", "yield_percent": -1}).status_code == 422
         preparation = client.post(f"{BASE}/samples/{sample}/preparations", headers=owner, json={
             "batch_code": "B", "kind": "essential_oil", "method_reference": "Hydrodistillation",
             "plant_material_mass_g": 100, "method_parameters": "Clevenger, 3 h", "yield_percent": 0.42})

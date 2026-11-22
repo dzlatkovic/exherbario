@@ -14,11 +14,25 @@
   <div class="record-main">
     <section class="card" aria-labelledby="draft-title">
       <h2 id="draft-title">Draft</h2>
+      <div id="published-notice" class="notice stack" hidden>
+        <p id="published-text"></p>
+        <p class="muted small">A published version cannot be edited. A correction is a new version with a public reason;
+          earlier versions stay citable and are marked as superseded.</p>
+        <div class="link-row">
+          <a id="published-link" class="button secondary" href="#">Open the public page</a>
+          <button type="button" id="start-correction" class="secondary">Start a correction</button>
+        </div>
+      </div>
       <form id="save-draft" class="stack">
         <p class="muted small">Fill in fields marked Required to save a draft. You can add the remaining publication details later.</p>
         <div class="form-grid">
           <label>{{ field_label("Institution") }} <select name="institution" required><option value="">Loading…</option></select></label>
-          <label>{{ field_label("License", "Required to publish") }} <input name="license" maxlength="200" placeholder="e.g. CC BY 4.0"></label>
+          <label>{{ field_label("License", "Required to publish") }} <select name="license">
+            <option value="">Choose a license</option>
+            <option value="CC BY 4.0">CC BY 4.0: reuse with credit (recommended)</option>
+            <option value="CC0 1.0">CC0 1.0: no conditions (public domain)</option>
+            <option value="CC BY-NC 4.0">CC BY-NC 4.0: credit, no commercial reuse</option>
+          </select></label>
         </div>
         <label>{{ field_label("Title", "Required to publish") }} <input name="title" maxlength="200"></label>
         <label>Description <textarea name="description" rows="3" maxlength="10000"></textarea></label>
@@ -70,11 +84,12 @@
             <label>Rights statement <textarea name="rights_statement" rows="2" maxlength="2000"></textarea></label>
             <label class="check"><input name="include_collector_names" type="checkbox"> Include recorded collector names</label>
             <label class="check"><input name="include_determiner_names" type="checkbox"> Include recorded determiner names</label>
-            <label>Run IDs <textarea name="profile_ids" rows="2" spellcheck="false"></textarea></label>
-            <label>Preparation IDs <textarea name="preparation_ids" rows="2" spellcheck="false"></textarea></label>
-            <label>Voucher IDs <textarea name="specimen_ids" rows="2" spellcheck="false"></textarea></label>
           </div>
         </details>
+        {# The pickers above fill these; they are what the draft saves. #}
+        <input type="hidden" name="profile_ids">
+        <input type="hidden" name="preparation_ids">
+        <input type="hidden" name="specimen_ids">
         <label id="correction-field" hidden>{{ field_label("Reason for this correction") }} <textarea name="correction_reason" rows="2" maxlength="1000"></textarea></label>
         <button class="primary">Save draft</button>
         <p class="feedback" role="status"></p>
@@ -96,7 +111,7 @@
         <li>At least one contributor with a name and role</li>
         <li>At least one run, preparation or voucher</li>
       </ul>
-      <p class="muted small">Selected runs, their studies, the studies of selected preparations, and all linked or stand-alone vouchers must be released.</p>
+      <p class="muted small">Records below that are still private are released when a curator publishes the version; the preview lists them. A record withdrawn from public view must be released again first.</p>
       <p id="inputs-status" class="feedback" role="status"></p>
       <div id="release-inputs"></div>
       <form id="validate" class="stack">

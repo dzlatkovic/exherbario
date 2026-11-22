@@ -88,6 +88,12 @@ function updateReview() {
   requirements.forEach(([label, done], index) => {
     items[index].textContent = `${label} — ${done ? "Entered" : "Missing"}`;
   });
+  // Say why the preview cannot run yet, instead of only greying out its button.
+  const missing = requirements.filter(([, done]) => !done).map(([label]) => label.toLowerCase());
+  status(find("validate").querySelector(".feedback"),
+    !state.draft?.draft_revision ? "Save the draft first."
+      : state.dirty ? "Save the draft to preview your latest changes."
+        : missing.length ? `Still missing: ${missing.join(", ")}. Add it, then save the draft.` : "");
   renderSubmission();
 }
 
@@ -219,12 +225,26 @@ function setDraft(draft, loadFields) {
   form.elements.institution.disabled = true;
   const version = draft.latest_version ? ` · published version ${draft.latest_version}` : " · not yet published";
   find("draft-selection").textContent = `${draft.institution} ${draft.accession}${version}`;
-  find("deposition-title").textContent = draft.draft?.title || (draft.latest_version ? "Deposition" : "New deposition");
+  find("deposition-title").textContent = draft.draft?.title || draft.published?.correction_start.title
+    || (draft.latest_version ? "Deposition" : "New deposition");
   if (window.location.pathname.endsWith("/new")) history.replaceState(null, "", `/researcher/depositions/${endpoint(draft.id)}`);
   find("correction-field").hidden = !draft.latest_version;
   form.elements.correction_reason.required = Boolean(draft.latest_version);
+  // A published deposition without a draft: say so, and start a correction from the published version on request.
+  const published = draft.published && !draft.draft_revision;
+  find("published-notice").hidden = !published;
+  form.hidden = Boolean(published) && !state.correcting;
+  if (published) {
+    find("published-text").textContent = `Version ${draft.published.version} is published.`;
+    find("published-link").href = draft.published.page;
+  }
   if (loadFields) {
-    const data = draft.draft ?? {};
+    const data = draft.draft ?? (state.correcting ? draft.published.correction_start : {});
+    // A draft saved with another license (typed in earlier, or through the API) keeps it as an option.
+    const license = form.elements.license;
+    if (data.license && ![...license.options].some((option) => option.value === data.license)) {
+      license.append(new Option(data.license, data.license));
+    }
     for (const field of ["title", "license", "description", "rights_statement", "correction_reason"]) {
       form.elements[field].value = data[field] ?? "";
     }
@@ -252,7 +272,7 @@ async function refreshInputs() {
     if (result.unavailable) {
       status(find("inputs-status"), `${result.unavailable} selected run(s), preparation(s) or voucher(s) are unavailable.`, true);
     } else if (result.inputs.length || result.vouchers?.length || result.preparations?.length) {
-      status(find("inputs-status"), "Release prerequisites");
+      status(find("inputs-status"), "What this version contains, and what is still private");
     }
     for (const voucher of result.vouchers ?? []) panel.append(renderVoucher(voucher));
     for (const entry of result.inputs) panel.append(renderInput(entry));
@@ -375,8 +395,19 @@ bindForm("validate", async () => {
       profiles.append(node("li", `Voucher ${voucher.accession ?? voucher.reg_no ?? voucher.id}`));
     }
   }
+  // What publishing will also release: the curator's approval covers these too.
+  const releases = preview.releases ?? {studies: [], runs: [], vouchers: []};
+  const pending = [
+    ...releases.studies.map((item) => `study “${item.title}”`),
+    ...releases.runs.map((item) => `run ${item.run_code}`),
+    ...releases.vouchers.map((item) => `voucher ${item.accession ?? item.id} (public locality: ${
+      item.public_location === "region" ? "country and region" : "withheld"})`),
+  ];
+  const releaseNote = pending.length
+    ? node("p", `Publishing also releases: ${pending.join("; ")}.`, "notice")
+    : node("p", "Everything in this version is already released.", "muted small");
   summary.replaceChildren(node("h4", snapshot.title),
-    node("p", `${snapshot.institution_name} · Version ${snapshot.version} · ${snapshot.license}`), profiles,
+    node("p", `${snapshot.institution_name} · Version ${snapshot.version} · ${snapshot.license}`), releaseNote, profiles,
     node("p", `Identifier ${snapshot.identifier}`, "break"),
     node("p", `Snapshot SHA-256 ${preview.snapshot_sha256}`, "break"));
   find("preview-json").textContent = JSON.stringify(snapshot, null, 2);
@@ -396,6 +427,11 @@ bindForm("publish", async () => {
   message.hidden = false;
 });
 
+find("start-correction").addEventListener("click", () => {
+  state.correcting = true;
+  setDraft(state.draft, true);
+  draftForm.elements.correction_reason.focus();
+});
 find("add-credit").addEventListener("click", () => { addCredit(); markDirty(); });
 // Offered when the account has an ORCID iD that ORCID confirmed; the name stays editable.
 document.getElementById("add-me")?.addEventListener("click", (event) => {

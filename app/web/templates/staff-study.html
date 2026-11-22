@@ -36,6 +36,18 @@
       <button class="primary">Upload and continue</button>
       <p class="feedback" role="status"></p>
     </form>
+    <details class="form-details">
+      <summary>Prepare the table from a paper with your AI assistant</summary>
+      <div class="stack">
+        <p class="muted small">Give the prompt below, with the paper's PDF and supplementary files, to the AI assistant you use
+          (Claude, ChatGPT or another). Paste its tables into the template, save it and upload it here. Everything still goes
+          through the preview and the compound review, so check each value against the paper.</p>
+        <p class="small"><a href="/api/chemistry/import-template.xlsx" download>Download the import template (.xlsx)</a></p>
+        <pre id="ai-prompt" class="prompt-text">{{ ai_prompt }}</pre>
+        <div class="link-row"><button type="button" class="secondary" id="copy-ai-prompt">Copy the prompt</button>
+          <p class="feedback small" id="copy-ai-prompt-status" role="status"></p></div>
+      </div>
+    </details>
     {% if imports %}
     <p class="small">Unfinished: {% for record in imports %}<a href="/researcher/studies/{{ study.id }}/imports/{{ record.id }}">{{ record.source_name }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>
     {% endif %}
@@ -87,6 +99,19 @@
       {{ delete_action("Delete preparation", "/api/chemistry/preparations/" ~ preparation.id, "",
           "Permanently delete preparation " ~ preparation.batch_code ~ ".") }}
       {% endif %}
+      {% endif %}
+      {% if preparation.kind == 'essential_oil' and preparation.yield_percent is none %}
+      <p class="warning-text small">Add the oil's yield (% w/w) before publishing.</p>
+      {% endif %}
+      {% if preparation.id not in deposited_preparations %}
+      <details class="form-details">
+        <summary>Edit preparation</summary>
+        <form class="stack edit-preparation" data-preparation="{{ preparation.id }}">
+          {% with values=preparation %}{% include "_preparation_fields.html" %}{% endwith %}
+          <button class="secondary">Save preparation</button>
+          <p class="feedback" role="status"></p>
+        </form>
+      </details>
       {% endif %}
     </div>
     {% endfor %}

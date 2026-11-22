@@ -226,8 +226,39 @@ export const VOUCHER_ROLES = [
   ["reference_for_commercial_material", "Reference for commercial material"],
 ];
 
+// Common GC columns by stationary-phase polarity. Matched on the name without spaces, dashes or case.
+const COLUMN_POLARITY = [
+  [/wax|ffap|carbowax|innowax|stabilwax|supelcowax|bp20|peg|cpwax|zbwax|dbwax/, "polar"],
+  [/1701|17|35|225|624|1301|vf200|ov17|bpx50|rxi17|rtx200|mxt200|cyclodex|bdex|chirasil/, "semi-polar"],
+  [/^(hp|db|rtx|rxi|zb|vf|bpx|bp|elite|tg|slb|spb|sps|cpsil|ov|se|ab|mega|optima|equity|hpultra)?(1|5|30|52|101|8|5ms|5sil|1ms|5ht|5amine|xlb)/, "non-polar"],
+];
+
+/** The polarity class of a GC column from its name, e.g. HP-5MS → non-polar, DB-WAX → polar; null if unknown. */
+export function columnPolarity(name) {
+  // Only the name counts: drop dimensions such as "30 m × 0.25 mm, 0.25 µm" and anything in brackets.
+  const key = (name ?? "").toLowerCase().split(/[(,;]/)[0]
+    .replace(/(\d)\s*[x×]\s*(\d)/g, "$1 $2").replace(/\d+(\.\d+)?\s*(m|mm|µm|um|μm)\b/g, "")
+    .replace(/[\s\-_./®™×]/g, "");
+  if (!key) return null;
+  return COLUMN_POLARITY.find(([pattern]) => pattern.test(key))?.[1] ?? null;
+}
+
 /** Show the GC or LC run fields of a form that has a .technique select and a .run-fields fieldset. */
 export function bindRunFields(form) {
+  // The polarity follows the column's name until someone chooses it.
+  const column = form.querySelector("[name='run.column']");
+  const polarity = form.querySelector("[name='run.polarity_class']");
+  if (column && polarity) {
+    let guessed = !polarity.value;
+    polarity.addEventListener("change", () => { guessed = false; });
+    column.addEventListener("input", () => {
+      const guess = columnPolarity(column.value);
+      if ((guessed || !polarity.value) && guess) {
+        polarity.value = guess;
+        guessed = true;
+      }
+    });
+  }
   const technique = form.querySelector(".technique");
   const render = () => {
     const kind = technique.value.startsWith("GC") ? "gc" : technique.value === "isolation" ? "isolation" : "lc";

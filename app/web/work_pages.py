@@ -3,6 +3,8 @@
 Data comes from the same services as the API, so ownership checks stay in one place.
 """
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request
 from fastapi import HTTPException
 from sqlalchemy import func, select, true
@@ -20,6 +22,9 @@ from app.users import orcid
 from app.users.models import User
 
 from .chemistry_pages import NoPubChem, ROLE_LABELS, RUN_LABELS, has_values
+
+# Shared with docs/ai-extraction.md, which links to it.
+AI_PROMPT = Path(__file__).resolve().parents[1] / "chemistry" / "ai_extraction_prompt.md"
 
 router = APIRouter(include_in_schema=False)
 PUBCHEM_IMAGES = ("default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; "
@@ -93,6 +98,9 @@ def study(request: Request, study_id: str, db: Session = Depends(get_db)):
     return _web().render(request, "staff-study.html", study=record, samples=samples, vouchers=vouchers,
                          preparations=by_sample, runs=runs, imports=imports, curator=viewer["curator"],
                          preparation_count=len(preparations), run_count=len(profiles), import_count=import_count,
+                         ai_prompt=AI_PROMPT.read_text(encoding="utf-8"),
+                         deposited_preparations=ChemistryRepository(db).deposited_preparations(
+                             [preparation.id for preparation in preparations]),
                          has_released_runs=any(profile.is_public or profile.ever_public for profile, _, _ in profiles))
 
 

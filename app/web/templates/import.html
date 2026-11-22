@@ -28,6 +28,7 @@
     <h3>Columns</h3>
     <p class="muted small">For each sample column, select an existing preparation or create one here.</p>
     <p id="import-column-status" class="feedback" role="status"></p>
+    <button type="button" id="import-bulk-open" class="secondary" hidden>Create samples and preparations for unattached columns</button>
     <div class="table-scroll"><table id="import-columns" class="grid"></table></div>
     <h3>Settings for all sample columns</h3>
     <div class="form-grid">
@@ -39,12 +40,6 @@
         <option value="isolated_mass">Isolated amount (isolation)</option>
       </select></label>
       <label>{{ field_label("Unit") }} <input name="unit" value="%" required maxlength="40"></label>
-      <label>{{ field_label("Analytical method") }} <input name="analytical_method" required maxlength="120"></label>
-      <label>Reference RI column polarity <select name="ri_ref_polarity">
-        <option value="">Not stated</option><option value="non-polar">Non-polar</option>
-        <option value="semi-polar">Semi-polar</option><option value="polar">Polar</option>
-      </select></label>
-      <label>RI tolerance <input name="ri_tolerance" type="number" min="1" max="500" value="20"></label>
       <label>{{ field_label("Save this column layout as", "Optional") }} <input name="save_template" maxlength="120"></label>
     </div>
     <button class="secondary">Preview</button>
@@ -90,6 +85,48 @@
     <div class="link-row">
       <button class="primary" type="submit">Create and attach</button>
       <button type="button" class="secondary" id="import-cancel-preparation">Cancel</button>
+    </div>
+    <p class="feedback" role="status"></p>
+  </form>
+</dialog>
+<dialog id="import-bulk-dialog" class="import-preparation-dialog" aria-labelledby="import-bulk-title">
+  <h2 id="import-bulk-title">Create samples and preparations</h2>
+  <form id="import-bulk-form" class="stack">
+    <p class="muted small">Enter the shared details once. Each new sample needs its voucher. A column whose header is the code of
+      a sample already in the study gets a new preparation of that sample. Batch codes are given as P1, P2…</p>
+    <fieldset class="stack">
+      <legend>For every sample</legend>
+      <div class="form-grid">
+        <label>{{ field_label("Plant part") }} <select name="plant_part" required>
+          <option value="">Choose plant part</option>
+          <option value="leaf">Leaf</option><option value="flower">Flower</option><option value="inflorescence">Inflorescence</option>
+          <option value="aerial parts">Aerial parts</option><option value="stem">Stem</option><option value="root">Root</option>
+          <option value="rhizome">Rhizome</option><option value="bark">Bark</option><option value="fruit">Fruit</option>
+          <option value="seed">Seed</option><option value="whole plant">Whole plant</option><option value="other">Other</option>
+        </select></label>
+        <label>Plant part details <input name="plant_part_note" maxlength="200"></label>
+        <label>Material <select name="material_state">
+          <option value="">Not recorded</option><option value="fresh">Fresh</option><option value="air-dried">Air-dried</option>
+          <option value="oven-dried">Oven-dried</option><option value="freeze-dried">Freeze-dried</option>
+        </select></label>
+      </div>
+    </fieldset>
+    <fieldset class="stack" id="import-bulk-preparation">
+      <legend>For every preparation</legend>
+      <div class="form-grid">
+        {{ preset_control("preparation", "Saved method", "e.g. Hydrodistillation, Clevenger, 3 h") }}
+        <label>{{ field_label("Type") }} <select name="kind" required>
+          <option value="">Choose preparation type</option>
+          <option value="essential_oil">Essential oil</option><option value="extract">Extract</option>
+        </select></label>
+      </div>
+      <label>{{ field_label("Method reference") }} <input name="method_reference" required maxlength="500"></label>
+      <label>Method and parameters <input name="method_parameters" maxlength="1000"></label>
+    </fieldset>
+    <div class="table-scroll"><table id="import-bulk-rows" class="grid"></table></div>
+    <div class="link-row">
+      <button class="primary" type="submit">Create and attach</button>
+      <button type="button" class="secondary" id="import-bulk-cancel">Cancel</button>
     </div>
     <p class="feedback" role="status"></p>
   </form>

@@ -25,7 +25,6 @@ ROWS = [
 ROLES = ["name", "smiles", "sample", "nmr_experiments", "nmr_solvent", "novelty", "literature_doi",
          "optical_rotation", "ccdc", "configuration_type", "id_basis", "id_level", "mz_obs", "adduct"]
 SETTINGS = {"technique": "isolation", "measurement_basis": "isolated_mass", "unit": "mg",
-            "analytical_method": "Isolation; NMR, HRMS",
             "run_metadata": {"isolation_procedure": "CH2Cl2 extract; silica CC; semi-preparative HPLC",
                              "nmr_frequency_mhz": "600", "nmr_solvent": "CDCl3",
                              "data_accessions": "nmrXiv P123"}}
@@ -59,6 +58,13 @@ class TestIsolation(TestClass):
 
         _, wrong = self.import_table(owner, study, preparation, {**SETTINGS, "measurement_basis": "peak_area_percent",
                                                                  "unit": "%"})
+        draft = client.post(f"{BASE}/studies/{study}/imports", headers=owner,
+                            files={"file": ("x.xlsx", workbook(ROWS), "application/octet-stream")}).json()
+        no_method = client.put(f"{BASE}/imports/{draft['id']}/assignment", headers=owner, json={
+            "sheet": "Table 2", "header_row": 1, "columns": [{"index": 0, "role": "name"}, {"index": 2, "role": "sample"}],
+            "settings": {**SETTINGS, "technique": "GC-MS", "measurement_basis": "peak_area_percent", "unit": "%"}})
+        assert no_method.status_code == 200, no_method.text
+        assert no_method.json()["preview"]["profiles"][0]["settings"]["analytical_method"] == "GC-MS"
         assert any("isolation technique" in error for error in wrong["preview"]["errors"])
         url, assigned = self.import_table(owner, study, preparation)
         preview = assigned["preview"]
@@ -76,12 +82,22 @@ class TestIsolation(TestClass):
         assert (review["α-Pinene"]["match"]["cid"], review["α-Pinene"]["method"]) == (6654, "smiles")
         assert review["Unknown diterpene"]["status"] == "unmatched"
         assert client.put(f"{url}/rows/2/compound", headers=owner, json={"action": "parent"}).status_code == 409
+        # A row without SMILES in the table can be given a structure during review.
+        given = client.put(f"{url}/rows/4/compound", headers=owner, json={"action": "structure", "smiles": "OCC1CCCCC1"})
+        assert given.status_code == 200, given.text
+        assert (given.json()["status"], given.json()["method"], given.json()["match"]["cid"]) == (
+            "confirmed", "author_structure", None)
+        assert client.put(f"{url}/rows/4/compound", headers=owner, json={"action": "structure", "smiles": "C1CC"}).status_code == 422
+        pubchem_hit = client.put(f"{url}/rows/4/compound", headers=owner,
+                                 json={"action": "structure", "smiles": "CC1=CCC(CC1)C(=C)C"}).json()
+        assert (pubchem_hit["method"], pubchem_hit["match"]["cid"]) == ("smiles", 22311)
         for number, action in ((2, "accept"), (3, "accept"), (4, "unidentified")):
             assert client.put(f"{url}/rows/{number}/compound", headers=owner, json={"action": action}).status_code == 200
         confirmed = client.post(f"{url}/confirm", headers=owner)
         assert confirmed.status_code == 201, confirmed.text
         profile = confirmed.json()["profiles"][0]
         assert (profile["technique"], profile["measurement_basis"], profile["unit"]) == ("isolation", "isolated_mass", "mg")
+        assert profile["analytical_method"] == "Isolation and structure elucidation"
         assert profile["run_metadata"]["nmr_frequency_mhz"] == 600
 
         with TestingSessionLocal() as db:

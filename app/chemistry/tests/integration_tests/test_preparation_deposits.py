@@ -47,15 +47,15 @@ class TestPreparationDeposits(TestClass):
         assert (entry["preparation"]["sample_code"], entry["study"]["is_public"], entry["vouchers"][0]["is_public"]) == (
             "BIO-1", False, False)
         assert inputs["unavailable"] == 0
-        assert client.get(f"{path}/draft/preview", headers=curator).status_code == 409  # study and voucher private
-
         deleting = client.delete(f"{BASE}/preparations/{preparation}", headers=owner)
         assert deleting.status_code == 409 and "Antimicrobial extract" in deleting.json()["detail"]
 
-        assert client.put(f"{study_url}/visibility", headers=curator, json={"is_public": True}).status_code == 200
-        release_voucher(curator, voucher)
+        # Nothing is released yet: the preview lists what publishing will release.
         preview = client.get(f"{path}/draft/preview", headers=curator)
         assert preview.status_code == 200, preview.text
+        releases = preview.json()["releases"]
+        assert ([item["id"] for item in releases["studies"]], [item["id"] for item in releases["vouchers"]],
+                releases["runs"]) == ([study_id], [voucher], [])
         snapshot = preview.json()["snapshot"]
         assert snapshot["schema_version"] == 6 and snapshot["profiles"] == []
         deposited = snapshot["preparations"][0]
@@ -66,7 +66,18 @@ class TestPreparationDeposits(TestClass):
         assert [item["id"] for item in snapshot["vouchers"]] == [voucher]
 
         approval = {key: preview.json()[key] for key in ("draft_revision", "snapshot_sha256")}
+        assert client.post(f"{path}/publish", headers=owner, json=approval).status_code == 403
         assert client.post(f"{path}/publish", headers=curator, json=approval).status_code == 200
+        assert client.get(f"{study_url}", headers=owner).json()["is_public"] is True
+        assert client.get(f"/api/specimen/{voucher}").status_code == 200  # released with the version
+        # The editor opens a published deposition with what a correction would start from.
+        published = client.get(f"{path}/draft", headers=owner).json()
+        assert (published["draft"], published["published"]["version"]) == (None, 1)
+        assert published["published"]["page"] == snapshot["identifier"].removeprefix("https://herbar.example.edu")
+        start = published["published"]["correction_start"]
+        assert (start["title"], start["license"], start["preparation_ids"], start["profile_ids"], start["specimen_ids"]) == (
+            "Antimicrobial extract", "CC BY 4.0", [preparation], [], [])
+        assert start["contributors"] == [{"name": "F. Scientist", "role": "analyst"}]
         page = client.get(snapshot["identifier"].removeprefix("https://herbar.example.edu"))
         assert page.status_code == 200
         assert "Samples and preparations without analytical runs" in page.text and "MeOH-1" in page.text

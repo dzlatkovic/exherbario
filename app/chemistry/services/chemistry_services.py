@@ -94,6 +94,15 @@ class ChemistryService:
         self.repository.save(sample, *links)
         return sample
 
+    def _preparation(self, sample_id: str, data: PreparationIn, taken=()) -> Preparation:
+        """A new preparation; an empty batch code becomes the sample's next free P1, P2…"""
+        values = data.model_dump()
+        if not values["batch_code"]:
+            used = {code.casefold() for code in self.repository.batch_codes(sample_id)} | {code.casefold() for code in taken}
+            values["batch_code"] = next(f"P{number}" for number in range(1, len(used) + 2)
+                                        if f"p{number}" not in used)
+        return Preparation(sample_id=sample_id, **values)
+
     def create_sample_preparation(self, study_id: str, data: SamplePreparationIn, actor: User):
         self._study_for_actor(study_id, actor)
         if data.sample is not None:
@@ -103,7 +112,7 @@ class ChemistryService:
             if sample is None or sample.study_id != study_id:
                 raise ChemistryError(404, "Sample not found in this study.")
             links = []
-        preparation = Preparation(sample_id=sample.id, **data.preparation.model_dump())
+        preparation = self._preparation(sample.id, data.preparation)
         self.repository.save(sample, *links, preparation)
         return sample, preparation
 
@@ -145,9 +154,21 @@ class ChemistryService:
         sample = self._sample_for_actor(preparation.sample_id, actor)
         return preparation, sample, self.repository.get_study(sample.study_id)
 
+    def update_preparation(self, preparation_id: str, data: PreparationIn, actor: User):
+        """Correct a preparation's details, e.g. add a yield, until it is part of a published deposition."""
+        preparation, _, _ = self.get_preparation(preparation_id, actor)
+        if self.repository.preparation_is_deposited(preparation_id):
+            raise ChemistryError(409, "This preparation is part of a published deposition and is retained as published.")
+        values = data.model_dump()
+        values["batch_code"] = values["batch_code"] or preparation.batch_code
+        for name, value in values.items():
+            setattr(preparation, name, value)
+        self.repository.save(preparation)
+        return preparation
+
     def create_preparation(self, sample_id: str, data: PreparationIn, actor: User):
         self._sample_for_actor(sample_id, actor)
-        preparation = Preparation(sample_id=sample_id, **data.model_dump())
+        preparation = self._preparation(sample_id, data)
         self.repository.save(preparation)
         return preparation
 

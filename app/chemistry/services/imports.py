@@ -232,8 +232,10 @@ class ImportService:
                 row["errors"].append(f"The same compound name is also on row {seen[key]}.")
             seen[key] = number
             raw = {field: evidence_text(cells[index]) for field, index in evidence_columns.items()}
-            if data.settings.ri_ref_polarity and raw.get("ri_ref"):
-                raw["ri_ref_polarity"] = data.settings.ri_ref_polarity
+            # Reference RIs are taken to be for the run's column polarity unless the settings say otherwise.
+            reference_polarity = data.settings.ri_ref_polarity or (data.settings.run_metadata or {}).get("polarity_class")
+            if reference_polarity and raw.get("ri_ref"):
+                raw["ri_ref_polarity"] = reference_polarity
             identifiers = {}
             for profile in profiles:
                 settings = profile["settings"]
@@ -271,7 +273,8 @@ class ImportService:
             profile["total"] = round(sum(value["value"] or 0 for value in values), 6)
             profile["detected"] = sum(value["status"] == "measured" for value in values)
             try:
-                check_values([value for value in values], profile["settings"]["measurement_basis"])
+                warnings.extend(f"{profile['header']}: {warning}" for warning in
+                                check_values(values, profile["settings"]["measurement_basis"]))
             except ValueError as error:
                 errors.append(f"{profile['header']}: {error}")
         if footnotes:
@@ -365,6 +368,13 @@ class ImportService:
             row = {**row, "status": "confirmed"}
         elif data.action == "unidentified":
             row = {**row, "status": "unidentified", "record": None}
+        elif data.action == "structure":
+            if data.smiles is None:
+                raise ChemistryError(422, "Give the structure as SMILES.")
+            found, method = self.registry.lookup_identifiers(smiles=data.smiles)
+            row = {**row, "status": "confirmed", "method": method, "record": _slim(found),
+                   "candidates": [_slim(found), *[item for item in row["candidates"] if item.get("cid") is not None
+                                                  and item["cid"] != found["cid"]]][:MAX_CANDIDATES]}
         elif data.action == "choose":
             if data.cid is None:
                 raise ChemistryError(422, "Give the CID of the chosen compound.")

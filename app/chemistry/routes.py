@@ -22,6 +22,7 @@ from app.chemistry.structures import StructureError, depiction_svg
 from app.chemistry.services.deletion import ChemistryDeletion
 from app.chemistry.services.export import ExportService
 from app.chemistry.services.imports import ImportService
+from app.chemistry.services.import_template import template_workbook
 from app.chemistry.services.presets import PresetService, preset_summary
 from app.db import get_db
 from app.users.controller import JWTBearer
@@ -124,6 +125,12 @@ def get_preparation(preparation_id: str, actor: User = Depends(authenticated),
     return controller.get_preparation(preparation_id, actor)
 
 
+@chemistry_router.put("/preparations/{preparation_id}")
+def update_preparation(preparation_id: str, data: PreparationIn, actor: User = Depends(authenticated),
+                       controller: ChemistryController = Depends(get_chemistry_controller)):
+    return controller.update_preparation(preparation_id, data, actor)
+
+
 @chemistry_router.post("/samples/{sample_id}/preparations", status_code=201)
 def create_preparation(sample_id: str, data: PreparationIn, actor: User = Depends(authenticated),
                        controller: ChemistryController = Depends(get_chemistry_controller)):
@@ -209,6 +216,14 @@ def save_condition_preset(data: ConditionPresetIn, actor: User = Depends(authent
 @chemistry_router.delete("/condition-presets/{preset_id}", status_code=204)
 def delete_condition_preset(preset_id: str, actor: User = Depends(authenticated), db: Session = Depends(get_db)):
     PresetService(db).delete(preset_id, actor)
+
+
+@chemistry_router.get("/import-template.xlsx", response_class=Response)
+def download_import_template(actor: User = Depends(authenticated)):
+    """An empty results table whose headers the import recognises."""
+    return Response(template_workbook(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="herbar-import-template.xlsx"'})
 
 
 @chemistry_router.get("/import-templates")

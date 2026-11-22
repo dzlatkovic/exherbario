@@ -236,11 +236,15 @@ def structure_warnings(where: str, structure: dict | None, fields: dict, identif
     return warnings
 
 
-def check_values(rows: list[dict], basis: str):
+def check_values(rows: list[dict], basis: str) -> list[str]:
+    """Refuse a profile with no measured value. A percentage total above 100% is only a warning:
+    tables can legitimately exceed it (rounding, co-eluting or separately integrated peaks)."""
     if not any(row["value"] is not None for row in rows):
         raise ValueError("Include at least one measured feature.")
-    if basis == "peak_area_percent" and sum(row["value"] or 0 for row in rows) > 100.5:
-        raise ValueError("Peak-area percentages must total at most 100%, allowing minor rounding.")
+    total = sum(row["value"] or 0 for row in rows)
+    if basis == "peak_area_percent" and total > 100.5:
+        return [f"Peak-area percentages total {total:g}%. Check that no summary or total rows were included."]
+    return []
 
 
 def read_measurements(content: bytes, basis: str, technique: str | None = None, run_metadata: dict | None = None):
@@ -296,5 +300,5 @@ def read_measurements(content: bytes, basis: str, technique: str | None = None, 
                          "identifiers": identifiers, **evidence})
     except csv.Error as error:
         raise ValueError(f"Malformed CSV near row {reader.line_num}.") from error
-    check_values(rows, basis)
+    warnings += check_values(rows, basis)
     return source, rows, warnings

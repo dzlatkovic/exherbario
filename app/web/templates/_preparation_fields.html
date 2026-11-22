@@ -1,15 +1,18 @@
 {% from "_form_labels.html" import field_label %}
 {% from "_preset_control.html" import preset_control %}
+{# `values` (optional): a preparation whose details fill the fields, for editing. #}
+{% set v = values | default(none) %}
 <div class="form-grid">
   {{ preset_control("preparation", "Saved method", "e.g. Hydrodistillation, Clevenger, 3 h") }}
-  <label>{{ field_label("Batch code") }} <input name="batch_code" required maxlength="80"></label>
+  <label>{{ field_label("Batch code", "Optional: P1, P2… if empty") }} <input name="batch_code" maxlength="80" value="{{ v.batch_code if v else '' }}"></label>
   <label>{{ field_label("Type") }} <select name="kind" required>
     {% if choose_details %}<option value="">Choose preparation type</option>{% endif %}
-    <option value="essential_oil">Essential oil</option><option value="extract">Extract</option>
+    <option value="essential_oil"{% if v and v.kind == 'essential_oil' %} selected{% endif %}>Essential oil</option>
+    <option value="extract"{% if v and v.kind == 'extract' %} selected{% endif %}>Extract</option>
   </select></label>
-  <label>Plant material (g) <input name="plant_material_mass_g" type="number" min="0" step="any"></label>
-  <label><span>Yield (% w/w){% if choose_details %} <span class="field-note" id="import-yield-required" hidden>Required for essential oils</span>{% endif %}</span>
-    <input name="yield_percent" type="number" min="0" max="100" step="any"></label>
+  <label>Plant material (g) <input name="plant_material_mass_g" type="number" min="0" step="any" value="{{ v.plant_material_mass_g if v and v.plant_material_mass_g is not none else '' }}"></label>
+  <label><span>Yield (% w/w) <span class="field-note">Needed for essential oils before publishing</span></span>
+    <input name="yield_percent" type="number" min="0" max="100" step="any" value="{{ v.yield_percent if v and v.yield_percent is not none else '' }}"></label>
 </div>
-<label>{{ field_label("Method reference") }} <input name="method_reference" required maxlength="500"></label>
-<label>Method and parameters <input name="method_parameters" maxlength="1000" placeholder="e.g. hydrodistillation, Clevenger apparatus, 3 h"></label>
+<label>{{ field_label("Method reference") }} <input name="method_reference" required maxlength="500" value="{{ v.method_reference if v else '' }}"></label>
+<label>Method and parameters <input name="method_parameters" maxlength="1000" placeholder="e.g. hydrodistillation, Clevenger apparatus, 3 h" value="{{ v.method_parameters or '' if v else '' }}"></label>

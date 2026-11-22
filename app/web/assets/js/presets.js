@@ -108,7 +108,8 @@ export function runPreset(form, runMetadata) {
   const field = (name) => form.elements.namedItem(name);
   return {
     read: () => ({
-      ...filled(["technique", "analytical_method", "measurement_basis", "unit"].map((name) => [name, field(name)?.value.trim()])),
+      ...filled(["technique", "analytical_method", "measurement_basis", "unit"]
+        .map((name) => [name, field(name)?.disabled ? "" : field(name)?.value.trim()])),
       run_metadata: runMetadata(form),
     }),
     apply(values) {

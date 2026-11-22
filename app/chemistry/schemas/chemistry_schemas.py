@@ -42,7 +42,7 @@ class SampleIn(BaseModel):
     vouchers: list[VoucherLinkIn] = Field(min_length=1, max_length=MAX_SAMPLE_VOUCHERS)
     plant_part: PlantPart
     plant_part_note: optional_text(200) = None
-    material_state: MaterialState
+    material_state: MaterialState | None = None
     collection_date: date | None = None
     phenological_stage: optional_text(100) = None
     site_specimen_id: Identifier | None = None
@@ -119,18 +119,14 @@ def basis_problem(technique: str | None, basis: str, unit: str) -> str | None:
 
 
 class PreparationIn(BaseModel):
-    batch_code: Code
+    # P1, P2… for the sample when left empty.
+    batch_code: Code | None = None
     kind: Literal["extract", "essential_oil"]
     method_reference: constr(strip_whitespace=True, min_length=1, max_length=500)
     plant_material_mass_g: confloat(gt=0, allow_inf_nan=False) | None = None
     method_parameters: optional_text(1000) = None
+    # An essential oil's yield is required before it is published, not when the preparation is created.
     yield_percent: confloat(ge=0, le=100, allow_inf_nan=False) | None = None
-
-    @model_validator(mode="after")
-    def essential_oil_yield(self):
-        if self.kind == "essential_oil" and self.yield_percent is None:
-            raise ValueError("Report the essential-oil yield (% w/w).")
-        return self
 
 
 def run_problems(error: ValidationError) -> str:

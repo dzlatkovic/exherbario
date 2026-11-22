@@ -1,6 +1,6 @@
 """Database operations for studies, profiles, and saved analyses."""
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -144,6 +144,20 @@ class ChemistryRepository:
         query = (select(Measurement, Compound).outerjoin(Compound, Compound.cid == Measurement.cid)
                  .where(Measurement.profile_id.in_(profile_ids)).order_by(Measurement.feature))
         return self.db.execute(query).all()
+
+    def preparation_is_deposited(self, preparation_id: str) -> bool:
+        """Whether a published deposition version includes the preparation, through a run or on its own."""
+        return bool(self.db.execute(text(
+            "SELECT 1 FROM deposition_file f JOIN chemistry_profile p ON p.id = f.profile_id "
+            "WHERE p.preparation_id = :id UNION SELECT 1 FROM deposition_version v, "
+            "json_each(v.snapshot, '$.preparations') item WHERE json_extract(item.value, '$.id') = :id LIMIT 1"),
+            {"id": preparation_id}).first())
+
+    def deposited_preparations(self, preparation_ids: list[str]) -> set[str]:
+        return {preparation_id for preparation_id in preparation_ids if self.preparation_is_deposited(preparation_id)}
+
+    def batch_codes(self, sample_id: str) -> list[str]:
+        return list(self.db.scalars(select(Preparation.batch_code).where(Preparation.sample_id == sample_id)))
 
     def get_compound(self, cid: int):
         return self.db.get(Compound, cid)

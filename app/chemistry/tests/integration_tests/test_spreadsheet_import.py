@@ -76,7 +76,8 @@ class TestSpreadsheetImport(TestClass):
         create_url = f"{BASE}/studies/{study}/sample-preparations"
         sample = sample_payload([(voucher, "sampled_from_voucher")], code="S1")
         preparation = {"batch_code": "B1", "kind": "essential_oil", "method_reference": "Test method"}
-        assert client.post(create_url, headers=owner, json={"sample": sample, "preparation": preparation}).status_code == 422
+        assert client.post(create_url, headers=owner, json={"sample": sample, "preparation": {
+            **preparation, "yield_percent": 150}}).status_code == 422
         assert client.get(f"{BASE}/studies/{study}", headers=owner).json()["samples"] == []
         response = client.post(create_url, headers=owner,
                                json={"sample": sample, "preparation": {**preparation, "yield_percent": 1}})
@@ -97,6 +98,24 @@ class TestSpreadsheetImport(TestClass):
         second = client.post(create_url, headers=owner, json={"sample_id": result["sample"]["id"],
                              "preparation": {"batch_code": "B2", "kind": "extract", "method_reference": "Test extract"}})
         assert second.status_code == 201 and second.json()["sample"] == result["sample"]
+
+    def test_percentages_above_100_are_a_warning(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        owner, study, (first, _) = self.setup_study()
+        draft = self.upload(owner, study, workbook([["Compound", "S1", "RI lit"], ["α-Pinene", 60, 932], ["Limonene", 55.2, 1029]]))
+        # The page sends no method, reference polarity or tolerance: they follow from the run.
+        settings = {**{key: value for key, value in SETTINGS.items() if key != "ri_ref_polarity"}, "analytical_method": ""}
+        preview = client.put(f"{BASE}/imports/{draft['id']}/assignment", headers=owner, json={
+            "sheet": "Table 2", "header_row": 1, "settings": settings,
+            "columns": [{"index": 0, "role": "name"}, {"index": 1, "role": "sample", "preparation_id": first},
+                        {"index": 2, "role": "ri_ref"}]}).json()["preview"]
+        assert preview["errors"] == []
+        assert preview["profiles"][0]["settings"]["analytical_method"] == "GC-MS, HP-5MS"
+        assert preview["rows"][0]["evidence"]["ri_ref_polarity"] == "non-polar"
+        assert any("S1" in warning and "115.2%" in warning for warning in preview["warnings"])
+        _, _, warnings = read_measurements(b"feature,value,confidence\nA,70,annotated\nB,40,annotated\n",
+                                           "peak_area_percent", "GC-MS", {"polarity_class": "non-polar"})
+        assert warnings == ["Peak-area percentages total 110%. Check that no summary or total rows were included."]
 
     def test_full_import(self, pubchem, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -133,7 +152,10 @@ class TestSpreadsheetImport(TestClass):
         matched = client.post(f"{imports}/match", headers=owner).json()
         assert matched["pending"] == 0
         review = {row["name"]: row for row in matched["review"]}
-        assert (review["α-Pinene"]["status"], review["α-Pinene"]["match"]["cid"]) == ("needs_review", 6654)
+        # PubChem's preferred name "alpha-Pinene" is the table's name: accepted at once, still changeable.
+        assert (review["α-Pinene"]["status"], review["α-Pinene"]["method"], review["α-Pinene"]["match"]["cid"]) == (
+            "confirmed", "pubchem_title", 6654)
+        assert review["Limonene"]["status"] == "confirmed" and review["Pinene"]["status"] == "needs_review"
         assert review["Limonene"]["match"]["cid"] == 22311 and review["Pinene"]["match"]["cid"] == 6654
         assert review["Unknown sesquiterpene"]["status"] == "unmatched"
 

@@ -75,7 +75,8 @@ def test_voucher_only_deposition_receives_citable_identifiers_and_a_dataset_doi(
     path = f"/api/depositions/{created.json()['id']}"
     inputs = client.get(f"{path}/draft/inputs", headers=author).json()
     assert inputs["vouchers"][0]["id"] == specimen.specimen_id and not inputs["vouchers"][0]["is_public"]
-    assert client.get(f"{path}/draft/preview", headers=author).status_code == 409
+    pending = client.get(f"{path}/draft/preview", headers=author)
+    assert [item["id"] for item in pending.json()["releases"]["vouchers"]] == [specimen.specimen_id]
     assert client.put(f"/api/specimen/{specimen.specimen_id}/visibility", headers=admin,
                       json={"is_public": True, "public_location": "region"}).status_code == 200
 

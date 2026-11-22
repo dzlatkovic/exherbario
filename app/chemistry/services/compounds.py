@@ -204,7 +204,10 @@ class CompoundRegistry:
         local = self.local_name_matches(name)
         if local:
             candidates = [record_of(compound) for compound, _ in local]
-            return {"proposal": candidates[0], "method": local[0][1], "status": "needs_review", "candidates": candidates}
+            # One registered compound whose preferred name is exactly this name: accepted, still changeable in review.
+            exact = local[0][1] == "registry_name" and sum(method == "registry_name" for _, method in local) == 1
+            return {"proposal": candidates[0], "method": local[0][1], "candidates": candidates,
+                    "status": "confirmed" if exact else "needs_review"}
         try:
             records = self.pubchem.compounds("name", name)
         except PubChemUnavailable:
@@ -212,6 +215,9 @@ class CompoundRegistry:
                     "problem": "PubChem could not be reached."}
         if not records:
             return {"proposal": None, "method": None, "status": "unmatched", "candidates": []}
+        if name_key(records[0]["title"]) == name_key(name):
+            # PubChem's preferred name is exactly the name in the table: accepted, still changeable in review.
+            return {"proposal": records[0], "method": "pubchem_title", "status": "confirmed", "candidates": records}
         return {"proposal": records[0], "method": "pubchem_name", "status": "needs_review", "candidates": records}
 
     def search(self, query: str, namespace: str) -> list[dict]:

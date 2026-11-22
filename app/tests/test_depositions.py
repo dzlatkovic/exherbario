@@ -50,7 +50,7 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
         db.flush()
         db.add(new_link(sample.id, db.get(Specimen, specimen.specimen_id), None, "collected_alongside"))
         batch = Preparation(sample_id=sample.id, batch_code="B-1", kind="essential_oil",
-                            method_reference="Test method reference")
+                            method_reference="Test method reference", yield_percent=0.5)
         db.add(batch)
         db.commit()
         study_id, batch_id, sample_id = study.id, batch.id, sample.id
@@ -80,7 +80,9 @@ def test_publish_retries_corrections_and_withdrawal(sqlite_archive, tmp_path, mo
     edited = client.put(f"{path}/draft", headers=author,
                         json={**metadata, "expected_revision": root["draft_revision"]})
     assert edited.status_code == 200, edited.text
-    assert client.get(preview_url, headers=author).status_code == 409
+    pending = client.get(preview_url, headers=author).json()["releases"]
+    assert ([item["id"] for item in pending["studies"]], [item["id"] for item in pending["runs"]],
+            [item["id"] for item in pending["vouchers"]]) == ([study_id], [profile_id], [specimen.specimen_id])
     for route, payload in (
         (f"{voucher_url}/visibility", {"is_public": True, "public_location": "withheld"}),
         (f"/api/chemistry/studies/{study_id}/visibility", {"is_public": True}),

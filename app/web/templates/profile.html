@@ -24,7 +24,8 @@
 <header class="record-header">
   <p class="overline">Analytical profile</p>
   <h1 class="title plain">Sample {{ sample.code }} · run {{ profile.run_code }}</h1>
-  <p class="record-id">{% if profile.technique %}{{ profile.technique }} · {% endif %}{% if profile.analytical_method != profile.technique %}{{ profile.analytical_method }} · {% endif %}{{ profile.measurement_basis | replace('_', ' ') }} ({{ profile.unit }})</p>
+  {% set technique_label = 'Isolation and structure elucidation' if profile.technique == 'isolation' else profile.technique %}
+  <p class="record-id">{% if technique_label %}{{ technique_label }} · {% endif %}{% if profile.analytical_method not in (profile.technique, technique_label) %}{{ profile.analytical_method }} · {% endif %}{{ profile.measurement_basis | replace('_', ' ') }} ({{ profile.unit }})</p>
 </header>
 
 <div class="record-grid">

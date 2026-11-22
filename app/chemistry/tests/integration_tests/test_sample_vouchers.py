@@ -221,7 +221,8 @@ class TestSampleVouchers(TestClass):
         assert inputs.status_code == 200, inputs.text
         assert [(item["id"], item["role"], item["is_public"]) for item in inputs.json()["inputs"][0]["vouchers"]] == [
             (first, "sampled_from_voucher", True), (second, "same_population", False)]
-        assert client.get(f"{path}/draft/preview", headers=curator).status_code == 409
+        pending = client.get(f"{path}/draft/preview", headers=curator).json()["releases"]
+        assert [item["id"] for item in pending["vouchers"]] == [second] and pending["studies"] == []
         release_voucher(curator, second)
         preview = client.get(f"{path}/draft/preview", headers=curator)
         assert preview.status_code == 200, preview.text

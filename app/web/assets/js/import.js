@@ -1,10 +1,11 @@
 // Results-table import: assign columns, preview, review PubChem matches and confirm. Reopening resumes the import.
-import {bindForm, bindRunFields, endpoint, filledFields, find, node, request, runMetadata, selectOptions, status} from "./core.js";
+import {VOUCHER_ROLES, bindForm, bindRunFields, endpoint, filledFields, find, node, request, runMetadata, selectOptions, status,
+        voucherLabel, voucherPicker} from "./core.js";
 import {bindPresetControl, preparationPreset, runPreset} from "./presets.js";
 import {bindSampleFields} from "./sample-form.js";
 
 // Long runs report progress and can be stopped between batches; whatever was done is kept.
-const LOOKUP_BATCH = 5;
+const LOOKUP_BATCH = 25;
 let stopRequested = false;
 let busy = false;
 
@@ -44,9 +45,7 @@ function renderPreparationFields() {
   find("import-sample-choice").hidden = !importState.study.samples.length;
   sampleChoice.disabled = !importState.study.samples.length;
   newSampleFields.hidden = newSampleFields.disabled = sampleChoice.value !== "new";
-  const essentialOil = preparationForm.elements.kind.value === "essential_oil";
-  preparationForm.elements.yield_percent.required = essentialOil;
-  find("import-yield-required").hidden = !essentialOil;
+
 }
 
 function openPreparation(column) {
@@ -100,6 +99,178 @@ bindForm(preparationForm, async (data) => {
   }
 }, {fieldName: (path) => path.at(-1)});
 
+// Samples and preparations for every unattached sample column at once ----------------------------------------
+
+const bulkDialog = find("import-bulk-dialog");
+const bulkForm = find("import-bulk-form");
+const bulkCancel = find("import-bulk-cancel");
+let bulkRows = [];
+bindPresetControl(find("import-bulk-preparation").querySelector(".preset-control"),
+  preparationPreset(find("import-bulk-preparation")));
+
+const sampleWithCode = (code) => importState.study.samples.find((sample) => sample.code.toLowerCase() === code.trim().toLowerCase());
+
+function attachedByCode(column) {
+  const sample = sampleWithCode(column.header);
+  return Boolean(sample) && importState.study.preparations.filter((item) => item.sample_id === sample.id).length === 1;
+}
+
+function unattachedColumns() {
+  return importState.columns.filter((column) => column.role === "sample" && !column.preparation_id && !attachedByCode(column));
+}
+
+function updateBulkButton() {
+  const button = find("import-bulk-open");
+  if (!importState.study) {
+    button.hidden = true;
+    return;
+  }
+  const open = unattachedColumns();
+  button.hidden = !open.length;
+  button.textContent = `Create samples and preparations for ${open.length} unattached column${open.length === 1 ? "" : "s"}`;
+}
+
+function bulkRow(column) {
+  const entry = {column, voucher: null};
+  const row = document.createElement("tr");
+  row.insertCell().textContent = `${columnLetter(column.index)} · ${column.header}`;
+  entry.code = node("input");
+  entry.code.maxLength = 80;
+  entry.code.value = column.header.slice(0, 80);
+  entry.code.setAttribute("aria-label", `Sample code for ${column.header}`);
+  row.insertCell().append(entry.code);
+
+  const voucherCell = row.insertCell();
+  entry.chosen = node("p", "", "small");
+  const picker = node("div", "", "picker");
+  const search = node("div", "", "inline-form");
+  const query = node("input", "", "picker-query");
+  query.type = "search";
+  query.placeholder = "Voucher name, accession or ID";
+  query.setAttribute("aria-label", `Voucher for ${column.header}`);
+  const go = node("button", "Search", "secondary picker-search");
+  go.type = "button";
+  search.append(query, go);
+  picker.append(search, node("p", "", "feedback"), node("ul", "", "picker-results"));
+  voucherCell.append(entry.chosen, picker);
+  voucherPicker(picker, (voucher) => {
+    entry.voucher = voucher;
+    renderChosen();
+  }, {pageSize: 5});
+
+  const roleCell = row.insertCell();
+  entry.role = document.createElement("select");
+  entry.role.setAttribute("aria-label", `Voucher role for ${column.header}`);
+  for (const [value, text] of VOUCHER_ROLES) entry.role.append(new Option(text, value));
+  roleCell.append(entry.role);
+
+  entry.yield = node("input");
+  entry.yield.type = "number";
+  entry.yield.min = "0";
+  entry.yield.max = "100";
+  entry.yield.step = "any";
+  entry.yield.setAttribute("aria-label", `Yield (% w/w) for ${column.header}`);
+  row.insertCell().append(entry.yield);
+  entry.result = row.insertCell();
+  entry.result.className = "small";
+
+  const updateExisting = () => {
+    const existing = sampleWithCode(entry.code.value);
+    picker.hidden = entry.role.disabled = Boolean(existing);
+    if (existing) entry.chosen.textContent = "Existing sample: a new preparation is added to it.";
+    else renderChosen();
+  };
+  entry.code.addEventListener("input", updateExisting);
+
+  function renderChosen() {
+    entry.chosen.replaceChildren();
+    if (!entry.voucher) return;
+    entry.chosen.append(node("span", [entry.voucher.subnomen, voucherLabel(entry.voucher)].filter(Boolean).join(" · ")));
+    const others = bulkRows.filter((item) => item !== entry && !item.voucher && !sampleWithCode(item.code.value));
+    if (others.length) {
+      const all = node("button", `Use for the other ${others.length}`, "text-button");
+      all.type = "button";
+      all.addEventListener("click", () => {
+        for (const item of others) {
+          item.voucher = entry.voucher;
+          item.role.value = entry.role.value;
+          item.refresh();
+        }
+        renderChosen();
+      });
+      entry.chosen.append(" ", all);
+    }
+  }
+  entry.refresh = updateExisting;
+  entry.row = row;
+  return entry;
+}
+
+function openBulk() {
+  bulkForm.reset();
+  status(bulkForm.querySelector(":scope > .feedback"));
+  const table = find("import-bulk-rows");
+  const head = node("tr");
+  for (const label of ["Column", "Sample code", "Voucher", "Role", "Yield (% w/w)", ""]) head.append(node("th", label));
+  bulkRows = unattachedColumns().map(bulkRow);
+  table.replaceChildren(head, ...bulkRows.map((entry) => entry.row));
+  for (const entry of bulkRows) entry.refresh();
+  bulkDialog.showModal();
+}
+
+find("import-bulk-open").addEventListener("click", openBulk);
+bulkCancel.addEventListener("click", () => bulkDialog.close());
+bulkDialog.addEventListener("cancel", (event) => {
+  if (bulkCancel.disabled) event.preventDefault();
+});
+
+bindForm(bulkForm, async (data) => {
+  const shared = filledFields(data);
+  const sampleDetails = Object.fromEntries(["plant_part", "plant_part_note", "material_state"]
+    .filter((name) => shared[name]).map((name) => [name, shared[name]]));
+  const preparationDetails = Object.fromEntries(["kind", "method_reference", "method_parameters"]
+    .filter((name) => shared[name]).map((name) => [name, shared[name]]));
+  const missing = bulkRows.filter((entry) => !entry.done && !sampleWithCode(entry.code.value)
+    && (!entry.voucher || !entry.code.value.trim()));
+  if (missing.length) {
+    throw new Error(`Give a sample code and a voucher for ${missing.map((entry) => entry.column.header).join(", ")}.`);
+  }
+  bulkCancel.disabled = true;
+  let created = 0;
+  let failed = 0;
+  try {
+    for (const entry of bulkRows.filter((item) => !item.done)) {
+      const preparation = {...preparationDetails,
+        ...(entry.yield.value.trim() ? {yield_percent: Number(entry.yield.value)} : {})};
+      const existing = sampleWithCode(entry.code.value);
+      const payload = existing ? {sample_id: existing.id, preparation} : {preparation, sample: {
+        ...sampleDetails, code: entry.code.value.trim(),
+        vouchers: [{specimen_id: entry.voucher.specimen_id, role: entry.role.value}]}};
+      try {
+        const result = await request(`/api/chemistry/studies/${endpoint(studyId)}/sample-preparations`,
+          {method: "POST", json: payload});
+        if (!existing) importState.study.samples.push(result.sample);
+        importState.study.preparations.push(result.preparation);
+        entry.column.preparation_id = result.preparation.id;
+        entry.done = true;
+        entry.result.textContent = `Created ${result.sample.code} · ${result.preparation.batch_code}`;
+        created += 1;
+      } catch (error) {
+        entry.result.textContent = error.message;
+        entry.result.dataset.error = "";
+        failed += 1;
+      }
+    }
+  } finally {
+    bulkCancel.disabled = false;
+  }
+  renderImportColumns();
+  preparationChanged(`Attached ${created} column${created === 1 ? "" : "s"}. Preview to save column assignments.`);
+  if (failed) throw new Error(`${failed} row${failed === 1 ? "" : "s"} could not be created: see the last column. Fix them and try again.`);
+  bulkDialog.close();
+  return "Created.";
+});
+
 function columnLetter(index) {
   let letters = "";
   for (let value = index + 1; value > 0; value = Math.floor((value - 1) / 26)) {
@@ -120,6 +291,8 @@ function guessRole(header, previousRole) {
   const text = header.toLowerCase();
   if (!text) return "ignore";
   if (/^(no\.?|#|nr\.?|peak)$/.test(text)) return "ignore";
+  // Where a value was read from (an AI-prepared table has one), and remarks: never sample values.
+  if (/^(source|sources|page|notes?|comments?|remarks?|footnotes?)\b/.test(text)) return "ignore";
   // Evidence headers that also contain words like "name" or "match" come first.
   if (/m\/z|\bmz\b|precursor/.test(text)) return "mz_obs";
   if (/adduct|\bion\b/.test(text)) return "adduct";
@@ -201,6 +374,7 @@ function resetImportColumns(fromTemplate = null) {
 function renderImportColumns() {
   const table = find("import-columns");
   table.replaceChildren();
+  updateBulkButton();
   const head = table.insertRow();
   head.append(node("th", "Column"), node("th", "Header"), node("th", "Role"), node("th", "Details"));
   const samples = importState.columns.filter((column) => column.role === "sample");
@@ -228,6 +402,7 @@ function renderImportColumns() {
       preparation.addEventListener("change", () => {
         column.preparation_id = preparation.value;
         preparationChanged("Preview to save column assignments.");
+        updateBulkButton();
       });
       const create = node("button", "Create preparation", "text-button");
       create.type = "button";
@@ -253,10 +428,8 @@ function importAssignment(form) {
   const value = (name) => (data.get(name) ?? "").trim();
   const settings = {
     technique: value("technique"), measurement_basis: value("measurement_basis"), unit: value("unit"),
-    analytical_method: value("analytical_method"), run_metadata: runMetadata(form),
-    ri_tolerance: Number(value("ri_tolerance") || 20),
+    run_metadata: runMetadata(form),
   };
-  if (value("ri_ref_polarity")) settings.ri_ref_polarity = value("ri_ref_polarity");
   const assignment = {
     sheet: value("sheet"), header_row: Number(value("header_row")), settings, row_overrides: importState.rowOverrides,
     columns: importState.columns.map((column) => {
@@ -308,6 +481,7 @@ function renderImportReview() {
   const methods = {alias: "your earlier choice", registry_name: "registry name", registry_synonym: "registry synonym",
     pubchem_name: "PubChem name search", cas: "CAS in table", cid: "CID in table", inchikey: "InChIKey in table",
     manual: "chosen", parent: "parent compound", smiles: "SMILES in table",
+    pubchem_title: "auto-accepted: exact PubChem name",
     author_structure: "your structure; not in PubChem"};
   for (const item of importState.review) {
     const row = table.insertRow();
@@ -349,6 +523,17 @@ function renderImportReview() {
     });
     if (item.match?.cid && item.status !== "unidentified") button("Parent", () => reviewAction(item.row, {action: "parent"}));
     if (item.status !== "unidentified") button("Unidentified", () => reviewAction(item.row, {action: "unidentified"}));
+    // A new compound has no CID: give its structure. PubChem's CID is still used if it has this exact structure.
+    const smiles = document.createElement("input");
+    smiles.placeholder = "SMILES of a new compound";
+    smiles.setAttribute("aria-label", `SMILES for ${item.name}`);
+    smiles.className = "mono";
+    smiles.value = item.match?.cid === null ? item.match.smiles : "";
+    actions.append(smiles);
+    button("Use structure", () => {
+      if (!smiles.value.trim()) return Promise.reject(new Error("Enter the SMILES first."));
+      return reviewAction(item.row, {action: "structure", smiles: smiles.value.trim()});
+    });
   }
   const open = importState.review.filter((item) => !["confirmed", "unidentified"].includes(item.status)).length;
   find("import-confirm").disabled = open > 0 || !importState.ready || busy;
