@@ -4,8 +4,8 @@ Use two GitHub Pages repositories so each site has its own custom domain. This g
 
 | Domain | GitHub repository | Pages source |
 | --- | --- | --- |
-| `docs.exherbarium.org` | `dzlatkovic/exherbario` | GitHub Actions |
-| `exherbarium.org` | `dzlatkovic/exherbarium-website` | Deploy from a branch, `main`, `/ (root)` |
+| `docs.exherbario.org` | `dzlatkovic/exherbario` | GitHub Actions |
+| `exherbario.org` | `dzlatkovic/exherbarium-website` | Deploy from a branch, `main`, `/ (root)` |
 
 ## Preview
 
@@ -21,9 +21,9 @@ In a second terminal, run `python -m http.server 8002 --bind 127.0.0.1 --directo
 
 ## Configure GitHub Pages
 
-1. Verify `exherbarium.org` under your GitHub account’s **Settings → Pages** using the TXT record GitHub gives you. Keep this TXT record in DNS.
-2. In **exherbario → Settings → Pages**, select **GitHub Actions**. When the documentation changes reach `main`, the documentation workflow builds and publishes the site. You can also run **Documentation site** manually from the Actions tab. Set the custom domain to `docs.exherbarium.org`.
-3. Create a public `exherbarium-website` repository and copy the files inside `website/landing/`, including `.nojekyll`, to the root of its `main` branch. In **Settings → Pages**, select **Deploy from a branch**, then `main` and `/ (root)`. Set the custom domain to `exherbarium.org`. GitHub will add a `CNAME` file to that branch. Keep it when updating the homepage.
+1. Verify `exherbario.org` under your GitHub account’s **Settings → Pages** using the TXT record GitHub gives you. Keep this TXT record in DNS.
+2. In **exherbario → Settings → Pages**, select **GitHub Actions**. When the documentation changes reach `main`, the documentation workflow builds and publishes the site. You can also run **Documentation site** manually from the Actions tab. Set the custom domain to `docs.exherbario.org`.
+3. Create a public `exherbarium-website` repository and copy the files inside `website/landing/`, including `.nojekyll`, to the root of its `main` branch. In **Settings → Pages**, select **Deploy from a branch**, then `main` and `/ (root)`. Set the custom domain to `exherbario.org`. GitHub will add a `CNAME` file to that branch. Keep it when updating the homepage.
 4. Set the DNS records below. After GitHub reports the DNS checks passed and the certificates are ready, enable **Enforce HTTPS** for both repositories. Open both URLs and follow the links between them.
 
 ## DNS records

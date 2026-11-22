@@ -1,6 +1,6 @@
 site_name: Ex Herbario Documentation
 site_description: User and operator guides for Ex Herbario
-site_url: https://docs.exherbarium.org/
+site_url: https://docs.exherbario.org/
 repo_url: https://github.com/dzlatkovic/exherbario
 repo_name: dzlatkovic/exherbario
 edit_uri: edit/main/docs/
@@ -37,4 +37,4 @@ nav:
   - Operate:
       - Install, back up and upgrade: operations.md
       - External lookups: external-lookups.md
-  - Project website: https://exherbarium.org/
+  - Project website: https://exherbario.org/
