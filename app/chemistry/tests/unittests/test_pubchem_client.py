@@ -73,3 +73,60 @@ def test_the_timeout_is_per_request_and_leaves_the_process_default(monkeypatch):
         thread.join()
     assert socket.getdefaulttimeout() == before
     assert seen == [7, 7]
+
+
+def test_names_are_searched_without_greek_letters(monkeypatch):
+    from app.chemistry.names import pubchem_query
+
+    assert pubchem_query("α-Pinene") == "alpha-Pinene"
+    assert pubchem_query("(E)–β-Ocimene") == "(E)-beta-Ocimene"
+    assert pubchem_query("Δ3-Carene") == "delta3-Carene"
+    assert pubchem_query("2′-hydroxy  γ-terpinene") == "2'-hydroxy gamma-terpinene"
+    searched = []
+
+    def properties(properties, identifier, namespace):
+        searched.append(identifier)
+        return []
+    monkeypatch.setattr(pubchempy, "get_properties", properties)
+    PubChemClient().compounds("name", "β-Caryophyllene")
+    assert searched == ["beta-Caryophyllene"]
+
+
+class Busy:
+    headers = {"X-Throttling-Control": "Request Count status: Yellow (60%)"}
+
+    def read(self):
+        return json.dumps({"IdentifierList": {"CID": [1]}}).encode()
+
+
+def test_a_busy_pubchem_is_retried_and_requests_are_paced(monkeypatch):
+    from urllib.error import HTTPError
+
+    answers = [HTTPError("u", 503, "PUGREST.ServerBusy", {}, None), Busy()]
+    pauses = []
+
+    def urlopen(url, data=None, **kwargs):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    monkeypatch.setattr(pubchem, "_urlopen", urlopen)
+    monkeypatch.setattr(pubchem.time, "sleep", pauses.append)
+    monkeypatch.setitem(pubchem._pace_state, "next", 0.0)
+    assert PubChemClient().same_connectivity(1) == [1]
+    assert 1 in pauses  # waited before the retry
+    assert pubchem._pace_state["factor"] == 2.0  # and slows down while PubChem reports load
+    monkeypatch.setitem(pubchem._pace_state, "factor", 1.0)
+
+
+def test_pubchem_unavailable_after_the_retries(monkeypatch):
+    from urllib.error import HTTPError
+
+    import pytest
+
+    def urlopen(url, data=None, **kwargs):
+        raise HTTPError("u", 503, "PUGREST.ServerBusy", {}, None)
+    monkeypatch.setattr(pubchem, "_urlopen", urlopen)
+    monkeypatch.setattr(pubchem.time, "sleep", lambda seconds: None)
+    with pytest.raises(pubchem.PubChemUnavailable):
+        PubChemClient().same_connectivity(1)

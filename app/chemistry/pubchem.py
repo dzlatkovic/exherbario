@@ -3,10 +3,12 @@
 import json
 import threading
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen as _urlopen
 
 import pubchempy
+
+from app.chemistry.names import pubchem_query
 
 PROPERTIES = ["Title", "IUPACName", "MolecularFormula", "MonoisotopicMass", "InChI", "InChIKey", "SMILES"]
 MAX_CANDIDATES = 10
@@ -37,11 +39,49 @@ DEFAULT_TIMEOUT = 15
 _request_timeout = threading.local()
 
 
+# PubChem allows at most 5 requests per second (and 400 per minute) from one address and answers 503 "server
+# busy" beyond that. Requests from every thread share one pace, slowed down when PubChem's X-Throttling-Control
+# header reports load, and a busy answer is retried after a pause.
+MIN_INTERVAL = 0.25
+RETRY_PAUSES = (1, 2, 4)
+_pace = threading.Lock()
+_pace_state = {"next": 0.0, "factor": 1.0}
+
+
+def _wait_for_turn():
+    with _pace:
+        now = time.monotonic()
+        start = max(now, _pace_state["next"])
+        _pace_state["next"] = start + MIN_INTERVAL * _pace_state["factor"]
+    if start > now:
+        time.sleep(start - now)
+
+
+def _note_load(headers):
+    """Status words in X-Throttling-Control: Green, Yellow, Red, Black (blocked)."""
+    status = (headers.get("X-Throttling-Control") or "") if headers is not None else ""
+    factor = 8.0 if "Black" in status else 4.0 if "Red" in status else 2.0 if "Yellow" in status else 1.0
+    with _pace:
+        _pace_state["factor"] = factor
+
+
 def _urlopen_with_timeout(url, data=None, **kwargs):
     """PubChemPy calls urlopen without a timeout; give each call the timeout of the client making it, without
-    changing Python's process-wide socket default (which other threads and libraries rely on)."""
+    changing Python's process-wide socket default (which other threads and libraries rely on), and keep to
+    PubChem's request rate."""
     kwargs.setdefault("timeout", getattr(_request_timeout, "seconds", DEFAULT_TIMEOUT))
-    return _urlopen(url, data, **kwargs)
+    for attempt in range(len(RETRY_PAUSES) + 1):
+        _wait_for_turn()
+        try:
+            response = _urlopen(url, data, **kwargs)
+        except HTTPError as error:
+            _note_load(error.headers)
+            if error.code in (429, 503) and attempt < len(RETRY_PAUSES):
+                time.sleep(RETRY_PAUSES[attempt])
+                continue
+            raise
+        _note_load(getattr(response, "headers", None))
+        return response
 
 
 # PubChemPy looks urlopen up in its own module at each request.
@@ -73,6 +113,8 @@ class PubChemClient:
         """Records for up to ten matching compounds, best match first, with synonyms."""
         if namespace not in NAMESPACES:
             raise ValueError(f"Unsupported PubChem namespace: {namespace}")
+        if namespace == "name":
+            identifier = pubchem_query(identifier)  # PubChem does not recognise Greek letters
         rows = self._call(pubchempy.get_properties, PROPERTIES, identifier, namespace)[:MAX_CANDIDATES]
         if not rows:
             return []

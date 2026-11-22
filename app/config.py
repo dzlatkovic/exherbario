@@ -39,6 +39,8 @@ class Settings(BaseSettings):
         sign-in page, pages kept out of search engines, and no publishing to Zenodo or GBIF.
     :param DEMO_PASSWORD: Password of the demo accounts that python -m app.demo creates (shown on the sign-in page).
     :param DEMO_RESET_HOUR: UTC hour at which a demo instance resets itself every day; -1 turns the reset off.
+    :param SITE_PASSWORD: A shared password in front of the whole site (an alpha); empty keeps the site open.
+    :param SITE_PASSWORD_DAYS: How long a browser stays unlocked after the password was entered.
     """
     DATABASE_URL: str = "sqlite:///./herbar.db"
     USER_SECRET: str
@@ -67,6 +69,8 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = False
     DEMO_PASSWORD: str = "herbar-demo"
     DEMO_RESET_HOUR: int = 3
+    SITE_PASSWORD: str = ""
+    SITE_PASSWORD_DAYS: int = 30
 
     # Read environment variables, then ./.env. Unrelated keys in .env are ignored, as before.
     model_config = SettingsConfigDict(env_file="./.env", extra="ignore")

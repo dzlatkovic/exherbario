@@ -52,8 +52,8 @@
     {% for item in results["items"] %}
     <li>
       <a class="result" href="/specimens/{{ item.specimen_id }}">
-        <span class="result-name">{{ item.name }}{% if item.common_name %} <span class="common-name">{{ item.common_name }}</span>{% endif %}</span>
-        {% if item.subnomen and item.subnomen != item.name %}<span class="muted small">as recorded: {{ item.subnomen }}</span>{% endif %}
+        <span class="result-name">{{ item.name | taxon }}{% if item.common_name %} <span class="common-name">{{ item.common_name }}</span>{% endif %}</span>
+        {% if item.subnomen and item.subnomen != item.name %}<span class="muted small">as recorded: {{ item.subnomen | taxon }}</span>{% endif %}
         {% if item.matched_on == 'registration number' and item.accession %}<span class="muted small">matched registration number {{ item.reg_no }}</span>{% endif %}
         <span class="result-meta">
           <span class="mono">{{ item.accession or item.reg_no or 'No accession' }}</span>

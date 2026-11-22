@@ -1,10 +1,10 @@
 {#- Curator-published compounds reported in the literature for a taxon (LOTUS via Wikidata). Not measurements. -#}
 {% macro literature_list(literature, taxon_name, limit=40) %}
-<p class="muted small">Natural products that published studies report for this taxon (<em>{{ taxon_name }}</em>). They were not measured on this voucher.</p>
+<p class="muted small">Natural products that published studies report for this taxon ({{ taxon_name | taxon }}). They were not measured on this voucher.</p>
 <ul class="plain-list literature-compounds">
   {% for compound in literature.compounds %}
   <li{% if loop.index > limit %} hidden data-more{% endif %}>
-    {% if compound.in_registry %}<a href="/compounds/{{ compound.cid }}">{{ compound.name }}</a>{% else %}{{ compound.name }}{% endif %}
+    {% if compound.in_registry %}<a href="/compounds/{{ compound.cid }}">{{ compound.name | compound }}</a>{% else %}{{ compound.name | compound }}{% endif %}
     <span class="muted small">
       <a href="https://www.wikidata.org/wiki/{{ compound.wikidata_id }}" rel="noopener">Wikidata</a>
       {% for reference in compound.references[:3] %} ·

@@ -9,11 +9,12 @@ RULES
 6. Do not invent identifiers. Give a CAS number, PubChem CID or SMILES only where the paper or its supplement prints it. For a compound whose structure is only drawn (for example a new compound), write the SMILES from the drawing, with stereochemistry only as drawn, and write "SMILES from Figure N" in Source.
 7. If the paper reports analyses under different conditions (for example two GC columns), make one table for each set of conditions.
 8. Use exactly the column headers given below, in that order. Leave out a column the paper does not report. Add no other columns.
+9. In the Identification column use only these words: RI, MS, standard, co-injection, MS/MS, HRMS, NMR, X-ray, ECD, literature, separated by semicolons (for example "RI; MS; co-injection"). Translate the paper's own abbreviations and footnote letters using its table legend (for example CoI or Co-GC → co-injection; KI, LRI or AI → RI; NIST or Wiley library → MS; Std or authentic sample → standard; Lit or Ref → literature; HRESIMS → HRMS; 1H/13C NMR → NMR). Never copy a footnote letter (a, b, c) or an abbreviation that is not in this list; if you cannot tell what one means, leave the cell empty and explain in Source.
 
 TABLE A – chromatographic profiles (GC-MS, GC-FID, LC-MS, HPLC). One row per compound, one column per sample.
 No. | Compound | RT | RI exp | RI lit | Identification | Level | CAS | m/z | Adduct | [one column per sample] | Source
 - [one column per sample]: headed with the sample code used in the paper; the values as printed (percentages, amounts or areas).
-- Identification: the basis the paper gives, using RI, MS, standard, co-injection, MS/MS, literature, separated by semicolons.
+- Identification: the basis the paper gives, in the words of rule 9.
 - Level: the MSI identification level (1 to 4), only if the paper states it.
 
 TABLE B – isolated compounds. One row per compound.
@@ -22,7 +23,7 @@ Compound | SMILES | [sample code] | Purity (%) | NMR experiments | Solvent | New
 - NMR experiments: for example 1H, 13C, DEPT, COSY, HSQC, HMBC, NOESY.
 - New or known: new or known. Literature DOI: the DOI of the reference a known compound was compared with, if the paper gives it.
 - Configuration type: absolute, relative or not determined. Configuration: how it was determined, as the paper says.
-- Identification: NMR, HRMS, X-ray, ECD, standard, co-injection, literature, separated by semicolons.
+- Identification: the basis the paper gives, in the words of rule 9 (usually NMR, HRMS, X-ray, ECD, standard, co-injection, literature).
 
 SECTION C – samples, preparations and runs, as a list of "Field: value" lines. Write "not stated" where the paper gives nothing.
 - For each sample: sample code; plant name as printed; voucher specimen number(s) and herbarium; plant part; fresh or dried; collection date; locality; phenological stage.

@@ -10,7 +10,7 @@
   {% if voucher.type_status %}<div><dt>Type status</dt><dd>{{ voucher.type_status | capitalize }}</dd></div>{% endif %}
   {% if voucher.collection_date or voucher.verbatim_collection_date %}<div><dt>Collected</dt><dd>{{ voucher.collection_date or voucher.verbatim_collection_date }}</dd></div>{% endif %}
   <div><dt>Voucher identifier</dt><dd class="break">{{ voucher.id }}</dd></div>
-  {% if determination.taxonomy %}<div><dt>Taxonomy</dt><dd>{{ determination.taxonomy.name }}{% if determination.taxonomy.authority %} {{ determination.taxonomy.authority }}{% endif %}</dd></div>{% endif %}
+  {% if determination.taxonomy %}<div><dt>Taxonomy</dt><dd>{{ determination.taxonomy.name | taxon(determination.taxonomy.authority) }}</dd></div>{% endif %}
   {% if determination.date %}<div><dt>Determined</dt><dd>{{ determination.date }}{% if determination.determiner_name %} · {{ determination.determiner_name }}{% endif %}</dd></div>
   {% elif determination.determiner_name %}<div><dt>Determiner</dt><dd>{{ determination.determiner_name }}</dd></div>{% endif %}
   {% if voucher.location %}<div><dt>Region</dt><dd>{{ voucher.location.region or '' }}{% if voucher.location.region and voucher.location.country %}, {% endif %}{{ voucher.location.country or '' }}</dd></div>{% endif %}
@@ -27,7 +27,7 @@
   <dl class="facts">
     {{ voucher_facts(voucher) }}
     {% if link.determination_at_link %}{% set at_link = link.determination_at_link %}
-    <div><dt>Determination when linked</dt><dd>{{ at_link.name_as_recorded or at_link.taxon_name or 'Undetermined' }}{% if at_link.date %} · {{ at_link.date }}{% endif %}{% if at_link.recorded == 'at_migration' %} <span class="muted">(recorded when sample links were introduced)</span>{% endif %}</dd></div>
+    <div><dt>Determination when linked</dt><dd>{{ (at_link.name_as_recorded or at_link.taxon_name or 'Undetermined') | taxon }}{% if at_link.date %} · {{ at_link.date }}{% endif %}{% if at_link.recorded == 'at_migration' %} <span class="muted">(recorded when sample links were introduced)</span>{% endif %}</dd></div>
     {% endif %}
     {% if link.redetermined_since_linking %}<div><dt>Note</dt><dd>The voucher was redetermined after this sample was linked.</dd></div>{% endif %}
   </dl>

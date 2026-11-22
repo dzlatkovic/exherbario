@@ -71,7 +71,7 @@
     </div>
     <ul class="plain-list compact">
       {% for voucher in vouchers[sample.id] %}
-        <li><span><a href="/researcher/specimens/{{ voucher.id }}"><em>{{ voucher.name }}</em></a> <span class="mono small">{{ voucher.accession or '' }}</span> <span class="muted small">· {{ voucher.role }}</span></span>
+        <li><span><a href="/researcher/specimens/{{ voucher.id }}">{{ voucher.name | taxon }}</a> <span class="mono small">{{ voucher.accession or '' }}</span> <span class="muted small">· {{ voucher.role }}</span></span>
           {% if voucher.redetermined %}<span class="warning-text small">Redetermined since this sample was linked.</span>{% endif %}</li>
       {% endfor %}
     </ul>

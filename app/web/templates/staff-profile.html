@@ -52,7 +52,7 @@
       <tbody>
       {% for row, compound in measurements %}
         <tr>
-          <td>{{ row.feature }}</td>
+          <td>{{ row.feature | compound }}</td>
           <td class="number">{{ amount(row) }}</td>
           {% if has('rt_min') %}<td class="number">{{ '%g' | format(row.rt_min) if row.rt_min is not none }}</td>{% endif %}
           {% if has('ri_exp') %}<td class="number">{{ '%g' | format(row.ri_exp) if row.ri_exp is not none }}</td>{% endif %}
@@ -61,7 +61,7 @@
           {% if has('id_basis') %}<td>{{ row.id_basis | replace(';', ', ') if row.id_basis }}{% if row.id_level %} · MSI {{ row.id_level }}{% endif %}</td>{% endif %}
           {{ extra_cells(row, has) }}
           <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ compound.title }}</a> <span class="muted small mono">CID {{ compound.cid }}</span>
-            {%- elif row.structure %}<details class="structure-details"><summary>Structure from the authors · {{ row.structure.molecular_formula }}</summary>
+            {%- elif row.structure %}<details class="structure-details"><summary>Structure from the authors · {{ row.structure.molecular_formula | formula }}</summary>
               <img class="structure" src="/api/chemistry/depict.svg?smiles={{ row.structure.smiles | urlencode }}" alt="Structure of {{ row.feature }}" width="260" height="200">
               <span class="mono small break">{{ row.structure.inchikey }}</span></details>
             {%- else %}<span class="muted">Unlinked</span>{% endif %}</td>
@@ -102,7 +102,7 @@
   <h2 id="corrections-title">Correction log</h2>
   <ul class="plain-list">
     {% for item in corrections %}
-      <li><span>{{ item.feature }}: {{ assignment(item.old_cid, item.old_structure_id) }} → {{ assignment(item.new_cid, item.new_structure_id) }}</span>
+      <li><span>{{ item.feature | compound }}: {{ assignment(item.old_cid, item.old_structure_id) }} → {{ assignment(item.new_cid, item.new_structure_id) }}</span>
         <span class="muted small">{{ item.reason }} · {{ item.corrected_at.strftime('%Y-%m-%d %H:%M') }}</span></li>
     {% endfor %}
   </ul>

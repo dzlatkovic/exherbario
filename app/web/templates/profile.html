@@ -6,7 +6,7 @@
   {%- elif row.status == 'not_measured' -%}<span class="muted">not measured</span>
   {%- elif row.value is none and row.qualifier == 'trace' -%}tr
   {%- elif row.value is none and row.qualifier == '<LOQ' -%}&lt; LOQ
-  {%- else -%}{{ '%g' | format(row.value) }}{% if row.qualifier %} ({{ row.qualifier }}){% endif %}{% if row.sd is not none %} ± {{ '%g' | format(row.sd) }}{% endif %}
+  {%- else -%}{{ row.value | decimal }}{% if row.qualifier %} ({{ row.qualifier }}){% endif %}{% if row.sd is not none %} ± {{ '%g' | format(row.sd) }}{% endif %}
   {%- endif -%}
 {%- endmacro -%}
 {%- macro assignment(cid, structure_id) -%}
@@ -49,9 +49,9 @@
           <tbody>
           {% for row, compound in measurements %}
             <tr>
-              <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ row.feature }}</a>
-                {%- elif row.structure %}<a href="/structures/{{ row.structure.id }}">{{ row.feature }}</a><span class="muted small"> · structure from the authors</span>
-                {%- else %}{{ row.feature }}<span class="muted small"> · unlinked</span>{% endif %}</td>
+              <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ row.feature | compound }}</a>
+                {%- elif row.structure %}<a href="/structures/{{ row.structure.id }}">{{ row.feature | compound }}</a><span class="muted small"> · structure from the authors</span>
+                {%- else %}{{ row.feature | compound }}<span class="muted small"> · unlinked</span>{% endif %}</td>
               <td class="number">{{ amount(row, profile.unit) }}</td>
               {% if has('rt_min') %}<td class="number">{{ '%g' | format(row.rt_min) if row.rt_min is not none }}</td>{% endif %}
               {% if has('ri_exp') %}<td class="number">{{ '%g' | format(row.ri_exp) if row.ri_exp is not none }}</td>{% endif %}
@@ -72,7 +72,7 @@
       <h2 id="corrections-title">Compound corrections</h2>
       <ul class="plain-list">
         {% for item in corrections %}
-          <li><span>{{ item.feature }}: {{ assignment(item.old_cid, item.old_structure_id) }} → {{ assignment(item.new_cid, item.new_structure_id) }}</span>
+          <li><span>{{ item.feature | compound }}: {{ assignment(item.old_cid, item.old_structure_id) }} → {{ assignment(item.new_cid, item.new_structure_id) }}</span>
             <span class="muted small">{{ item.reason }} · {{ item.corrected_at.date() }}</span></li>
         {% endfor %}
       </ul>
@@ -85,7 +85,7 @@
       <h2 id="vouchers-title">Vouchers</h2>
       <ul class="plain-list">
         {% for voucher in vouchers %}
-          <li><a href="/specimens/{{ voucher.id }}"><em>{{ voucher.name }}</em></a>
+          <li><a href="/specimens/{{ voucher.id }}">{{ voucher.name | taxon }}</a>
             <span class="muted small">{{ voucher.role }}{% if voucher.accession %} · <span class="mono">{{ voucher.accession }}</span>{% endif %}</span>
             {% if voucher.redetermined %}<span class="warning-text small">Redetermined since this sample was linked (recorded then as {{ voucher.at_link or 'undetermined' }}).</span>{% endif %}</li>
         {% endfor %}

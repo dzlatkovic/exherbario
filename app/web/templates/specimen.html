@@ -12,7 +12,7 @@
   {% if viewer %}<span class="muted"> · </span><a class="no-arrow" href="/researcher/specimens/{{ specimen.specimen_id }}">Staff record</a>{% endif %}</nav>
 <header class="record-header">
   {% if specimen.type_status %}<p class="overline">{{ specimen.type_status }}</p>{% endif %}
-  <h1 class="title">{{ record.name }}</h1>
+  <h1 class="title">{{ record.name | taxon }}</h1>
   {% if taxon and taxon.common_name %}<p class="muted">{{ taxon.common_name }}</p>{% endif %}
   <p class="record-id"><span class="mono">{{ specimen.accession or specimen.reg_no or 'No accession' }}</span>
     {% if specimen.holding_institution %}· {{ specimen.holding_institution }}{% endif %}
@@ -36,8 +36,8 @@
     <section class="card" aria-labelledby="facts-title">
       <h2 id="facts-title">Voucher</h2>
       <dl class="facts">
-        {% if specimen.subnomen %}<div><dt>Name as recorded</dt><dd>{{ specimen.subnomen }}</dd></div>{% endif %}
-        {% if taxon %}<div><dt>Taxonomy</dt><dd>{{ taxon.taxon_name }}{% if taxon.authority %} {{ taxon.authority }}{% endif %}
+        {% if specimen.subnomen %}<div><dt>Name as recorded</dt><dd>{{ specimen.subnomen | taxon }}</dd></div>{% endif %}
+        {% if taxon %}<div><dt>Taxonomy</dt><dd>{{ taxon.taxon_name | taxon(taxon.authority) }}
           {% if taxon.gbif_key %}· <a href="https://www.gbif.org/species/{{ taxon.gbif_key }}" rel="external">GBIF</a>{% endif %}</dd></div>{% endif %}
         {% if specimen.determination_date %}<div><dt>Determined</dt><dd>{{ specimen.determination_date }}</dd></div>{% endif %}
         {% if specimen.collection_date %}<div><dt>Collected</dt><dd>{{ specimen.collection_date }}</dd></div>{% endif %}
@@ -80,7 +80,7 @@
       <h2 id="history-title">Determination history</h2>
       <ol class="timeline">
         {% for revision in revisions %}
-          <li><span>{{ revision.previous_subnomen or revision.previous_name or 'Undetermined' }}</span>
+          <li><span>{{ (revision.previous_subnomen or revision.previous_name or 'Undetermined') | taxon }}</span>
             <span class="muted small">replaced {{ revision.timestamp.date() if revision.timestamp else '' }}</span></li>
         {% endfor %}
       </ol>

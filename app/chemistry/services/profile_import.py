@@ -21,7 +21,30 @@ ID_BASIS = {"ri": "RI", "ms": "MS", "ms library": "MS", "library": "MS", "standa
             "coinjection": "co-injection", "co-inj": "co-injection", "coinj": "co-injection",
             "co-injection with standard": "co-injection", "ms/ms": "MS/MS", "msms": "MS/MS",
             "hrms": "HRMS", "hr-ms": "HRMS", "nmr": "NMR", "x-ray": "X-ray", "xray": "X-ray", "scxrd": "X-ray",
-            "x-ray crystallography": "X-ray", "ecd": "ECD", "literature": "literature", "lit": "literature"}
+            "x-ray crystallography": "X-ray", "ecd": "ECD", "literature": "literature", "lit": "literature",
+            # Abbreviations papers use in their tables and footnotes.
+            "coi": "co-injection", "co-i": "co-injection", "co-gc": "co-injection", "co-elution": "co-injection",
+            "coelution": "co-injection", "co-chromatography": "co-injection", "spiking": "co-injection",
+            "ki": "RI", "lri": "RI", "ai": "RI", "kovats": "RI", "kovats index": "RI", "retention index": "RI",
+            "nist": "MS", "wiley": "MS", "adams": "MS", "mass spectrum": "MS", "mass spectra": "MS",
+            "ms library search": "MS", "auth": "standard", "authentic standard": "standard",
+            "authentic sample": "standard", "reference compound": "standard", "ms-ms": "MS/MS", "tandem ms": "MS/MS",
+            "hresims": "HRMS", "hr-esi-ms": "HRMS", "hresi-ms": "HRMS", "hr-esims": "HRMS", "hreims": "HRMS",
+            "1h nmr": "NMR", "13c nmr": "NMR", "1d nmr": "NMR", "2d nmr": "NMR", "1d and 2d nmr": "NMR",
+            "x-ray diffraction": "X-ray", "xrd": "X-ray", "ref": "literature", "lit. data": "literature",
+            "literature data": "literature"}
+def basis_terms(token: str) -> set[str]:
+    """The identification bases one entry names, e.g. "CoI" → co-injection, "RI/MS" → RI and MS; empty if unknown."""
+    key = " ".join(token.split()).casefold().rstrip(".")
+    for candidate in (key, re.sub(r"\s*\(.*?\)", "", key).strip()):  # "MS (NIST 17)" → "ms"
+        if candidate in ID_BASIS:
+            return {ID_BASIS[candidate]}
+        parts = [part.strip() for part in candidate.split("/")]
+        if len(parts) > 1 and all(part in ID_BASIS for part in parts):
+            return {ID_BASIS[part] for part in parts}
+    return set()
+
+
 ID_BASIS_ORDER = ("RI", "MS", "standard", "co-injection", "MS/MS", "HRMS", "NMR", "X-ray", "ECD", "literature")
 # MSI level 1 needs comparison with an authentic sample; for an isolated compound, full structure elucidation.
 LEVEL_ONE = {"standard", "co-injection"}
@@ -159,12 +182,13 @@ def parse_evidence(raw: dict, where: str, technique: str | None, run_metadata: d
         fields["qualifier"] = qualifier
     basis = set()
     if "id_basis" in raw:
-        for token in raw["id_basis"].replace(",", ";").split(";"):
+        for token in re.split(r"[;,+&]| and ", raw["id_basis"]):
             if token.strip():
-                if " ".join(token.split()).casefold() not in ID_BASIS:
+                found = basis_terms(token)
+                if not found:
                     raise ValueError(f"{where}: unknown identification basis {token.strip()!r}. Use RI, MS, standard, "
                                      "co-injection, MS/MS, HRMS, NMR, X-ray, ECD or literature.")
-                basis.add(ID_BASIS[" ".join(token.split()).casefold()])
+                basis.update(found)
         fields["id_basis"] = ";".join(item for item in ID_BASIS_ORDER if item in basis)
     if "id_level" in raw:
         level = int(_number(raw["id_level"], "id_level", where, integer=True, minimum=1))

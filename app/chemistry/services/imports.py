@@ -1,6 +1,7 @@
 """Turn an author's results table into profiles: assign columns, preview, review PubChem matches, confirm."""
 
 import csv
+import time
 from contextlib import ExitStack
 from copy import deepcopy
 from hashlib import sha256
@@ -39,6 +40,8 @@ EVIDENCE_ROLES = {"rt": "rt_min", "ri_exp": "ri_exp", "ri_ref": "ri_ref", "ri_re
                                              "configuration_type", "configuration")}}
 CONFIDENCE_BY_LEVEL = {1: "identified", 2: "annotated", 3: "tentative", 4: "unknown"}
 MATCH_BATCH = 25
+# A lookup request returns after this long even with rows left, so the page can show progress (the page asks again).
+MATCH_SECONDS = 15
 DECIDED = {"confirmed", "unidentified"}
 MAX_CANDIDATES = 5
 
@@ -244,7 +247,12 @@ class ImportService:
                         raw, f"Row {number}", settings["technique"], settings["run_metadata"],
                         data.settings.ri_tolerance)
                 except ValueError as error:
-                    row["errors"].append(f"{profile['header']}: {error}")
+                    # Every sample column checks the same row; report each problem once, without repeating the row.
+                    problem = str(error).removeprefix(f"Row {number}: ")
+                    if len({item["settings"]["technique"] for item in profiles}) > 1:
+                        problem = f"{profile['header']}: {problem}"
+                    if problem not in row["errors"]:
+                        row["errors"].append(problem)
                     continue
                 row["evidence"] = fields
                 warnings.extend(warning for warning in row_warnings if warning not in warnings)
@@ -332,7 +340,10 @@ class ImportService:
         review = deepcopy(record.review or {"rows": {}})
         pending = [number for number, row in review["rows"].items() if row["status"] == "pending"]
         problem = None
-        for number in pending[:limit]:
+        deadline = time.monotonic() + MATCH_SECONDS
+        for index, number in enumerate(pending[:limit]):
+            if index and time.monotonic() > deadline:
+                break
             row = review["rows"][number]
             try:
                 if row["identifiers"]:

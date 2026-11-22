@@ -1,3 +1,5 @@
+import hashlib
+from functools import lru_cache
 from pathlib import Path
 
 from urllib.parse import quote
@@ -54,10 +56,33 @@ def sign_in_redirect(request: Request):
 
 from . import account_pages, catalog_pages, chemistry_pages, curation_pages, staff_pages, work_pages  # noqa: E402  (their pages use render above)
 from app.config import settings  # noqa: E402
+from app import site_lock  # noqa: E402
 from app.users import orcid  # noqa: E402
 
 from app.demo_accounts import demo_accounts  # noqa: E402
 
+from app.web.typography import FILTERS  # noqa: E402
+
+templates.filters.update(FILTERS)
+
+
+def asset(path: str) -> str:
+    """The address of a static file with a short hash of its contents, so browsers fetch it again after an update
+    instead of keeping an old copy (a changed stylesheet otherwise needs Ctrl+F5)."""
+    file = ROOT / "assets" / path
+    try:
+        stat = file.stat()
+    except OSError:
+        return f"/assets/herbar/{path}"
+    return f"/assets/herbar/{path}?v={_asset_hash(file, stat.st_mtime_ns, stat.st_size)}"
+
+
+@lru_cache(maxsize=64)
+def _asset_hash(file: Path, _mtime: int, _size: int) -> str:
+    return hashlib.sha256(file.read_bytes()).hexdigest()[:10]
+
+
+templates.globals["asset"] = asset
 templates.globals["orcid_sign_in"] = lambda: orcid.enabled() and settings.ORCID_SIGN_IN
 templates.globals["demo_mode"] = lambda: settings.DEMO_MODE
 templates.globals["demo_accounts"] = demo_accounts
@@ -93,6 +118,31 @@ def sign_in(request: Request, email: str = Form(..., max_length=320), password: 
         return render(request, "sign-in.html", status=403, next=target, problem="This account is not active.")
     response = RedirectResponse(target, status_code=303)
     start_session(request, response, user)
+    return response
+
+
+@router.get("/site-password", response_class=HTMLResponse)
+def site_password_page(request: Request, next: str | None = None):
+    if not site_lock.enabled():
+        return RedirectResponse(safe_next(next, "/"), status_code=303)
+    return render(request, "site-password.html", next=safe_next(next, "/"))
+
+
+@router.post("/site-password", response_class=HTMLResponse)
+def site_password(request: Request, password: str = Form(..., max_length=500),
+                  next: str = Form("/", max_length=2000)):
+    target = safe_next(next, "/")
+    if not site_lock.enabled():
+        return RedirectResponse(target, status_code=303)
+    if not same_origin(request):
+        return render(request, "site-password.html", status=403, next=target,
+                      problem="Enter the password on this site's own page.")
+    if not site_lock.password_matches(password):
+        return render(request, "site-password.html", status=401, next=target, problem="That password is not correct.")
+    response = RedirectResponse(target, status_code=303)
+    response.set_cookie(site_lock.SITE_COOKIE, site_lock.cookie_value(), max_age=settings.SITE_PASSWORD_DAYS * 86400,
+                        path="/", httponly=True, samesite="lax",
+                        secure=request.url.scheme == "https" or settings.PUBLIC_BASE_URL.startswith("https://"))
     return response
 
 

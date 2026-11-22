@@ -12,7 +12,7 @@
     <p class="label-institution">{{ specimen.holding_institution or 'Herbarium' }}{% if specimen.collection %} · {{ specimen.collection }}{% endif %}</p>
     <p class="label-accession">{{ specimen.accession or specimen.reg_no or '' }}</p>
   </header>
-  <p class="label-name"><em>{{ record.taxon.taxon_name if record.taxon else (specimen.subnomen or 'Undetermined') }}</em>
+  <p class="label-name">{{ (record.taxon.taxon_name if record.taxon else (specimen.subnomen or 'Undetermined')) | taxon }}
     {% if record.taxon and record.taxon.authority %}{{ record.taxon.authority }}{% endif %}</p>
   {% if record.taxon and specimen.subnomen and specimen.subnomen != record.taxon.taxon_name %}<p>As recorded: {{ specimen.subnomen }}</p>{% endif %}
   {% if location %}

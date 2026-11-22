@@ -126,7 +126,7 @@ class TestIsolation(TestClass):
 
         researcher = signed_in("lab@example.org")
         page = researcher.get(f"/researcher/profiles/{profile['id']}").text
-        assert "Structure from the authors · C8H10O" in page and "/api/chemistry/depict.svg?smiles=" in page
+        assert "Structure from the authors · C<sub>8</sub>H<sub>10</sub>O" in page and "/api/chemistry/depict.svg?smiles=" in page
         assert "NMR: 1H, 13C, COSY, HSQC, HMBC (CDCl3)" in page and "now the authors' structure" in page
         wizard = researcher.get(url.replace(f"{BASE}/imports", f"/researcher/studies/{study}/imports")).text
         assert 'data-kind="run"' in wizard and 'data-kind="preparation"' in wizard and 'value="isolation"' in wizard

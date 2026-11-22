@@ -72,3 +72,21 @@ def test_csv_accepts_trace_rows_and_old_three_column_files():
         read_measurements(source, "peak_area_percent", "LC-MS", {})
     with pytest.raises(ValueError, match="Use the CSV columns"):
         read_measurements(b"feature,value,confidence,colour\nA,1,x,red\n", "concentration")
+
+
+@pytest.mark.parametrize("given, expected", [
+    ("RI; MS; CoI", "RI;MS;co-injection"),
+    ("KI, MS (NIST 17)", "RI;MS"),
+    ("RI/MS", "RI;MS"),
+    ("LRI + Co-GC", "RI;co-injection"),
+    ("Std. and Lit.", "standard;literature"),
+    ("MS/MS", "MS/MS"),
+])
+def test_identification_abbreviations_used_in_papers(given, expected):
+    _, fields, _ = evidence({"ri_exp": "932", "id_basis": given})
+    assert fields["id_basis"] == expected
+
+
+def test_unknown_identification_basis_is_refused():
+    with pytest.raises(ValueError, match="unknown identification basis 'b'"):
+        evidence({"ri_exp": "932", "id_basis": "RI; b"})

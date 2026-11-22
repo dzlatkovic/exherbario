@@ -9,13 +9,13 @@
 {% else %}
 <header class="record-header">
   <p class="overline">Structure supplied by the authors</p>
-  <h1 class="title plain">{{ structure.name }}</h1>
+  <h1 class="title plain">{{ structure.name | compound }}</h1>
   <p class="muted small">Not in PubChem when it was deposited. Identifiers were computed from the authors' structure with RDKit.</p>
 </header>
 <section class="card compound-card">
   <img class="structure" src="/api/chemistry/public/structures/{{ structure.id }}/depiction.svg" alt="Structure of {{ structure.name }}" width="260" height="200">
   <dl class="facts">
-    <div><dt>Formula</dt><dd>{{ structure.molecular_formula }}</dd></div>
+    <div><dt>Formula</dt><dd>{{ structure.molecular_formula | formula }}</dd></div>
     <div><dt>Monoisotopic mass</dt><dd class="mono">{{ '%.4f' | format(structure.monoisotopic_mass) }}</dd></div>
     <div><dt>InChIKey</dt><dd class="mono break">{{ structure.inchikey }}</dd></div>
     <div><dt>InChI</dt><dd class="mono break">{{ structure.inchi }}</dd></div>

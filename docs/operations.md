@@ -62,6 +62,14 @@ empty.
 The proxy in front of the app (Railway's, or Caddy/nginx on a faculty server) handles HTTPS. Uvicorn trusts its
 forwarded headers so that links and secure cookies use `https`.
 
+## A shared password for an alpha
+
+To keep the whole site private during a trial, set `SITE_PASSWORD` in `.env` (or in Railway's variables) and
+restart. Every page then asks for that password first; a browser stays unlocked for `SITE_PASSWORD_DAYS` (30 by
+default). Changing the password locks every browser again, and an empty `SITE_PASSWORD` opens the site. API
+clients that send a valid `Authorization: Bearer` token are let through. Accounts and sign-in work as before,
+behind the password.
+
 ## A public demo on Railway
 
 A demo instance sets `DEMO_MODE=true`. In that mode the app:

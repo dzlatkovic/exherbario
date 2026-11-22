@@ -6,7 +6,9 @@ import unicodedata
 GREEK = {"α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ε": "epsilon", "ζ": "zeta", "η": "eta",
          "θ": "theta", "κ": "kappa", "λ": "lambda", "μ": "mu", "ρ": "rho", "σ": "sigma", "τ": "tau",
          "φ": "phi", "χ": "chi", "ψ": "psi", "ω": "omega"}
+GREEK_CAPITALS = {"Δ": "delta", "Ω": "omega", "Ψ": "psi", "Φ": "phi", "Γ": "gamma", "Λ": "lambda"}
 DASHES = dict.fromkeys(map(ord, "‐‑‒–—―−"), "-")
+PRIMES = dict.fromkeys(map(ord, "′’‘ʹ"), "'") | {ord("″"): "''"}
 INCHIKEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
 CAS = re.compile(r"^(\d{2,7})-(\d{2})-(\d)$")
 NO_STEREO_BLOCK = "UHFFFAOYSA"
@@ -17,6 +19,14 @@ def name_key(name: str) -> str:
     text = unicodedata.normalize("NFKC", name).translate(DASHES).casefold()
     text = "".join(GREEK.get(char, char) for char in text)
     return re.sub(r"\s+", " ", text).strip()[:300]
+
+
+def pubchem_query(name: str) -> str:
+    """A name as PubChem's name search understands it: Greek letters spelled out (α-pinene → alpha-pinene,
+    Δ3-carene → delta3-carene), plain hyphens and apostrophes. Only for searching; names are stored as written."""
+    text = unicodedata.normalize("NFKC", name).translate(DASHES).translate(PRIMES)
+    text = "".join(GREEK.get(char) or GREEK_CAPITALS.get(char) or char for char in text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def valid_cas(value: str) -> bool:

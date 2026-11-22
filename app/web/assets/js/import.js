@@ -488,9 +488,11 @@ function renderImportReview() {
     row.insertCell().textContent = item.row;
     row.insertCell().textContent = item.name;
     const statusCell = row.insertCell();
-    statusCell.className = `status-${item.status}`;
-    statusCell.textContent = item.status.replace("_", " ") + (item.method ? ` (${methods[item.method] ?? item.method})` : "")
-      + (item.problem ? ` — ${item.problem}` : "");
+    const label = {confirmed: "✓ confirmed", unidentified: "✓ unidentified", needs_review: "needs review"}[item.status]
+      ?? item.status.replace("_", " ");
+    statusCell.append(node("span", label, `status-chip status-${item.status}`));
+    const detail = (item.method ? methods[item.method] ?? item.method : "") + (item.problem ? ` — ${item.problem}` : "");
+    if (detail) statusCell.append(node("span", ` ${detail}`, "muted small"));
     row.append(compoundCell(item.status === "unidentified" ? null : item.match));
     const actions = row.insertCell();
     const button = (label, handler) => {

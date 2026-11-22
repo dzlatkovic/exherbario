@@ -21,6 +21,7 @@ from app.catalog_routes import router as catalog_router
 from app.chemistry.controller import chemistry_error_response
 from app.chemistry.exceptions import ChemistryError
 from app.chemistry.routes import chemistry_router
+from app import site_lock
 from app.config import settings
 from app.deposition.routes import institution_router, router as deposition_router
 from app.external.lookups import LookupUnavailable
@@ -69,6 +70,8 @@ def init_app():
 
     @fastapi_app.middleware("http")
     async def prevent_record_caching(request: Request, call_next):
+        if not site_lock.unlocked(request):
+            return site_lock.locked_response(request)
         response = await call_next(request)
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"

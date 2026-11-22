@@ -15,7 +15,7 @@
 <header class="record-header" id="record" data-specimen="{{ specimen.specimen_id }}">
   <p class="overline">Staff record{% if specimen.type_status %} · {{ specimen.type_status }}{% endif %}</p>
   <div class="title-row">
-    <h1 class="title">{{ record.name }}</h1>
+    <h1 class="title">{{ record.name | taxon }}</h1>
     {% if specimen.is_public %}
       <span class="status-chip released">Released · {{ 'region shown' if specimen.public_location == 'region' else 'locality withheld' }}</span>
     {% else %}<span class="status-chip">Private</span>{% endif %}
@@ -60,8 +60,8 @@
     <section class="card" aria-labelledby="identification-title">
       <h2 id="identification-title">Identification</h2>
       <dl class="facts">
-        <div><dt>Name as recorded</dt><dd>{{ specimen.subnomen or '—' }}</dd></div>
-        <div><dt>Taxonomy</dt><dd>{% if record.taxon %}{{ record.taxon.taxon_name }}{% if record.taxon.authority %} {{ record.taxon.authority }}{% endif %}{% else %}—{% endif %}</dd></div>
+        <div><dt>Name as recorded</dt><dd>{{ (specimen.subnomen or '—') | taxon }}</dd></div>
+        <div><dt>Taxonomy</dt><dd>{% if record.taxon %}{{ record.taxon.taxon_name | taxon(record.taxon.authority) }}{% else %}—{% endif %}</dd></div>
         {% if specimen.determiner_name %}<div><dt>Determiner</dt><dd>{{ specimen.determiner_name }}</dd></div>{% endif %}
         {% if specimen.determination_date %}<div><dt>Determined</dt><dd>{{ specimen.determination_date }}</dd></div>{% endif %}
         {% if record.verifier %}<div><dt>Verified by</dt><dd>{{ record.verifier }}</dd></div>{% endif %}
@@ -70,7 +70,7 @@
       <h3>Earlier determinations</h3>
       <ol class="timeline">
         {% for revision, taxon_name in record.revisions %}
-          <li><span>{{ revision.prev_subnomen or taxon_name or 'Undetermined' }}</span>
+          <li><span>{{ (revision.prev_subnomen or taxon_name or 'Undetermined') | taxon }}</span>
             <span class="muted small">{% if revision.prev_determiner_name %}{{ revision.prev_determiner_name }}{% endif %}{% if revision.prev_determination_date %} · {{ revision.prev_determination_date }}{% endif %} · replaced {{ revision.timestamp.date() if revision.timestamp }}</span></li>
         {% endfor %}
       </ol>
@@ -159,7 +159,7 @@
     {% if curator and record.taxon %}
     <section class="card" aria-labelledby="lotus-title" id="lotus" data-taxon="{{ record.taxon.taxon_id }}">
       <h2 id="lotus-title">Literature-reported natural products</h2>
-      <p class="muted small">Compounds that LOTUS (via Wikidata) reports for {{ record.taxon.taxon_name }}, with their references.
+      <p class="muted small">Compounds that LOTUS (via Wikidata) reports for {{ record.taxon.taxon_name | taxon }}, with their references.
         Review them, then publish to show them on the public pages of this taxon's released vouchers.</p>
       <button type="button" id="lotus-lookup" class="secondary">Look up in LOTUS</button>
       <p class="feedback" role="status"></p>

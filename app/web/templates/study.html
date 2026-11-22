@@ -29,7 +29,7 @@
         <span>{{ row.preparation.kind | replace('_', ' ') | capitalize }}{% if row.preparation.yield_percent is not none %} · yield {{ '%g' | format(row.preparation.yield_percent) }}%{% endif %}</span>
       </span>
       <span class="result-meta">
-        {% for voucher in row.vouchers %}<span><em>{{ voucher.name }}</em> <span class="mono">{{ voucher.accession or '' }}</span> ({{ voucher.role | lower }}){% if voucher.redetermined %} · redetermined{% endif %}</span>{% endfor %}
+        {% for voucher in row.vouchers %}<span>{{ voucher.name | taxon }} <span class="mono">{{ voucher.accession or '' }}</span> ({{ voucher.role | lower }}){% if voucher.redetermined %} · redetermined{% endif %}</span>{% endfor %}
       </span>
     </a>
   </li>
