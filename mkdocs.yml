@@ -12,7 +12,7 @@ hooks:
   - website/docs_fonts.py
 extra_css:
   - fonts/fonts.css
-  - styles.css
+  - styles.css?v=2
 validation:
   nav:
     omitted_files: warn

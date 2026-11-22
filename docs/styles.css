@@ -8,10 +8,18 @@
   --bs-link-hover-color-rgb: 22, 68, 53;
 }
 
+body::before {
+  content: none;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: -.005em;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3.5vw, 2rem);
 }
 
 strong, b {
@@ -28,4 +36,8 @@ strong, b {
 .navbar.bg-primary {
   background-color: #234b3a !important;
   background-image: none;
+}
+
+.navbar-brand {
+  --bs-navbar-brand-font-size: 1.0625rem;
 }
