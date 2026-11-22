@@ -1,6 +1,6 @@
 # Scientific depositions
 
-Publishing, verifying, citing, correcting and withdrawing depositions. Back to the [README](../README.md).
+Publishing, verifying, citing, correcting and withdrawing depositions. Back to the [documentation home](index.md).
 
 ## Publishing
 

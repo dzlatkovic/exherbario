@@ -1,0 +1,18 @@
+:root {
+  --bs-link-color: #215e49;
+  --bs-link-hover-color: #164435;
+  --bs-link-color-rgb: 33, 94, 73;
+  --bs-link-hover-color-rgb: 22, 68, 53;
+}
+
+[data-bs-theme="dark"] {
+  --bs-link-color: #aee2c1;
+  --bs-link-hover-color: #d9f1e2;
+  --bs-link-color-rgb: 174, 226, 193;
+  --bs-link-hover-color-rgb: 217, 241, 226;
+}
+
+.navbar.bg-primary {
+  background-color: #234b3a !important;
+  background-image: none;
+}

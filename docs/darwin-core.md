@@ -1,6 +1,6 @@
 # Darwin Core Archive
 
-`GET /api/dwca.zip` packages the released vouchers as a [Darwin Core Archive](https://dwc.tdwg.org/text/), the format GBIF and other biodiversity aggregators harvest. Back to the [README](../README.md).
+`GET /api/dwca.zip` packages the released vouchers as a [Darwin Core Archive](https://dwc.tdwg.org/text/), the format GBIF and other biodiversity aggregators harvest. Back to the [documentation home](index.md).
 
 ## What is in the archive
 

@@ -1,6 +1,6 @@
 # Vouchers, visibility and corrections
 
-How to register vouchers, control what the public sees, and correct records. Back to the [README](../README.md).
+How to register vouchers, control what the public sees, and correct records. Back to the [documentation home](index.md).
 
 ## Register one voucher
 

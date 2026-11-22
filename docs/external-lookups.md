@@ -1,6 +1,6 @@
 # External lookups
 
-Curators can fill forms from four public registries instead of typing values by hand. Back to the [README](../README.md).
+Curators can fill forms from four public registries instead of typing values by hand. Back to the [documentation home](index.md).
 
 | Provider | Used for | Endpoint in Ex Herbario | Data terms |
 | --- | --- | --- | --- |

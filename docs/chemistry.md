@@ -1,6 +1,6 @@
 # Phytochemistry
 
-Lab samples, preparations, profiles, the results-table import and CSV export. Back to the [README](../README.md).
+Lab samples, preparations, profiles, the results-table import and CSV export. Back to the [documentation home](index.md).
 
 ## Overview
 

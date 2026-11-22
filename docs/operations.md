@@ -1,6 +1,6 @@
 # Database, backups and migrations
 
-Running an instance: storage, backups, restores and migration notes. Back to the [README](../README.md).
+Running an instance: storage, backups, restores and migration notes. Back to the [documentation home](index.md).
 
 ## Database and backups
 
