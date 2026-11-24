@@ -317,3 +317,58 @@ class TestReviewDecisionsFollowIdentifiers(TestClass):
         review = {row["name"]: row for row in client.post(f"{url}/match", headers=owner).json()["review"]}
         assert (review["Limonene"]["status"], review["Limonene"]["match"]["cid"]) == ("needs_review", 6654)
         assert client.post(f"{url}/confirm", headers=owner).status_code == 409  # the reopened row needs a decision
+
+    def _decide_elsewhere(self, import_id, number, status):
+        """Save a review decision from another session, as a second browser tab would."""
+        from app.chemistry.models import SpreadsheetImport
+        with TestingSessionLocal() as db:
+            record = db.get(SpreadsheetImport, import_id)
+            rows = {**record.review["rows"]}
+            rows[str(number)] = {**rows[str(number)], "status": status, "record": None}
+            record.review = {"rows": rows}
+            db.commit()
+
+    def test_a_lookup_does_not_undo_a_decision_saved_while_it_ran(self, pubchem, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        owner, study, (first, second) = self.setup_study()
+        created = self.upload(owner, study)
+        imports = f"{BASE}/imports/{created['id']}"
+        assert client.put(f"{imports}/assignment", headers=owner, json={
+            "sheet": "Table 2", "header_row": 3, "columns": columns(second), "settings": SETTINGS}).status_code == 200
+        lookup = pubchem.compounds
+
+        def slow_lookup(namespace, identifier):
+            if not pubchem.calls:
+                self._decide_elsewhere(created["id"], 7, "unidentified")
+            return lookup(namespace, identifier)
+
+        monkeypatch.setattr(pubchem, "compounds", slow_lookup)
+        matched = client.post(f"{imports}/match", headers=owner).json()
+        statuses = {row["row"]: row["status"] for row in matched["review"]}
+        assert statuses[7] == "unidentified"
+        assert statuses[4] == "confirmed"  # the lookup's own results are still saved
+        stored = {row["row"]: row["status"] for row in client.get(imports, headers=owner).json()["review"]}
+        assert stored[7] == "unidentified"
+
+    def test_a_row_decision_does_not_undo_another_rows_decision(self, pubchem, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        owner, study, (first, second) = self.setup_study()
+        created = self.upload(owner, study)
+        imports = f"{BASE}/imports/{created['id']}"
+        assert client.put(f"{imports}/assignment", headers=owner, json={
+            "sheet": "Table 2", "header_row": 3, "columns": columns(second), "settings": SETTINGS}).status_code == 200
+        assert client.post(f"{imports}/match", headers=owner).json()["pending"] == 0
+        lookup = pubchem.compounds
+        calls = len(pubchem.calls)
+
+        def slow_lookup(namespace, identifier):
+            if len(pubchem.calls) == calls:
+                self._decide_elsewhere(created["id"], 7, "unidentified")
+            return lookup(namespace, identifier)
+
+        monkeypatch.setattr(pubchem, "compounds", slow_lookup)
+        # Choosing a CID that is not among the candidates asks PubChem.
+        chosen = client.put(f"{imports}/rows/6/compound", headers=owner, json={"action": "choose", "cid": 22311})
+        assert chosen.status_code == 200, chosen.text
+        stored = {row["row"]: row["status"] for row in client.get(imports, headers=owner).json()["review"]}
+        assert stored[6] == "confirmed" and stored[7] == "unidentified"

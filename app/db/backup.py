@@ -13,6 +13,7 @@ from app.file_storage import FILES_ROOT, archive_member, sha256_file
 
 
 MANIFEST = "manifest.json"
+MANIFEST_VERSION = 2
 
 
 def _columns(connection, table):
@@ -40,9 +41,21 @@ def _references(connection):
         ):
             yield f"Chemistry profile {profile_id}", FILES_ROOT.name, path, digest
 
+    # Original results tables behind spreadsheet imports. Published depositions cite their SHA-256.
+    import_columns = _columns(connection, "chemistry_import")
+    if import_columns:
+        if not {"source_path", "source_sha256"} <= import_columns:
+            raise ValueError("The chemistry import schema is incomplete. Finish the migration before backing up.")
+        for import_id, path, digest in connection.execute(
+            "SELECT id, source_path, source_sha256 FROM chemistry_import ORDER BY id"
+        ):
+            yield f"Chemistry import {import_id}", FILES_ROOT.name, path, digest
+
 
 def _verify_files(connection, archive):
+    """Hash every referenced file. Returns the hashes and the keys of original import spreadsheets."""
     hashes = {}
+    imports = set()
     failures = []
     for label, directory, reference, expected_digest in _references(connection):
         try:
@@ -56,11 +69,13 @@ def _verify_files(connection, archive):
                 hashes[key] = sha256_file(path)
             if expected_digest is not None and hashes[key] != expected_digest:
                 raise ValueError(f"SHA-256 mismatch: {key}")
+            if label.startswith("Chemistry import "):
+                imports.add(key)
         except (OSError, ValueError) as error:
             failures.append(f"{label} — {error}")
     if failures:
         raise ValueError("Archive file verification failed:\n" + "\n".join(failures))
-    return hashes
+    return hashes, imports
 
 
 def _reject_links(directory, names):
@@ -110,14 +125,18 @@ def _copy_archive(database: Path, images: Path, files: Path, destination: Path, 
             if broken:
                 table, row, parent, _ = broken
                 raise ValueError(f"SQLite foreign-key check failed in {table}, row {row}, referencing {parent}.")
-            hashes = _verify_files(target, archive)
+            hashes, imports = _verify_files(target, archive)
         if expected is not None:
             expected_files = expected["files"]
-            changed = [key for key in sorted(hashes.keys() | expected_files.keys())
-                       if hashes.get(key) != expected_files.get(key)]
+            keys = hashes.keys() | expected_files.keys()
+            if expected["version"] == 1:
+                # Version 1 manifests left out import spreadsheets. They were still checked above against the
+                # SHA-256 recorded in the database, whose own digest the manifest seals.
+                keys -= imports - expected_files.keys()
+            changed = [key for key in sorted(keys) if hashes.get(key) != expected_files.get(key)]
             if changed:
                 raise ValueError("Snapshot referenced files differ from the manifest: " + ", ".join(changed))
-        manifest = {"version": 1, "database_sha256": sha256_file(database_copy), "files": hashes}
+        manifest = {"version": MANIFEST_VERSION, "database_sha256": sha256_file(database_copy), "files": hashes}
         (archive / MANIFEST).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         archive.rename(destination)
     return destination
@@ -138,7 +157,7 @@ def restore_archive(snapshot: Path, destination: Path, *, allow_legacy: bool = F
             expected = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (UnicodeError, json.JSONDecodeError) as error:
             raise ValueError("Cannot read the snapshot manifest.") from error
-        if (not isinstance(expected, dict) or expected.get("version") != 1
+        if (not isinstance(expected, dict) or expected.get("version") not in (1, MANIFEST_VERSION)
                 or not isinstance(expected.get("database_sha256"), str)
                 or not isinstance(expected.get("files"), dict)
                 or any(not isinstance(value, str) for value in expected["files"].values())):

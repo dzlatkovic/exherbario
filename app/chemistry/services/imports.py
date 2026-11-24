@@ -79,6 +79,25 @@ class ImportService:
             raise ChemistryError(409, "This import has already been confirmed.")
         return record
 
+    def _locked_import(self, import_id: str, actor: User) -> SpreadsheetImport:
+        """Take the write lock and reload the import, so a review written now sees every change saved meanwhile."""
+        lock_for_update(self.db, self.db.query(SpreadsheetImport).filter_by(id=import_id)).first()
+        return self._import_for_actor(import_id, actor)
+
+    def _merge_rows(self, import_id: str, actor: User, before: dict, after: dict) -> SpreadsheetImport:
+        """Write the rows this request changed, but only where nobody else changed that row since it was read.
+
+        PubChem lookups can take many seconds; another request may record a review decision or a new column
+        assignment meanwhile. Writing back a whole older copy of the review would silently undo those changes."""
+        record = self._locked_import(import_id, actor)
+        rows = deepcopy((record.review or {}).get("rows", {}))
+        for number, row in after.items():
+            if row != before.get(number) and rows.get(number) == before.get(number):
+                rows[number] = row
+        record.review = {**(record.review or {}), "rows": rows}
+        self.repository.save(record)
+        return record
+
     def _table(self, record: SpreadsheetImport):
         try:
             with archive_member(FILES_ROOT, record.source_path).open("rb") as source:
@@ -317,7 +336,8 @@ class ImportService:
                 "candidates": [_slim(item) for item in match["candidates"][:MAX_CANDIDATES]]}
 
     def assign(self, import_id: str, data: AssignmentIn, actor: User):
-        record = self._import_for_actor(import_id, actor)
+        # Locked: the review carries earlier decisions forward, so none may be saved between reading and writing it.
+        record = self._locked_import(import_id, actor)
         preview, review = self.analyse(record, data)
         record.assignment = data.model_dump(mode="json")
         record.review = review
@@ -340,7 +360,8 @@ class ImportService:
         example before a lookup fix, or while it was busy) is tried again."""
         record = self._import_for_actor(import_id, actor)
         # A copy: JSON columns only save on reassignment, and in-place edits would hide the change.
-        review = deepcopy(record.review or {"rows": {}})
+        before = deepcopy((record.review or {}).get("rows", {}))
+        review = {"rows": deepcopy(before)}
         if retry_unmatched:
             for number, row in review["rows"].items():
                 if row["status"] == "unmatched":
@@ -371,15 +392,14 @@ class ImportService:
                 update = {"status": "unmatched", "method": None, "record": None, "candidates": [],
                           "problem": str(error)}
             review["rows"][number] = {**row, **update}
-        record.review = review
-        self.repository.save(record)
-        remaining = sum(row["status"] == "pending" for row in review["rows"].values())
+        record = self._merge_rows(import_id, actor, before, review["rows"])
+        remaining = sum(row["status"] == "pending" for row in record.review["rows"].values())
         return {"pending": remaining, "problem": problem, "review": review_summary(record.review)}
 
     def review_row(self, import_id: str, row_number: int, data: RowReviewIn, actor: User):
         record = self._import_for_actor(import_id, actor)
-        rows = deepcopy((record.review or {}).get("rows", {}))
-        row = rows.get(str(row_number))
+        original = deepcopy((record.review or {}).get("rows", {}).get(str(row_number)))
+        row = deepcopy(original)
         if row is None:
             raise ChemistryError(404, "This row is not part of the import.")
         if data.action == "accept":
@@ -414,8 +434,15 @@ class ImportService:
                                           "Correct the SMILES if the stereochemistry is wrong.")
             parent = self.registry.parent(row["record"]["cid"], row["record"])
             row = {**row, "status": "confirmed", "method": "parent", "record": _slim(parent)}
+        # Only this row is written. A lookup above may have taken a while; if the row was reassigned to another
+        # compound name meanwhile, this decision no longer applies to it.
+        record = self._locked_import(import_id, actor)
+        rows = deepcopy((record.review or {}).get("rows", {}))
+        current = rows.get(str(row_number))
+        if current is None or current["key"] != original["key"] or current.get("identifiers") != original.get("identifiers"):
+            raise ChemistryError(409, "This row changed while the decision was being saved. Reload the review.")
         rows[str(row_number)] = row
-        record.review = {"rows": rows}
+        record.review = {**(record.review or {}), "rows": rows}
         self.repository.save(record)
         return review_row_summary(str(row_number), row)
 

@@ -423,3 +423,52 @@ def test_failed_correction_preserves_voucher_and_history(sqlite_archive):
     assert client.delete("/api/specimen/delete-specimen", params=voucher, headers=headers).status_code == 409
     with SessionLocal() as db:
         assert db.scalar(select(Weather.specimen_id)) == specimen.specimen_id
+
+
+def test_backup_and_restore_verify_original_import_spreadsheets(sqlite_archive, tmp_path):
+    from openpyxl import Workbook
+
+    archive, database_engine = sqlite_archive
+    admin = UserServices.create_super_user("Curator", "Example", "curator@example.org", "password")
+    login = client.post("/api/users/login", json={"email": admin.email, "password": "password"})
+    headers = {"Authorization": "Bearer " + login.json()["access_token"]}
+    study = client.post("/api/chemistry/studies", headers=headers, json={"title": "Imports"}).json()["id"]
+    book = Workbook()
+    book.active.append(["Compound", "S1"])
+    book.active.append(["Limonene", 3.1])
+    content = BytesIO()
+    book.save(content)
+    upload = client.post(f"/api/chemistry/studies/{study}/imports", headers=headers,
+                         files={"file": ("table.xlsx", content.getvalue(), "application/octet-stream")})
+    assert upload.status_code == 201, upload.text
+    workbook_path, = (archive / "files").glob("*.xlsx")
+    database_engine.dispose()
+
+    workbook_path.rename(workbook_path.with_suffix(".moved"))
+    with pytest.raises(ValueError, match=f"Chemistry import {upload.json()['id']} .* missing"):
+        backup_archive(archive / "herbar.db", archive / "images", tmp_path / "invalid-backup")
+    workbook_path.with_suffix(".moved").rename(workbook_path)
+
+    snapshot = backup_archive(archive / "herbar.db", archive / "images", tmp_path / "backup")
+    manifest = __import__("json").loads((snapshot / "manifest.json").read_text())
+    assert manifest["files"] == {f"files/{workbook_path.name}": sha256(content.getvalue()).hexdigest()}
+
+    assert manifest["version"] == 2
+
+    # A snapshot taken before spreadsheets were listed still restores; the database digest covers them.
+    import json
+    legacy = tmp_path / "legacy"
+    __import__("shutil").copytree(snapshot, legacy)
+    (legacy / "manifest.json").write_text(json.dumps({**manifest, "version": 1, "files": {}}))
+    restore_archive(legacy, tmp_path / "legacy-restored")
+    (legacy / "files" / workbook_path.name).write_bytes(b"changed")
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        restore_archive(legacy, tmp_path / "legacy-invalid")
+
+    (snapshot / "files" / workbook_path.name).write_bytes(b"changed")
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        restore_archive(snapshot, tmp_path / "invalid-restore")
+    (snapshot / "files" / workbook_path.name).unlink()
+    with pytest.raises(ValueError, match="Referenced file is missing"):
+        restore_archive(snapshot, tmp_path / "invalid-restore")
+    assert not (tmp_path / "invalid-restore").exists()
