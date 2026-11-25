@@ -47,6 +47,10 @@ class TestWorkPages(TestClass):
         assert wizard.status_code == 200 and 'id="import-assign"' in wizard.text
         editor = researcher.get(f"/researcher/depositions/{deposition['id']}")
         assert editor.status_code == 200 and f'data-deposition="{deposition["id"]}"' in editor.text
+        for section in ("1. Deposition information", "2. Research records", "3. Review and submission",
+                        "Submit for review", 'id="info-status"', 'id="records-status"'):
+            assert section in editor.text, section
+        assert 'id="publish" class="stack" hidden' in editor.text  # publishing is for curators
         assert 'data-curator="false"' in editor.text
         assert researcher.get("/researcher/depositions/new").status_code == 200
 

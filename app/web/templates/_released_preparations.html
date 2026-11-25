@@ -1,0 +1,31 @@
+{# Preparations released through published depositions without analytical runs.
+   `entries` come from DepositionService.released_preparations: frozen snapshot records only. #}
+{% macro released_preparations(entries, roles, show_study=true, show_vouchers=true) %}
+<ul class="plain-list released-preparations">
+  {% for entry in entries %}
+    {% set preparation = entry.preparation %}
+    {% set sample = preparation.sample %}
+    <li>
+      <p class="title-row"><strong>{{ preparation.kind | replace('_', ' ') | capitalize }} {{ preparation.batch_code }}</strong>
+        <span class="muted">· sample {{ sample.code }}{% if sample.plant_part %}, {{ sample.plant_part }}{% endif %}</span>
+        <span class="status-chip">No analytical profile</span></p>
+      <dl class="facts">
+        <div><dt>Method</dt><dd>{{ preparation.method_reference }}</dd></div>
+        {% if preparation.method_parameters %}<div><dt>Parameters</dt><dd>{{ preparation.method_parameters }}</dd></div>{% endif %}
+        {% if preparation.yield_percent is not none %}<div><dt>Yield</dt><dd>{{ '%g' | format(preparation.yield_percent) }}% (w/w){% if preparation.plant_material_mass_g %} from {{ '%g' | format(preparation.plant_material_mass_g) }} g{% endif %}</dd></div>
+        {% elif preparation.plant_material_mass_g %}<div><dt>Plant material</dt><dd>{{ '%g' | format(preparation.plant_material_mass_g) }} g</dd></div>{% endif %}
+        {% if show_study %}<div><dt>Study</dt><dd><a href="/studies/{{ preparation.study.id }}">{{ preparation.study.title }}</a></dd></div>{% endif %}
+        {% if show_vouchers and entry.vouchers %}<div><dt>Voucher{{ 's' if entry.vouchers | length > 1 }}</dt><dd>
+          {% for voucher in entry.vouchers %}<a href="/specimens/{{ voucher.id }}">{{ voucher.name | taxon }}</a>{% if voucher.accession %} <span class="mono">{{ voucher.accession }}</span>{% endif %}
+            <span class="muted small">({{ roles.get(voucher.role, voucher.role) | lower }}{% if voucher.redetermined %}; redetermined since linking{% endif %})</span>{{ '; ' if not loop.last }}{% endfor %}</dd></div>{% endif %}
+        <div><dt>Deposited in</dt><dd>
+          {% for deposition in entry.depositions %}<a href="{{ deposition.path }}">{{ deposition.title }}</a> <span class="muted small">(version {{ deposition.version }})</span>{{ '; ' if not loop.last }}{% endfor %}</dd></div>
+      </dl>
+    </li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro deposition_links(depositions) %}{% if depositions %}
+  · deposited in {% for deposition in depositions %}<a href="{{ deposition.path }}">{{ deposition.title }}</a>{{ ', ' if not loop.last }}{% endfor %}
+{% endif %}{% endmacro %}

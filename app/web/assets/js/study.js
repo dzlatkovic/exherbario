@@ -51,3 +51,14 @@ find("copy-ai-prompt")?.addEventListener("click", async () => {
 });
 
 bindPutButtons();
+
+// Links to a collapsed section (#add-import, #add-manual) open it.
+function openLinkedDetails() {
+    const target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (target instanceof HTMLDetailsElement) {
+        target.open = true;
+        target.querySelector("summary")?.focus();
+    }
+}
+window.addEventListener("hashchange", openLinkedDetails);
+openLinkedDetails();

@@ -1,10 +1,11 @@
 """Authorize draft edits and commit immutable public versions."""
 
+import json
 from datetime import datetime, timezone
 from hashlib import sha256
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session, undefer
 
 from app.chemistry.models import Preparation, Profile
@@ -23,6 +24,14 @@ from .models import (
 )
 from .snapshot import (build_snapshot, landing_path, registered_institution, release_digest, release_summary, selected_preparations, selected_records, selected_vouchers,
                        version_url)
+
+
+def _voucher_name(voucher):
+    if not voucher:
+        return "Voucher"
+    determination = voucher.get("determination") or {}
+    return (determination.get("name_as_recorded") or (determination.get("taxonomy") or {}).get("name")
+            or "Undetermined voucher")
 
 
 def utc_now():
@@ -392,6 +401,44 @@ class DepositionService:
     @staticmethod
     def _notice(notice):
         return {"reason": notice.reason, "withdrawn_at": notice.withdrawn_at.isoformat() + "Z"}
+
+    def released_preparations(self, *, specimen_id=None, study_id=None):
+        """Preparations deposited without runs, as frozen in the latest published version of each deposition.
+
+        Withdrawn versions are skipped, and so are preparations from studies that are not public now. Each item is the
+        snapshot's own record (only what publication released), with the depositions that include it.
+        """
+        if (specimen_id is None) == (study_id is None):
+            raise ValueError("Give exactly one of specimen_id or study_id.")
+        rows = self.db.execute(text(
+            "SELECT d.institution, d.accession, v.number, json_extract(v.snapshot, '$.title'), item.value, "
+            "json_extract(v.snapshot, '$.vouchers') "
+            "FROM deposition d JOIN deposition_version v ON v.deposition_id = d.id AND v.number = d.latest_version "
+            "JOIN json_each(v.snapshot, '$.preparations') item "
+            "JOIN chemistry_study s ON s.id = json_extract(item.value, '$.study.id') AND s.is_public = 1 "
+            "WHERE NOT EXISTS (SELECT 1 FROM deposition_withdrawal w "
+            "                  WHERE w.deposition_id = d.id AND w.version = v.number) "
+            "AND (json_extract(item.value, '$.study.id') = :study OR EXISTS ("
+            "     SELECT 1 FROM json_each(item.value, '$.sample.vouchers') link "
+            "     WHERE json_extract(link.value, '$.id') = :specimen)) "
+            "ORDER BY v.published_at DESC, d.id"),
+            {"study": study_id, "specimen": specimen_id}).all()
+        found = {}
+        for institution, accession, number, title, value, vouchers in rows:
+            record = json.loads(value) if isinstance(value, str) else value
+            listed = {voucher["id"]: voucher for voucher in (json.loads(vouchers) if vouchers else [])}
+            entry = found.setdefault(record["id"], {"preparation": record, "depositions": [], "vouchers": [
+                {"id": link["id"], "role": link["role"], "redetermined": link.get("redetermined_since_linking"),
+                 "name": _voucher_name(listed.get(link["id"])),
+                 "accession": (listed.get(link["id"]) or {}).get("accession")
+                 or (listed.get(link["id"]) or {}).get("reg_no")}
+                for link in record["sample"]["vouchers"]]})
+            entry["depositions"].append({
+                "title": title, "version": number,
+                "path": f"/depositions/{institution}/{accession}/versions/{number}"})
+        return sorted(found.values(), key=lambda item: (item["preparation"]["study"]["title"].casefold(),
+                                                       item["preparation"]["sample"]["code"],
+                                                       item["preparation"]["batch_code"]))
 
     def _public_version(self, institution, accession, number):
         row = self.db.execute(

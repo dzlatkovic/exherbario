@@ -4,12 +4,13 @@
 <section class="home-search" aria-labelledby="home-title">
   <p class="overline">Herbarium catalog</p>
   <h1 id="home-title" class="title">Find a voucher specimen</h1>
-  <p class="muted">Search released herbarium vouchers and the analytical data linked to them.</p>
+  <p class="muted">Ex Herbario connects herbarium voucher specimens with the phytochemical data measured on them, and
+    publishes both as citable, versioned research depositions.</p>
   <form class="search-bar" method="get" action="/specimens" role="search">
     <label class="visually-hidden" for="home-q">Plant name, accession or registration number</label>
     <input id="home-q" name="q" type="search" maxlength="150" autocomplete="off"
            placeholder="Plant name or accession">
-    <button class="primary">Search</button>
+    <button class="primary icon-search">Search</button>
   </form>
   {% if released %}
     <p class="muted small">{{ "{:,}".format(released) }} released specimen{{ '' if released == 1 else 's' }}</p>
@@ -17,4 +18,38 @@
     <p class="muted small">No specimens have been released yet.</p>
   {% endif %}
 </section>
+
+<nav class="entry-points" aria-label="Explore">
+  <a class="entry-point" href="/specimens">
+    <span class="entry-title">Explore specimens</span>
+    <span class="muted small">Voucher specimens with their determinations, photographs and collection data.</span>
+  </a>
+  <a class="entry-point" href="/studies">
+    <span class="entry-title">Explore chemical data</span>
+    <span class="muted small">Essential oils, extracts and their analytical profiles, each traced to a voucher.</span>
+  </a>
+  <a class="entry-point" href="/depositions">
+    <span class="entry-title">Explore published depositions</span>
+    <span class="muted small">Citable, versioned datasets referenced in journal articles.</span>
+  </a>
+</nav>
+
+{% if demo_mode() %}
+<section class="card home-demo" aria-labelledby="demo-title">
+  <h2 id="demo-title">About this demonstration</h2>
+  <p>Every specimen, study and deposition here is synthetic, made up to show how the software works. Nothing can be cited.
+    {% if demo_reset_hour >= 0 %}The data are reset every day at {{ '%02d' | format(demo_reset_hour) }}:00 UTC.{% endif %}</p>
+  {% if demo_accounts() %}
+  <p>To try the researcher and curator tools (importing a results table, recording preparations, preparing a deposition),
+    {% if viewer %}open <a href="/researcher">My work</a>{% else %}<a href="/sign-in">sign in</a> with one of the demo accounts
+    listed on the sign-in page{% endif %}. Changes you make are visible to other visitors until the next reset.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<p class="home-links small muted">
+  <a href="https://docs.exherbario.org/" rel="external">Documentation</a>
+  <a href="https://github.com/dzlatkovic/exherbario" rel="external">Source code on GitHub</a>
+  <a href="/docs">API</a>
+</p>
 {% endblock %}

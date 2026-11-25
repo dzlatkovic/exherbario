@@ -26,14 +26,31 @@
   {% endif %}
 </header>
 
+<nav class="study-progress" aria-label="Study contents">
+  <p class="small"><a href="#samples">{{ progress.samples }} sample{{ '' if progress.samples == 1 else 's' }}</a>
+    · {{ progress.preparations }} preparation{{ '' if progress.preparations == 1 else 's' }}{% if progress.without_runs %} ({{ progress.without_runs }} without runs){% endif %}
+    · {{ progress.runs }} run{{ '' if progress.runs == 1 else 's' }}{% if progress.runs %} ({{ progress.released_runs }} released){% endif %}
+    · <a href="#tables">{{ progress.tables }} results table{{ '' if progress.tables == 1 else 's' }}</a>{% if progress.unfinished %} ({{ progress.unfinished }} unfinished){% endif %}
+    · {% if progress.deposited %}{{ progress.deposited }} preparation{{ '' if progress.deposited == 1 else 's' }} deposited{% else %}not yet deposited{% endif %}</p>
+  <p class="small"><span class="muted">Next:</span>
+    {% if imports %}finish importing <a href="/researcher/studies/{{ study.id }}/imports/{{ imports[0].id }}">{{ imports[0].source_name }}</a>,
+      or {% endif %}
+    {% if not progress.samples %}<a href="#add-import">import a results table</a> or <a href="#add-manual">add a sample</a>.
+    {% elif not progress.preparations %}add a preparation to a sample below, or <a href="#add-import">import a results table</a>.
+    {% else %}add more data, or <a href="/researcher/depositions/new">create a deposition</a> to publish these records with a citable identifier.{% endif %}</p>
+</nav>
+
 <section class="card" aria-labelledby="add-title">
   <h2 id="add-title">Add data</h2>
-  <details class="form-details first">
-    <summary>Import a results table (Excel or CSV)</summary>
+  <p class="muted small">Use whichever route fits your data, in any order. A study does not need analytical results.</p>
+  <details class="form-details first" id="add-import">
+    <summary>Import a results table
+      <span class="summary-note">For GC–MS or other analytical results already in a spreadsheet (Excel or CSV).
+        Samples, preparations and runs are created as you assign the table's columns.</span></summary>
     <form id="import-upload" class="stack">
       <p class="muted small">Upload the table you prepared for the paper: compounds in rows, one column per sample (a single sample is fine). Next you assign the columns, give the run conditions and check every compound.</p>
       <label>Results table <input name="file" type="file" accept=".xlsx,.csv" required></label>
-      <button class="primary">Upload and continue</button>
+      <button class="primary icon-upload">Upload and continue</button>
       <p class="feedback" role="status"></p>
     </form>
     <details class="form-details">
@@ -48,20 +65,72 @@
           <p class="feedback small" id="copy-ai-prompt-status" role="status"></p></div>
       </div>
     </details>
-    {% if imports %}
-    <p class="small">Unfinished: {% for record in imports %}<a href="/researcher/studies/{{ study.id }}/imports/{{ record.id }}">{{ record.source_name }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>
-    {% endif %}
   </details>
-  <details class="form-details">
-    <summary>Add a sample</summary>
+  <details class="form-details" id="add-manual">
+    <summary>Add a sample or preparation manually
+      <span class="summary-note">For oils, extracts, fractions or other material, with or without analytical results.
+        Add the sample here, then its preparations from the sample's card below.</span></summary>
     <form id="create-sample" class="stack">
       {% include "_sample_fields.html" %}
-      <button class="primary">Add sample</button>
+      <button class="primary icon-add">Add sample</button>
       <p class="feedback" role="status"></p>
     </form>
   </details>
+  <details class="form-details">
+    <summary>How samples, preparations and analytical profiles relate</summary>
+    <dl class="facts glossary">
+      <div><dt>Voucher</dt><dd>The herbarium specimen that documents the plant. Every sample links to at least one.</dd></div>
+      <div><dt>Sample</dt><dd>Plant material collected for the study, such as dried aerial parts from one population.</dd></div>
+      <div><dt>Preparation</dt><dd>What was made from a sample: an essential oil, extract, fraction or isolate, with its method and yield.
+        A preparation can be published on its own, without results.</dd></div>
+      <div><dt>Run (analytical profile)</dt><dd>One analysis of a preparation, such as a GC–MS run, with its compounds and amounts.
+        Runs usually come from a results table.</dd></div>
+      <div><dt>Deposition</dt><dd>A citable, versioned publication of selected vouchers, preparations and runs.</dd></div>
+    </dl>
+  </details>
 </section>
 
+<section class="card" id="tables" aria-labelledby="tables-title">
+  <h2 id="tables-title">Results tables</h2>
+  <p class="muted small">Spreadsheets imported into this study. Each file is kept as uploaded; the runs under the samples
+    below are derived from its columns.</p>
+  {% if tables %}
+  <div class="table-scroll">
+    <table class="grid">
+      <thead><tr><th scope="col">File</th><th scope="col">Imported</th><th scope="col">Method</th>
+        <th scope="col" class="number">Samples</th><th scope="col" class="number">Runs</th>
+        <th scope="col" class="number">Compounds</th><th scope="col"><span class="visually-hidden">Records</span></th></tr></thead>
+      <tbody>
+      {% for table in tables %}
+        <tr{% if shown_table and shown_table.record.id == table.record.id %} aria-current="true"{% endif %}>
+          <th scope="row" class="break">{{ table.record.source_name }} <span class="muted small">({{ table.record.source_kind | upper }})</span></th>
+          <td>{{ (table.record.confirmed_at or table.record.created_at).strftime('%Y-%m-%d') }}</td>
+          <td>{{ table.method or '—' }}</td>
+          <td class="number">{{ table.samples }}</td><td class="number">{{ table.profiles }}</td><td class="number">{{ table.compounds }}</td>
+          <td>{% if table.profiles %}<a href="?table={{ table.record.id }}#samples">Show its runs</a>{% else %}<span class="muted small">No runs remain</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="small">No results tables yet. <a href="#add-import">Import one</a> when you have analytical results in a spreadsheet.</p>
+  {% endif %}
+  {% if imports %}
+  <h3 class="small">Unfinished imports</h3>
+  <ul class="plain-list compact">
+    {% for record in imports %}<li><a href="/researcher/studies/{{ study.id }}/imports/{{ record.id }}">{{ record.source_name }}</a>
+      <span class="muted small">uploaded {{ record.created_at.strftime('%Y-%m-%d') }} · not yet confirmed</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<div id="samples"></div>
+{% if shown_table %}
+<p class="notice" role="status">Showing the {{ samples | length }} sample{{ '' if samples | length == 1 else 's' }} and
+  {{ shown_table.profiles }} run{{ '' if shown_table.profiles == 1 else 's' }} created from
+  <strong class="break">{{ shown_table.record.source_name }}</strong>. <a href="/researcher/studies/{{ study.id }}#samples">Show all samples</a></p>
+{% endif %}
 {% if samples %}
   {% for sample in samples %}
   <section class="card sample-card" aria-labelledby="sample-{{ loop.index }}">
@@ -93,7 +162,8 @@
       </ul>
       {% endif %}
       {% if not runs.get(preparation.id) %}
-      <p class="muted small">No runs yet. Use <a href="#add-title">Import a results table</a>: a column headed
+      <p class="muted small">No analytical runs. That is fine: a preparation can be deposited without results.
+        To add results, <a href="#add-import">import a results table</a>: a column headed
         <span class="mono">{{ sample.code }}</span> is attached to this preparation{% if preparations[sample.id] | length > 1 %} once you choose it in the import{% endif %}.</p>
       {% if not (study.is_public or study.ever_public) %}
       {{ delete_action("Delete preparation", "/api/chemistry/preparations/" ~ preparation.id, "",
@@ -115,6 +185,10 @@
       {% endif %}
     </div>
     {% endfor %}
+    {% if not preparations[sample.id] %}
+    <p class="muted small">No preparations yet. Add the oil, extract or other material made from this sample below,
+      or import a results table with a column headed <span class="mono">{{ sample.code }}</span>.</p>
+    {% endif %}
     {% if not (study.is_public or study.ever_public) and not preparations[sample.id] %}
     {{ delete_action("Delete sample", "/api/chemistry/samples/" ~ sample.id, "",
         "Permanently delete sample " ~ sample.code ~ ". Linked vouchers stay in the archive.") }}
@@ -124,13 +198,13 @@
       <summary>Add a preparation</summary>
       <form class="stack add-preparation" data-sample="{{ sample.id }}">
         {% include "_preparation_fields.html" %}
-        <button class="secondary">Add preparation</button>
+        <button class="tonal icon-add">Add preparation</button>
         <p class="feedback" role="status"></p>
       </form>
     </details>
   </section>
   {% endfor %}
 {% else %}
-  {{ empty_state("No samples yet.", "Import a results table to create samples and preparations as you assign columns.") }}
+  {{ empty_state("No samples yet.", "Import a results table to create samples from its columns, or add a sample manually to record preparations without results.", "#add-title", "Add data") }}
 {% endif %}
 {% endblock %}

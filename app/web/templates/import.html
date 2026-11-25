@@ -9,28 +9,51 @@
 <header class="record-header" id="import" data-import="{{ record.id }}" data-study="{{ study.id }}">
   <p class="overline">Results table import</p>
   <h1 class="title plain">{{ record.source_name }}</h1>
-  <p class="muted small">Assign the columns, check the preview, review every compound, then confirm. Nothing becomes a run until you confirm.</p>
+  <p class="muted small">Work down this page: assign the columns, check the preview, review every compound, then confirm.
+    Nothing becomes a run until you confirm, and your choices are saved as you go, so you can leave and come back.</p>
   {% if record.status == "draft" %}
   {{ delete_action("Discard import", "/api/chemistry/imports/" ~ record.id, "/researcher/studies/" ~ study.id,
       "Permanently discard “" ~ record.source_name ~ "” and its saved column assignments and review decisions.") }}
   {% endif %}
 </header>
 <p id="import-status" class="notice" role="status" hidden></p>
+<div class="import-bar" id="import-steps">
+<nav class="step-nav import-steps" aria-label="Import sections">
+  <a href="#import-columns-title">1. Column mapping</a>
+  <a href="#import-preview-title">2. Data preview</a>
+  <a href="#import-review-title">3. Compound matching</a>
+  <a href="#import-confirm-title">4. Confirmation</a>
+</nav>
+<div class="import-summary" id="import-summary" role="status" aria-live="polite">
+  <p class="small muted" id="import-summary-empty">Run the preview to see the samples, compounds and problems in this table.</p>
+  <ul class="summary-counts" hidden>
+    <li><a href="#import-preview-title"><span class="number" data-count="samples">0</span> sample columns</a></li>
+    <li><a href="#import-review-title" data-filter-link="all"><span class="number" data-count="compounds">0</span> compounds</a></li>
+    <li><a href="#import-review-title" data-filter-link="confirmed"><span class="number" data-count="confirmed">0</span> decided</a></li>
+    <li><a href="#import-review-title" data-filter-link="review"><span class="number" data-count="review">0</span> to review</a></li>
+    <li><a href="#import-review-title" data-filter-link="unresolved"><span class="number" data-count="unresolved">0</span> unresolved</a></li>
+    <li class="count-errors"><a href="#import-problems"><span class="number" data-count="errors">0</span> errors</a></li>
+    <li class="count-warnings"><a href="#import-notes"><span class="number" data-count="warnings">0</span> warnings</a></li>
+  </ul>
+</div>
+</div>
 <section class="card" id="import-work">
   <form id="import-assign" class="stack">
+    <h2 id="import-columns-title" class="step-title">1. Column mapping</h2>
     <p class="muted small">Fill in fields marked Required. In Columns, assign one compound-name column and at least one sample column.</p>
     <div class="form-grid">
       <label>{{ field_label("Sheet") }} <select name="sheet" required id="import-sheet"></select></label>
       <label>{{ field_label("Header row") }} <input name="header_row" id="import-header-row" type="number" min="1" max="1000" value="1" required></label>
       <label>Saved column layout <select id="import-template"><option value="">None</option></select></label>
     </div>
-    <div class="table-scroll"><table id="import-grid" class="grid"></table></div>
+    <div class="table-scroll"><table id="import-grid" class="grid" aria-label="The uploaded table"></table></div>
     <h3>Columns</h3>
     <p class="muted small">For each sample column, select an existing preparation or create one here.</p>
     <p id="import-column-status" class="feedback" role="status"></p>
     <button type="button" id="import-bulk-open" class="secondary" hidden>Create samples and preparations for unattached columns</button>
     <div class="table-scroll"><table id="import-columns" class="grid"></table></div>
     <h3>Settings for all sample columns</h3>
+    <p class="muted small">Run conditions apply to every sample column of this table.</p>
     <div class="form-grid">
       {{ preset_control("run", "Saved run conditions", "e.g. HP-5MS, 60–246 °C at 3 °C/min") }}
       {% include "_run_fields.html" %}
@@ -42,19 +65,23 @@
       <label>{{ field_label("Unit") }} <input name="unit" value="%" required maxlength="40"></label>
       <label>{{ field_label("Save this column layout as", "Optional") }} <input name="save_template" maxlength="120"></label>
     </div>
-    <button class="secondary">Preview</button>
+    <button class="tonal">Save and preview</button>
     <p class="feedback" role="status"></p>
   </form>
   <div id="import-preview" class="stack" hidden>
+    <h2 id="import-preview-title" class="step-title">2. Data preview</h2>
     <div id="import-problems" class="notice warning" tabindex="-1" hidden></div>
-    <div id="import-notes" class="notice" hidden></div>
-    <div class="table-scroll"><table id="import-samples" class="grid"></table></div>
+    <div id="import-notes" class="notice" tabindex="-1" hidden></div>
+    <p class="muted small">One run is created per sample column. Values are taken from your file as they are.</p>
+    <div class="table-scroll"><table id="import-samples" class="grid" aria-label="Runs to be created"></table></div>
     <div id="import-excluded"></div>
-    <h3>PubChem assignments</h3>
-    <p class="muted">Check every compound. Accept the proposed match, pick another candidate, search by name, CAS,
-      CID or InChIKey, switch to the stereo-unspecified parent, or mark the row unidentified.</p>
+    <h2 id="import-review-title" class="step-title">3. Compound matching</h2>
+    <p class="muted small">Check every compound. Accept the proposed match, pick another candidate, search by name, CAS,
+      CID or InChIKey, switch to the stereo-unspecified parent, or mark the row unidentified.
+      <span class="provenance-key"><span class="source-tag from-file">Your file</span> names and values come from the upload;
+      <span class="source-tag from-pubchem">PubChem</span> identifiers, formulas and structures were retrieved and are stored with the run.</span></p>
     <div class="link-row">
-      <button type="button" id="import-match" class="secondary">Look up names in PubChem</button>
+      <button type="button" id="import-match" class="tonal icon-search">Look up names in PubChem</button>
       <button type="button" id="import-accept-all" class="secondary">Accept all proposed matches</button>
       <button type="button" id="import-stop" class="text-button" hidden>Stop</button>
     </div>
@@ -63,7 +90,20 @@
       <p id="import-progress-label" class="muted small"></p>
     </div>
     <p id="import-match-status" class="feedback" role="status"></p>
-    <div class="table-scroll"><table id="import-review" class="grid"></table></div>
+    <fieldset class="filter-group" id="import-filter">
+      <legend class="small">Show</legend>
+      <span class="segments">
+      <label><input type="radio" name="review-filter" value="all" checked> All</label>
+      <label><input type="radio" name="review-filter" value="review"> To review</label>
+      <label><input type="radio" name="review-filter" value="unresolved"> Unresolved</label>
+      <label><input type="radio" name="review-filter" value="confirmed"> Decided</label>
+      </span>
+    </fieldset>
+    <p id="import-filter-status" class="muted small" role="status"></p>
+    <div class="table-scroll tall"><table id="import-review" class="grid" aria-label="Compound assignments"></table></div>
+    <h2 id="import-confirm-title" class="step-title">4. Confirmation</h2>
+    <p class="muted small">Confirming creates one run per sample column, keeps the uploaded file with the study, and lists
+      the table under Results tables. Runs stay private until a curator releases them or they are published in a deposition.</p>
     <button type="button" id="import-confirm" class="primary">Confirm import</button>
     <p id="import-confirm-status" class="feedback" role="status"></p>
   </div>

@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session
 from app import catalog
 from app.chemistry import lotus
 from app.chemistry.repository import ChemistryRepository
+from app.config import settings
 from app.db import get_db
 from app.deposition.services import DepositionService
+
+from .chemistry_pages import ROLE_LABELS, split_released_preparations
 
 router = APIRouter(include_in_schema=False)
 PAGE_SIZE = 20
@@ -38,7 +41,7 @@ def render(request, *args, **kwargs):
 @router.get("/")
 def home(request: Request, db: Session = Depends(get_db)):
     facets = catalog.public_facets(db)
-    return render(request, "home.html", released=facets["total"])
+    return render(request, "home.html", released=facets["total"], demo_reset_hour=settings.DEMO_RESET_HOUR)
 
 
 @router.get("/depositions")
@@ -90,9 +93,13 @@ def specimen(request: Request, specimen_id: str, db: Session = Depends(get_db)):
     repository = ChemistryRepository(db)
     profiles = repository.list_released_specimen_profiles(specimen_id)
     studies = {study.id: study for study in (repository.get_study(sample.study_id) for _, _, sample in profiles)}
+    preparations, deposited_with_runs = split_released_preparations(
+        DepositionService(db).released_preparations(specimen_id=specimen_id[:50]),
+        {preparation.id for _, preparation, _ in profiles})
     return render(
         request, "specimen.html", record=record, specimen=record["specimen"], taxon=record["taxon"],
         location=record["location"], photos=catalog.specimen_photos(db, specimen_id),
         revisions=catalog.specimen_revisions(db, specimen_id),
         publications=catalog.specimen_publications(db, specimen_id),
-        profiles=profiles, studies=studies, literature=lotus.published(db, record["specimen"].taxon_id))
+        profiles=profiles, studies=studies, preparations=preparations, deposited_with_runs=deposited_with_runs,
+        roles=ROLE_LABELS, literature=lotus.published(db, record["specimen"].taxon_id))

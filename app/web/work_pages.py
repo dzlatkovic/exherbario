@@ -11,7 +11,7 @@ from sqlalchemy import func, select, true
 from sqlalchemy.orm import Session
 
 from app.chemistry.exceptions import ChemistryError
-from app.chemistry.models import LabSample, Preparation, Profile, SpreadsheetImport, Study
+from app.chemistry.models import LabSample, Measurement, Preparation, Profile, SpreadsheetImport, Study
 from app.chemistry.repository import ChemistryRepository
 from app.chemistry.sample_links import redetermined
 from app.chemistry.services import ChemistryService
@@ -70,8 +70,40 @@ def my_work(request: Request, db: Session = Depends(get_db)):
                          curator=viewer["curator"], account=actor, orcid_enabled=orcid.enabled())
 
 
+def results_tables(db: Session, study_id: str, profiles):
+    """Confirmed spreadsheet imports of a study, each with the profiles derived from it.
+
+    The method is read from the derived runs: the import itself does not record one.
+    """
+    records = db.scalars(select(SpreadsheetImport).where(
+        SpreadsheetImport.study_id == study_id, SpreadsheetImport.status == "confirmed")
+        .order_by(SpreadsheetImport.confirmed_at.desc(), SpreadsheetImport.created_at.desc())).all()
+    if not records:
+        return []
+    derived = {}
+    for profile, preparation, sample in profiles:
+        if profile.import_id:
+            derived.setdefault(profile.import_id, []).append((profile, preparation, sample))
+    compounds = dict(db.execute(
+        # Compounds are the table's rows, recorded once per run under the same feature name.
+        select(Profile.import_id, func.count(func.distinct(Measurement.feature)))
+        .join(Measurement, Measurement.profile_id == Profile.id)
+        .where(Profile.import_id.in_([record.id for record in records])).group_by(Profile.import_id)).all())
+    tables = []
+    for record in records:
+        rows = derived.get(record.id, [])
+        methods = sorted({profile.technique or profile.analytical_method for profile, _, _ in rows} - {None, ""})
+        tables.append({
+            "record": record, "profiles": len(rows), "samples": len({sample.id for _, _, sample in rows}),
+            "preparations": len({preparation.id for _, preparation, _ in rows}),
+            "compounds": compounds.get(record.id, 0),
+            "method": methods[0] if len(methods) == 1 else ("mixed: " + ", ".join(methods) if methods else None),
+        })
+    return tables
+
+
 @router.get("/researcher/studies/{study_id}")
-def study(request: Request, study_id: str, db: Session = Depends(get_db)):
+def study(request: Request, study_id: str, table: str = "", db: Session = Depends(get_db)):
     actor, viewer = _actor(request, db)
     if actor is None:
         return _web().sign_in_redirect(request)
@@ -79,6 +111,16 @@ def study(request: Request, study_id: str, db: Session = Depends(get_db)):
         record, samples, links, preparations, profiles = _service(db).get_study(study_id[:50], actor)
     except ChemistryError:
         return _not_found(request, "Study")
+    tables = results_tables(db, record.id, profiles)
+    shown_table = next((item for item in tables if item["record"].id == table[:50]), None) if table else None
+    all_samples, all_preparations, all_profiles = samples, preparations, profiles
+    if shown_table:
+        # Only the records derived from one results table; nothing else on the page changes.
+        profiles = [row for row in profiles if row[0].import_id == shown_table["record"].id]
+        kept_preparations = {preparation.id for _, preparation, _ in profiles}
+        preparations = [preparation for preparation in preparations if preparation.id in kept_preparations]
+        kept_samples = {preparation.sample_id for preparation in preparations}
+        samples = [sample for sample in samples if sample.id in kept_samples]
     by_sample = {sample.id: [] for sample in samples}
     for preparation in preparations:
         by_sample[preparation.sample_id].append(preparation)
@@ -95,13 +137,21 @@ def study(request: Request, study_id: str, db: Session = Depends(get_db)):
                              "name": taxon_name or voucher.subnomen or "Unidentified specimen",
                              "accession": voucher.accession or voucher.reg_no, "redetermined": redetermined(link, voucher)}
                             for link, voucher, taxon_name in rows] for sample_id, rows in links.items()}
+    deposited = ChemistryRepository(db).deposited_preparations([preparation.id for preparation in all_preparations])
+    with_runs = {preparation.id for _, preparation, _ in all_profiles}
+    progress = {
+        "samples": len(all_samples), "preparations": len(all_preparations),
+        "without_runs": len([item for item in all_preparations if item.id not in with_runs]),
+        "runs": len(all_profiles), "released_runs": len([row for row in all_profiles if row[0].is_public]),
+        "tables": len(tables), "unfinished": len(imports), "deposited": len(deposited),
+    }
     return _web().render(request, "staff-study.html", study=record, samples=samples, vouchers=vouchers,
                          preparations=by_sample, runs=runs, imports=imports, curator=viewer["curator"],
-                         preparation_count=len(preparations), run_count=len(profiles), import_count=import_count,
-                         ai_prompt=AI_PROMPT.read_text(encoding="utf-8"),
-                         deposited_preparations=ChemistryRepository(db).deposited_preparations(
-                             [preparation.id for preparation in preparations]),
-                         has_released_runs=any(profile.is_public or profile.ever_public for profile, _, _ in profiles))
+                         preparation_count=len(all_preparations), run_count=len(all_profiles),
+                         import_count=import_count, tables=tables, shown_table=shown_table, progress=progress,
+                         ai_prompt=AI_PROMPT.read_text(encoding="utf-8"), deposited_preparations=deposited,
+                         has_released_runs=any(profile.is_public or profile.ever_public
+                                               for profile, _, _ in all_profiles))
 
 
 @router.get("/researcher/profiles/{profile_id}")

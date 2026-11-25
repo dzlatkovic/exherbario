@@ -8,7 +8,7 @@
   <div class="link-row">
     {% if studies %}<a class="button {{ 'secondary' if curator else 'primary' }}" href="#new-study">New study</a>{% endif %}
     {% if curator %}<a class="button primary" href="/curation/vouchers#register-section">Register a voucher</a>{% endif %}
-    <a class="button secondary" href="/researcher/depositions/new">New deposition</a>
+    <a class="button secondary icon-add" href="/researcher/depositions/new">New deposition</a>
   </div>
 </header>
 {% endblock %}
@@ -110,7 +110,7 @@
         <div class="inline-form">
           <label>Find a voucher <input class="picker-query" type="search" maxlength="100" autocomplete="off"
             placeholder="Name, accession or ID"></label>
-          <button type="button" class="secondary picker-search">Search</button>
+          <button type="button" class="secondary picker-search icon-search">Search</button>
         </div>
         <p class="feedback" role="status"></p>
         <ul class="picker-results"></ul>

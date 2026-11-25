@@ -10,6 +10,7 @@ from app.chemistry.services import ChemistryService
 from app.chemistry.services.compounds import CompoundRegistry, compound_summary
 from app.chemistry.sample_links import public_site, redetermined
 from app.db import get_db
+from app.deposition.services import DepositionService
 
 router = APIRouter(include_in_schema=False)
 ROLE_LABELS = {
@@ -60,15 +61,57 @@ def voucher_rows(db: Session, links):
             for link, voucher, taxon_name in links]
 
 
+def split_released_preparations(released, with_profiles):
+    """Preparations shown through a released profile are listed once, there; the rest stand on their own.
+
+    Returns the standalone entries and, for preparations that also have profiles on the page, the depositions that
+    include them, so the profile can link to them instead of repeating the preparation.
+    """
+    standalone = [entry for entry in released if entry["preparation"]["id"] not in with_profiles]
+    linked = {entry["preparation"]["id"]: entry["depositions"] for entry in released
+              if entry["preparation"]["id"] in with_profiles}
+    return standalone, linked
+
+
+@router.get("/studies")
+def studies_page(request: Request, db: Session = Depends(get_db)):
+    """Released studies with something released in them: analytical profiles or deposited preparations."""
+    repository, depositions = ChemistryRepository(db), DepositionService(db)
+    rows = []
+    for study in repository.list_studies():
+        if not study.is_public:
+            continue
+        profiles = repository.list_released_study_profiles(study.id)
+        preparations, _ = split_released_preparations(depositions.released_preparations(study_id=study.id),
+                                                      {preparation.id for _, preparation, _ in profiles})
+        if not (profiles or preparations):
+            continue
+        rows.append({"study": study, "profiles": len(profiles), "preparations": len(preparations),
+                     "techniques": sorted({profile.technique for profile, _, _ in profiles if profile.technique}),
+                     "kinds": sorted({preparation.kind for _, preparation, _ in profiles}
+                                     | {entry["preparation"]["kind"] for entry in preparations})})
+    return render(request, "studies.html", rows=rows)
+
+
 @router.get("/studies/{study_id}")
 def study_page(request: Request, study_id: str, db: Session = Depends(get_db)):
+    study_id = study_id[:50]
     try:
-        study, profiles, links = service(db).get_public_study(study_id[:50])
+        study, profiles, links = service(db).get_public_study(study_id)
     except ChemistryError:
+        # A released study may hold only preparations deposited without runs.
+        study, profiles, links = ChemistryRepository(db).get_study(study_id), [], {}
+        if study is None or not study.is_public:
+            return render(request, "study.html", status=404, study=None)
+    released = DepositionService(db).released_preparations(study_id=study.id)
+    if not profiles and not released:
         return render(request, "study.html", status=404, study=None)
     rows = [{"profile": profile, "preparation": preparation, "sample": sample,
              "vouchers": voucher_rows(db, links[sample.id])} for profile, preparation, sample in profiles]
-    return render(request, "study.html", study=study, rows=rows)
+    preparations, deposited_with_runs = split_released_preparations(
+        released, {preparation.id for _, preparation, _ in profiles})
+    return render(request, "study.html", study=study, rows=rows, preparations=preparations,
+                  deposited_with_runs=deposited_with_runs, roles=ROLE_LABELS)
 
 
 @router.get("/profiles/{profile_id}")

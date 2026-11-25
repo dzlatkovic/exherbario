@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#121614">
+  <meta name="theme-color" content="#f6f5f0">
   <script src="{{ asset('js/theme.js') }}"></script>
   <title>{% block title %}Ex Herbario{% endblock %}</title>
   <link rel="preload" href="/assets/herbar/fonts/fira-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -27,6 +27,7 @@
   {%- if viewer -%}
   <nav class="tabs" aria-label="Catalog">
     <a href="/specimens"{% if current == 'specimens' %} aria-current="page"{% endif %}>Specimens</a>
+    <a href="/studies"{% if current == 'studies' %} aria-current="page"{% endif %}>Chemical data</a>
     <a href="/depositions"{% if current == 'depositions' %} aria-current="page"{% endif %}>Published datasets</a>
   </nav>
   {%- endif -%}
@@ -34,10 +35,12 @@
 {%- set path = path | default('') -%}
 {#- Each entry: address, label, and the other address prefixes that mark it current. -#}
 {%- if viewer -%}
-  {%- set navigation = [("/specimens", "Catalog", ["/depositions"]), ("/researcher", "My work", [])] -%}
+  {%- set navigation = [("/specimens", "Catalog", ["/depositions", "/studies", "/profiles", "/compounds", "/structures"]), ("/researcher", "My work", [])] -%}
   {%- if viewer.curator -%}{%- set navigation = navigation + [("/curation", "Curation", [])] -%}{%- endif -%}
 {%- else -%}
-  {%- set navigation = [("/specimens", "Specimens", []), ("/depositions", "Published datasets", [])] -%}
+  {%- set navigation = [("/specimens", "Specimens", []),
+                        ("/studies", "Chemical data", ["/profiles", "/compounds", "/structures"]),
+                        ("/depositions", "Published datasets", [])] -%}
 {%- endif -%}
 <body>
   <a class="skip-link" href="#main">Skip to content</a>

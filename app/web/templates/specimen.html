@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ record.name ~ ' · ' if record }}Specimen · Ex Herbario{% endblock %}
 {% block body %}
+{% from "_released_preparations.html" import released_preparations, deposition_links %}
 {% if not record %}
   <section class="card narrow">
     <h1 class="title">Specimen unavailable</h1>
@@ -57,11 +58,20 @@
           <li>
             <a href="/profiles/{{ profile.id }}">Sample {{ sample.code }} · run {{ profile.run_code }}</a>
             <span class="muted small"><a href="/studies/{{ study.id }}">{{ study.title }}</a> · {{ sample.plant_part }}{% if profile.technique %} · {{ profile.technique }}{% endif %}
-              · {{ preparation.kind | replace('_', ' ') }}</span>
+              · {{ preparation.kind | replace('_', ' ') }}{{ deposition_links(deposited_with_runs.get(preparation.id)) }}</span>
           </li>
         {% endfor %}
       </ul>
       <p class="small">Download: {% for study_id in studies %}<a href="/api/chemistry/public/export?study_id={{ study_id }}&amp;format=long" download>{{ studies[study_id].title }} (CSV)</a>{{ ', ' if not loop.last }}{% endfor %}</p>
+    </section>
+    {% endif %}
+
+    {% if preparations %}
+    <section class="card" aria-labelledby="preparations-title">
+      <h2 id="preparations-title">Samples and preparations without analytical profiles</h2>
+      <p class="muted small">Oils, extracts and other preparations from this voucher, released in published depositions
+        without analytical runs.{% if profiles %} Preparations with results are listed under Analytical profiles.{% endif %}</p>
+      {{ released_preparations(preparations, roles, show_vouchers=false) }}
     </section>
     {% endif %}
 

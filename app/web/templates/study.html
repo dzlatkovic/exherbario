@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ study.title ~ ' · ' if study }}Study · Ex Herbario{% endblock %}
 {% block body %}
+{% from "_released_preparations.html" import released_preparations, deposition_links %}
 {% if not study %}
   <section class="card narrow">
     <h1 class="title">Study unavailable</h1>
-    <p class="muted">This study does not exist or has no released profiles.</p>
+    <p class="muted">This study does not exist or has no released records.</p>
     <a class="button secondary" href="/specimens">Search specimens</a>
   </section>
 {% else %}
@@ -13,11 +14,17 @@
   <h1 class="title plain">{{ study.title }}</h1>
   {% if study.description %}<p class="lead">{{ study.description }}</p>{% endif %}
   <p class="link-row small">
-    <span class="muted">{{ rows | length }} released profile{{ '' if rows | length == 1 else 's' }}</span>
+    <span class="muted">{{ rows | length }} released profile{{ '' if rows | length == 1 else 's' }}{% if preparations %}
+      · {{ preparations | length }} preparation{{ '' if preparations | length == 1 else 's' }} without profiles{% endif %}</span>
+    {% if rows %}
     <a href="/api/chemistry/public/export?study_id={{ study.id }}&amp;format=long" download>Long CSV</a>
     <a href="/api/chemistry/public/export?study_id={{ study.id }}&amp;format=wide" download>Wide CSV</a>
+    {% endif %}
   </p>
 </header>
+{% if rows %}
+<section aria-labelledby="profiles-title">
+<h2 id="profiles-title">Analytical profiles</h2>
 <ol class="result-list">
   {% for row in rows %}
   <li>
@@ -32,8 +39,18 @@
         {% for voucher in row.vouchers %}<span>{{ voucher.name | taxon }} <span class="mono">{{ voucher.accession or '' }}</span> ({{ voucher.role | lower }}){% if voucher.redetermined %} · redetermined{% endif %}</span>{% endfor %}
       </span>
     </a>
+    {% if deposited_with_runs.get(row.preparation.id) %}<p class="small muted">{{ deposition_links(deposited_with_runs[row.preparation.id]) }}</p>{% endif %}
   </li>
   {% endfor %}
 </ol>
+</section>
+{% endif %}
+{% if preparations %}
+<section class="card" aria-labelledby="preparations-title">
+  <h2 id="preparations-title">Samples and preparations without analytical profiles</h2>
+  <p class="muted small">Released in published depositions without analytical runs.</p>
+  {{ released_preparations(preparations, roles, show_study=false) }}
+</section>
+{% endif %}
 {% endif %}
 {% endblock %}

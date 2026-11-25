@@ -12,9 +12,9 @@
     <label class="visually-hidden" for="q">Plant name, accession or registration number</label>
     <input id="q" name="q" type="search" value="{{ values.q }}" maxlength="150"
            placeholder="Plant name or accession">
-    <button class="primary">Search</button>
+    <button class="primary icon-search">Search</button>
   </div>
-  <details class="filter-details"{% if advanced %} open{% endif %}>
+  <details class="filter-details disclosure"{% if advanced %} open{% endif %}>
     <summary>Filters</summary>
     <div class="form-grid">
       {% if facets.holding_institutions %}

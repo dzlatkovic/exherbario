@@ -12,8 +12,6 @@
 
 <div class="record-grid">
   <div class="record-main">
-    <section class="card" aria-labelledby="draft-title">
-      <h2 id="draft-title">Draft</h2>
       <div id="published-notice" class="notice stack" hidden>
         <p id="published-text"></p>
         <p class="muted small">A published version cannot be edited. A correction is a new version with a public reason;
@@ -23,8 +21,12 @@
           <button type="button" id="start-correction" class="secondary">Start a correction</button>
         </div>
       </div>
-      <form id="save-draft" class="stack">
-        <p class="muted small">Fill in fields marked Required to save a draft. You can add the remaining publication details later.</p>
+      <form id="save-draft" class="stack deposition-form">
+        <section class="card" id="deposition-info" aria-labelledby="draft-title">
+        <div class="section-head"><h2 id="draft-title">1. Deposition information</h2>
+          <span class="section-status small" id="info-status" aria-live="polite"></span></div>
+        <p class="muted small">What the deposition is, who made it and how others may reuse it. Only the institution is needed
+          to save a draft; the rest can follow.</p>
         <div class="form-grid">
           <label>{{ field_label("Institution") }} <select name="institution" required><option value="">Loading…</option></select></label>
           <label>{{ field_label("License", "Required to publish") }} <select name="license">
@@ -40,11 +42,26 @@
           <legend>Contributors</legend>
           <p class="muted small">Add at least one contributor to publish. Each contributor needs a name and role. ORCID iD is optional.</p>
           <div id="credit-rows"></div>
-          <button type="button" id="add-credit" class="secondary">Add contributor</button>
+          <button type="button" id="add-credit" class="tonal icon-add">Add contributor</button>
           {% if account.orcid %}<button type="button" id="add-me" class="secondary" data-name="{{ account.orcid_name or (account.name ~ ' ' ~ account.surname) | trim }}" data-orcid="{{ account.orcid }}">Add me with my ORCID iD</button>{% endif %}
         </fieldset>
+        <details class="disclosure">
+          <summary>Rights statement and names of collectors and determiners</summary>
+          <div class="stack">
+            <label>Rights statement <textarea name="rights_statement" rows="2" maxlength="2000"></textarea></label>
+            <label class="check"><input name="include_collector_names" type="checkbox"> Include recorded collector names</label>
+            <label class="check"><input name="include_determiner_names" type="checkbox"> Include recorded determiner names</label>
+          </div>
+        </details>
+        </section>
+
+        <section class="card" id="deposition-records" aria-labelledby="records-title">
+        <div class="section-head"><h2 id="records-title">2. Research records</h2>
+          <span class="section-status small" id="records-status" aria-live="polite"></span></div>
+        <p class="muted small">Choose what this version publishes: analytical runs, preparations without runs, or vouchers on
+          their own. Each run and preparation brings its sample and linked vouchers with it.</p>
         <fieldset class="stack">
-          <legend>Analytical runs</legend>
+          <legend>Analytical runs and profiles</legend>
           <p class="muted small">Runs from your studies, with their samples, preparations and linked vouchers.</p>
           <ul id="profile-list" class="picker-results"></ul>
           <div class="form-grid">
@@ -52,10 +69,10 @@
             <label>Run <select id="choose-profile"><option value="">Select a run</option></select></label>
           </div>
           <p id="profile-choice-status" class="feedback small" role="status"></p>
-          <button type="button" id="attach-profile" class="secondary">Add run</button>
+          <button type="button" id="attach-profile" class="secondary icon-add">Add run</button>
         </fieldset>
         <fieldset class="stack">
-          <legend>Samples and preparations without runs</legend>
+          <legend>Samples and preparations without analytical runs</legend>
           <p class="muted small">Material deposited without analytical results, for example an extract tested only in a bioassay
             or an essential oil reported by its yield. The sample's provenance, the preparation and its linked vouchers are included.</p>
           <ul id="preparation-list" class="picker-results"></ul>
@@ -63,7 +80,7 @@
             <label>Study <select id="choose-preparation-study"><option value="">Select a study</option></select></label>
             <label>Preparation <select id="choose-preparation"><option value="">Select a preparation</option></select></label>
           </div>
-          <button type="button" id="attach-preparation" class="secondary">Add preparation</button>
+          <button type="button" id="attach-preparation" class="secondary icon-add">Add preparation</button>
         </fieldset>
         <fieldset class="stack">
           <legend>Vouchers on their own</legend>
@@ -72,56 +89,59 @@
           <div id="draft-voucher-picker" class="picker">
             <div class="inline-form">
               <label>Add a voucher <input class="picker-query" type="search" maxlength="100" autocomplete="off" placeholder="Name, accession or ID"></label>
-              <button type="button" class="secondary picker-search">Search</button>
+              <button type="button" class="secondary picker-search icon-search">Search</button>
             </div>
             <p class="feedback" role="status"></p>
             <ul class="picker-results"></ul>
           </div>
         </fieldset>
-        <details>
-          <summary class="small">More options</summary>
-          <div class="stack">
-            <label>Rights statement <textarea name="rights_statement" rows="2" maxlength="2000"></textarea></label>
-            <label class="check"><input name="include_collector_names" type="checkbox"> Include recorded collector names</label>
-            <label class="check"><input name="include_determiner_names" type="checkbox"> Include recorded determiner names</label>
-          </div>
-        </details>
+        </section>
         {# The pickers above fill these; they are what the draft saves. #}
         <input type="hidden" name="profile_ids">
         <input type="hidden" name="preparation_ids">
         <input type="hidden" name="specimen_ids">
         <label id="correction-field" hidden>{{ field_label("Reason for this correction") }} <textarea name="correction_reason" rows="2" maxlength="1000"></textarea></label>
-        <button class="primary">Save draft</button>
+        <div class="save-row">
+          <button class="primary">Save draft</button>
+          <p class="muted small">Saves privately. Nothing is public until a curator publishes a version.</p>
+        </div>
         <p class="feedback" role="status"></p>
       </form>
       <div class="stack" id="discard-draft-actions" hidden>
-        <button type="button" class="secondary danger" id="discard-draft">Discard draft</button>
+        <button type="button" class="secondary danger icon-delete" id="discard-draft">Discard draft</button>
         <p class="feedback" id="discard-draft-feedback" role="status"></p>
       </div>
-    </section>
   </div>
 
   <aside class="record-side">
     <section class="card" aria-labelledby="review-title">
-      <h2 id="review-title">Review and publish</h2>
+      <h2 id="review-title">3. Review and submission</h2>
+      <dl class="action-key small">
+        <div><dt>Save draft</dt><dd>Private. Change it as often as you like.</dd></div>
+        {% if not curator %}<div><dt>Submit for review</dt><dd>Asks a curator to check and publish it. You can take it back.</dd></div>{% endif %}
+        <div><dt>Publish version</dt><dd>{% if curator %}Public, permanent and citable.{% else %}Done by a curator: public, permanent and citable.{% endif %}
+          Later changes become a new version.</dd></div>
+      </dl>
       <h3>Required to publish</h3>
-      <ul id="publication-requirements">
-        <li>Title</li>
-        <li>License</li>
-        <li>At least one contributor with a name and role</li>
-        <li>At least one run, preparation or voucher</li>
+      <ul id="publication-requirements" class="requirement-list">
+        <li><a href="#deposition-info">Title</a></li>
+        <li><a href="#deposition-info">License</a></li>
+        <li><a href="#credits">At least one contributor with a name and role</a></li>
+        <li><a href="#deposition-records">At least one run, preparation or voucher</a></li>
       </ul>
-      <p class="muted small">Records below that are still private are released when a curator publishes the version; the preview lists them. A record withdrawn from public view must be released again first.</p>
+      <p class="notice warning small">Publishing makes public every record in the version, and any study, sample, preparation
+        or voucher it depends on that is still private. The preview lists all of them before anything is released.
+        A record withdrawn from public view must be released again first.</p>
       <p id="inputs-status" class="feedback" role="status"></p>
       <div id="release-inputs"></div>
       <form id="validate" class="stack">
-        <button class="secondary" disabled>Validate and preview</button>
+        <button class="tonal" disabled>Validate and preview</button>
         <p class="feedback" role="status"></p>
       </form>
       <section id="preview" class="preview" hidden aria-labelledby="preview-title">
         <h3 id="preview-title">Public snapshot</h3>
         <div id="preview-summary"></div>
-        <details><summary class="small">Inspect the complete snapshot</summary><pre id="preview-json"></pre></details>
+        <details class="disclosure"><summary class="small">Inspect the complete snapshot</summary><pre id="preview-json"></pre></details>
         <form id="publish" class="stack" {% if not curator %}hidden{% endif %}>
           <label class="check"><input name="approved" type="checkbox" required> I reviewed this snapshot for public release.</label>
           <button class="primary">Publish version</button>

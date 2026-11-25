@@ -61,7 +61,7 @@
           {% if has('id_basis') %}<td>{{ row.id_basis | replace(';', ', ') if row.id_basis }}{% if row.id_level %} · MSI {{ row.id_level }}{% endif %}</td>{% endif %}
           {{ extra_cells(row, has) }}
           <td>{% if compound %}<a href="/compounds/{{ compound.cid }}">{{ compound.title }}</a> <span class="muted small mono">CID {{ compound.cid }}</span>
-            {%- elif row.structure %}<details class="structure-details"><summary>Structure from the authors · {{ row.structure.molecular_formula | formula }}</summary>
+            {%- elif row.structure %}<details class="structure-details disclosure"><summary>Structure from the authors · {{ row.structure.molecular_formula | formula }}</summary>
               <img class="structure" src="/api/chemistry/depict.svg?smiles={{ row.structure.smiles | urlencode }}" alt="Structure of {{ row.feature }}" width="260" height="200">
               <span class="mono small break">{{ row.structure.inchikey }}</span></details>
             {%- else %}<span class="muted">Unlinked</span>{% endif %}</td>
@@ -84,7 +84,7 @@
         <label>Find the compound <input id="compound-query" type="search" maxlength="300" placeholder="Name, CAS, CID or InChIKey"></label>
         <select id="compound-namespace" aria-label="Search by"><option value="name">Name</option><option value="cas">CAS</option><option value="cid">CID</option><option value="inchikey">InChIKey</option></select>
       </div>
-      <button type="button" id="compound-search" class="secondary">Search PubChem</button>
+      <button type="button" id="compound-search" class="secondary icon-search">Search PubChem</button>
       <label>New assignment <select name="cid">
         <option value="">Mark as unidentified</option>
       </select></label>

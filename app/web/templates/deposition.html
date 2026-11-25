@@ -94,6 +94,25 @@
     <div class="publication-grid">
       <div>
         {% if snapshot %}
+          {% set taxa = [] %}
+          {% for voucher in snapshot.vouchers %}{% set name = voucher_name(voucher) | trim %}{% if name not in taxa %}{% set _ = taxa.append(name) %}{% endif %}{% endfor %}
+          {% set studies = [] %}
+          {% for item in snapshot.profiles + (snapshot.preparations or []) %}{% if item.study.title not in studies %}{% set _ = studies.append(item.study.title) %}{% endif %}{% endfor %}
+          <section class="publication-summary" aria-labelledby="summary-title">
+            <h2 id="summary-title">Summary</h2>
+            <p>This version contains
+              {%- set parts = [] -%}
+              {%- if snapshot.profiles %}{% set _ = parts.append('<a href="#profiles-title">' ~ snapshot.profiles | length ~ ' analytical profile' ~ ('' if snapshot.profiles | length == 1 else 's') ~ '</a>') %}{% endif -%}
+              {%- if snapshot.preparations %}{% set _ = parts.append('<a href="#preparations-title">' ~ snapshot.preparations | length ~ ' preparation' ~ ('' if snapshot.preparations | length == 1 else 's') ~ ' without runs</a>') %}{% endif -%}
+              {%- set _ = parts.append(snapshot.vouchers | length ~ ' voucher' ~ ('' if snapshot.vouchers | length == 1 else 's')) %}
+              {{ parts | join(', ') | safe }}.</p>
+            <dl class="facts">
+              {% if taxa %}<div><dt>Taxa</dt><dd>{% for name in taxa %}{{ name | taxon }}{{ '; ' if not loop.last }}{% endfor %}</dd></div>{% endif %}
+              {% if studies %}<div><dt>Stud{{ 'y' if studies | length == 1 else 'ies' }}</dt><dd>{{ studies | join('; ') }}</dd></div>{% endif %}
+              <div><dt>Contributors</dt><dd>{% for contributor in snapshot.contributors %}{{ contributor.name }}{{ ', ' if not loop.last }}{% endfor %}</dd></div>
+              <div><dt>Cite as</dt><dd><a href="#citation">Citation and license</a></dd></div>
+            </dl>
+          </section>
           {% if unprofiled %}
           <section aria-labelledby="vouchers-title">
             <h2 id="vouchers-title">Vouchers</h2>
@@ -122,7 +141,7 @@
                 <div class="file-row">
                   <div><a class="break" href="{{ profile.file.url }}" download>{{ profile.file.name }}</a>
                     <p class="muted">{{ profile.file.size }} bytes · {{ profile.file.source_fidelity | replace('-', ' ') | capitalize }}</p></div>
-                  <details><summary>SHA-256</summary><code class="break">{{ profile.file.sha256 }}</code></details>
+                  <details class="disclosure"><summary>SHA-256</summary><code class="break">{{ profile.file.sha256 }}</code></details>
                 </div>
               </article>
             {% endfor %}
@@ -160,7 +179,7 @@
           {% if snapshot.rights_statement %}<p>{{ snapshot.rights_statement }}</p>{% endif %}
           <h3>Contributors</h3>
           <ul>{% for contributor in snapshot.contributors %}<li>{{ contributor.name }} · {{ contributor.role }}{% if contributor.orcid %} · <a href="https://orcid.org/{{ contributor.orcid }}">ORCID {{ contributor.orcid }}</a>{% endif %}</li>{% endfor %}</ul>
-          <details class="verify">
+          <details class="verify disclosure">
             <summary>Verify the archive offline</summary>
             <code class="break">python -m app.deposition.verify_archive &lt;ZIP&gt; --snapshot-sha256 {{ record.snapshot_sha256 }}</code>
           </details>

@@ -1,4 +1,5 @@
-// Light or dark: the visitor's choice if they made one, otherwise their system setting. Loaded in <head> (not as a
+// Light or dark: the visitor's choice if they made one, otherwise their system setting, and light when the
+// system states no preference. Loaded in <head> (not as a
 // module) so the page is painted in the right theme from the start.
 (() => {
   const root = document.documentElement;
@@ -7,8 +8,8 @@
     const stored = localStorage.getItem(KEY);
     if (stored === "light" || stored === "dark") root.dataset.theme = stored;
   } catch { /* storage unavailable: follow the system */ }
-  const system = matchMedia("(prefers-color-scheme: light)");
-  const current = () => root.dataset.theme || (system.matches ? "light" : "dark");
+  const system = matchMedia("(prefers-color-scheme: dark)");
+  const current = () => root.dataset.theme || (system.matches ? "dark" : "light");
   const paint = () => {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = current() === "light" ? "#f6f5f0" : "#121614";

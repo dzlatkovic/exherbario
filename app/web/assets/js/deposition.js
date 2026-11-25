@@ -43,7 +43,7 @@ function renderList(list, field, kind) {
     const item = node("li");
     const label = node("span", "…");
     void nameOf(kind, id).then((name) => { label.textContent = name; });
-    const remove = node("button", "Remove", "secondary");
+    const remove = node("button", "Remove", "text-button");
     remove.type = "button";
     remove.addEventListener("click", () => {
       draftForm.elements[field].value = idList(field).filter((value) => value !== id).join("\n");
@@ -86,8 +86,22 @@ function updateReview() {
   ];
   const items = find("publication-requirements").children;
   requirements.forEach(([label, done], index) => {
-    items[index].textContent = `${label} — ${done ? "Entered" : "Missing"}`;
+    const target = items[index].querySelector("a") ?? items[index];
+    target.textContent = `${label} — ${done ? "Entered" : "Missing"}`;
+    items[index].className = done ? "requirement-done" : "requirement-missing";
   });
+  // Each section says whether it is ready, so a gap is visible where it has to be filled.
+  const section = (id, missing, ready) => {
+    const element = find(id);
+    element.textContent = missing.length ? `Missing: ${missing.join(", ")}` : ready;
+    element.className = `section-status small ${missing.length ? "is-missing" : "is-complete"}`;
+  };
+  section("info-status", requirements.slice(0, 3).filter(([, done]) => !done)
+    .map(([label]) => label === requirements[2][0] ? "contributor" : label.toLowerCase()), "Complete");
+  const counts = [[profileIds().length, "run"], [idList("preparation_ids").length, "preparation"],
+                  [idList("specimen_ids").length, "voucher"]].filter(([count]) => count)
+    .map(([count, label]) => `${count} ${label}${count === 1 ? "" : "s"}`);
+  section("records-status", requirements[3][1] ? [] : ["at least one record"], counts.join(" · "));
   // Say why the preview cannot run yet, instead of only greying out its button.
   const missing = requirements.filter(([, done]) => !done).map(([label]) => label.toLowerCase());
   status(find("validate").querySelector(".feedback"),
@@ -183,7 +197,7 @@ function addCredit(credit = {}) {
     label.append(caption, input);
     row.append(label);
   }
-  const remove = node("button", "Remove", "secondary");
+  const remove = node("button", "Remove", "text-button");
   remove.type = "button";
   remove.addEventListener("click", () => { row.remove(); markDirty(); });
   row.append(remove);

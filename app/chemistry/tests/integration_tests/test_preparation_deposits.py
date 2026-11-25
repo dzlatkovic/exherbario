@@ -83,6 +83,9 @@ class TestPreparationDeposits(TestClass):
         page = client.get(snapshot["identifier"].removeprefix("https://herbar.example.edu"))
         assert page.status_code == 200
         assert "Samples and preparations without analytical runs" in page.text and "MeOH-1" in page.text
+        # A short summary comes before the detailed records.
+        assert page.text.index('id="summary-title"') < page.text.index('id="preparations-title"')
+        assert '1 preparation without runs</a>, 1 voucher.' in page.text and "F. Scientist" in page.text
         assert "Maceration in methanol" in page.text and "Sampled from the voucher" in page.text
         archive = client.get(snapshot["url"].removeprefix("https://herbar.example.edu") + "/archive.zip")
         with ZipFile(BytesIO(archive.content)) as bundle:

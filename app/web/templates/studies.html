@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Chemical data · Ex Herbario{% endblock %}
+{% block header %}
+<header class="page-header">
+  {{ catalog_tabs('studies') }}
+  <h1 class="title">Chemical data</h1>
+  <p class="muted">Released phytochemical studies. Each analytical profile and preparation is linked to the herbarium voucher
+    that documents the plant it came from.</p>
+</header>
+{% endblock %}
+{% block body %}
+{% if rows %}
+  <div class="result-summary"><p class="muted" role="status">{{ rows | length }} stud{{ 'y' if rows | length == 1 else 'ies' }}</p></div>
+  <ol class="result-list">
+    {% for row in rows %}
+    <li>
+      <a class="result" href="/studies/{{ row.study.id }}">
+        <span class="result-name">{{ row.study.title }}</span>
+        <span class="result-meta">
+          {% if row.profiles %}<span>{{ row.profiles }} analytical profile{{ '' if row.profiles == 1 else 's' }}</span>{% endif %}
+          {% if row.preparations %}<span>{{ row.preparations }} preparation{{ '' if row.preparations == 1 else 's' }} without profiles</span>{% endif %}
+          {% if row.techniques %}<span>{{ row.techniques | join(', ') }}</span>{% endif %}
+          {% if row.kinds %}<span>{{ row.kinds | map('replace', '_', ' ') | join(', ') | capitalize }}</span>{% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+{% else %}
+  {{ empty_state("No chemical data released yet.", "Studies appear here when their analytical profiles or preparations are released.", "/specimens", "Search specimens") }}
+{% endif %}
+{% endblock %}

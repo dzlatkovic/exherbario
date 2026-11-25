@@ -99,6 +99,18 @@ class TestSpreadsheetImport(TestClass):
                              "preparation": {"batch_code": "B2", "kind": "extract", "method_reference": "Test extract"}})
         assert second.status_code == 201 and second.json()["sample"] == result["sample"]
 
+        # The study page lists the source table and can narrow the samples to the runs derived from it.
+        from app.tests.test_record_pages import signed_in
+        researcher = signed_in("lab@example.org")
+        page = researcher.get(f"/researcher/studies/{study}").text
+        assert "Results tables" in page and "1 results table" in page and "2 preparations (1 without runs)" in page
+        assert f"?table={draft['id']}#samples" in page and "Import a results table" in page
+        assert "Add a sample or preparation manually" in page and "How samples, preparations and analytical profiles relate" in page
+        filtered = researcher.get(f"/researcher/studies/{study}?table={draft['id']}").text
+        assert "Show all samples" in filtered and "Essential oil B1" in filtered and "Extract B2" not in filtered
+        unknown = researcher.get(f"/researcher/studies/{study}?table=missing").text
+        assert "Show all samples" not in unknown and "Extract B2" in unknown
+
     def test_percentages_above_100_are_a_warning(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         owner, study, (first, _) = self.setup_study()

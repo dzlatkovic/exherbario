@@ -446,6 +446,52 @@ function importAssignment(form) {
   return assignment;
 }
 
+// Review rows fall in three groups, which the summary counts and the filter shows.
+function reviewGroup(item) {
+  if (["confirmed", "unidentified"].includes(item.status)) return "confirmed";
+  return item.status === "needs_review" && item.match ? "review" : "unresolved";
+}
+
+let reviewFilter = "all";
+
+function applyReviewFilter() {
+  let shown = 0;
+  for (const row of find("import-review").querySelectorAll("tr[data-group]")) {
+    row.hidden = reviewFilter !== "all" && row.dataset.group !== reviewFilter;
+    if (!row.hidden) shown++;
+  }
+  const total = importState.review.length;
+  status(find("import-filter-status"), reviewFilter === "all" ? "" : `Showing ${shown} of ${total} compounds.`);
+}
+
+function setReviewFilter(value) {
+  reviewFilter = value;
+  const radio = document.querySelector(`#import-filter input[value="${value}"]`);
+  if (radio) radio.checked = true;
+  applyReviewFilter();
+}
+
+function updateSummary() {
+  const counts = {samples: importState.preview?.profiles.length ?? 0, compounds: importState.review.length,
+    confirmed: 0, review: 0, unresolved: 0, errors: importState.preview?.errors.length ?? 0,
+    warnings: importState.preview?.warnings.length ?? 0};
+  for (const item of importState.review) counts[reviewGroup(item)]++;
+  const summary = find("import-summary");
+  summary.querySelector(".summary-counts").hidden = !importState.preview;
+  find("import-summary-empty").hidden = Boolean(importState.preview);
+  for (const [name, value] of Object.entries(counts)) {
+    const element = summary.querySelector(`[data-count="${name}"]`);
+    if (element) element.textContent = value;
+  }
+  summary.querySelector(".count-errors").classList.toggle("has-problems", counts.errors > 0);
+  summary.querySelector(".count-errors").hidden = !counts.errors;
+  summary.querySelector(".count-warnings").hidden = !counts.warnings;
+}
+
+function sourceTag(text, kind) {
+  return node("span", text, `source-tag from-${kind}`);
+}
+
 function compoundCell(match) {
   const cell = document.createElement("td");
   if (!match) {
@@ -457,7 +503,7 @@ function compoundCell(match) {
   image.alt = `Structure of ${match.title}`;
   image.loading = "lazy";
   const facts = node("div");
-  facts.append(node("strong", match.title), node("div", `${match.cid ? `CID ${match.cid}` : "Structure from your SMILES"} · ${match.molecular_formula ?? ""}`
+  facts.append(match.cid ? sourceTag("PubChem", "pubchem") : sourceTag("Your structure", "file"), " ", node("strong", match.title), node("div", `${match.cid ? `CID ${match.cid}` : "Structure from your SMILES"} · ${match.molecular_formula ?? ""}`
     + (match.monoisotopic_mass ? ` · ${Number(match.monoisotopic_mass).toFixed(4)}` : "")),
     node("div", match.inchikey ?? "", "break"), node("div", match.smiles ?? "", "break muted"));
   cell.append(image, facts);
@@ -476,8 +522,9 @@ function renderImportReview() {
   const table = find("import-review");
   table.replaceChildren();
   const head = table.insertRow();
-  head.append(node("th", "Row"), node("th", "Name in table"), node("th", "Status"), node("th", "Assigned compound"),
+  head.append(node("th", "Row"), node("th", "Name in your file"), node("th", "Status"), node("th", "Assigned compound"),
     node("th", "Change"));
+  for (const cell of head.cells) cell.scope = "col";
   const methods = {alias: "your earlier choice", registry_name: "registry name", registry_synonym: "registry synonym",
     pubchem_name: "PubChem name search", cas: "CAS in table", cid: "CID in table", inchikey: "InChIKey in table",
     manual: "chosen", parent: "parent compound", smiles: "SMILES in table",
@@ -485,6 +532,8 @@ function renderImportReview() {
     author_structure: "your structure; not in PubChem"};
   for (const item of importState.review) {
     const row = table.insertRow();
+    row.dataset.group = reviewGroup(item);
+    row.id = `import-row-${item.row}`;
     row.insertCell().textContent = item.row;
     row.insertCell().textContent = item.name;
     const statusCell = row.insertCell();
@@ -496,7 +545,8 @@ function renderImportReview() {
     row.append(compoundCell(item.status === "unidentified" ? null : item.match));
     const actions = row.insertCell();
     const button = (label, handler) => {
-      const element = node("button", label, "secondary");
+      // Accept is the expected decision; the other changes are quieter text buttons.
+      const element = node("button", label, label === "Accept" ? "tonal" : "text-button");
       element.type = "button";
       element.addEventListener("click", () => handler().catch((error) => { statusCell.textContent = error.message; }));
       actions.append(element);
@@ -537,27 +587,36 @@ function renderImportReview() {
       return reviewAction(item.row, {action: "structure", smiles: smiles.value.trim()});
     });
   }
+  applyReviewFilter();
+  updateSummary();
   const open = importState.review.filter((item) => !["confirmed", "unidentified"].includes(item.status)).length;
   find("import-confirm").disabled = open > 0 || !importState.ready || busy;
-  status(find("import-confirm-status"), open ? `${open} rows still need a decision.` : "");
+  status(find("import-confirm-status"), !importState.ready ? "Fix the errors in the preview first."
+    : open ? `${open} row${open === 1 ? "" : "s"} still need a decision.` : "Ready to confirm.");
 }
 
 function renderImportPreview(result) {
   const preview = result.preview;
   importState.review = result.review;
+  importState.preview = preview;
   importState.ready = !preview.errors.length;
   find("import-preview").hidden = false;
-  const problems = find("import-problems");
-  problems.hidden = !preview.errors.length;
-  problems.replaceChildren(...preview.errors.map((error) => node("p", error)));
-  const notes = find("import-notes");
-  notes.hidden = !preview.warnings.length;
-  notes.replaceChildren(...preview.warnings.map((warning) => node("p", warning)));
+  const listed = (element, title, items) => {
+    element.hidden = !items.length;
+    const list = node("ul");
+    list.append(...items.map((item) => node("li", item)));
+    element.replaceChildren(node("p", title, "notice-title"), list);
+  };
+  listed(find("import-problems"), `${preview.errors.length} error${preview.errors.length === 1 ? "" : "s"} to fix before confirming`,
+    preview.errors);
+  listed(find("import-notes"), `${preview.warnings.length} warning${preview.warnings.length === 1 ? "" : "s"} to check`,
+    preview.warnings);
   const labels = Object.fromEntries(preparationOptions().map((option) => [option.id, option.label]));
   const samples = find("import-samples");
   samples.replaceChildren();
   const head = samples.insertRow();
-  head.append(node("th", "Column"), node("th", "Preparation"), node("th", "Run code"), node("th", "Detected"), node("th", "Total"));
+  head.append(node("th", "Column in your file"), node("th", "Preparation"), node("th", "Run code"), node("th", "Detected"), node("th", "Total"));
+  for (const cell of head.cells) cell.scope = "col";
   for (const profile of preview.profiles) {
     const row = samples.insertRow();
     for (const text of [profile.header, labels[profile.preparation_id] ?? "Not chosen", profile.run_code,
@@ -580,6 +639,17 @@ function renderImportPreview(result) {
   renderImportReview();
 }
 
+// The section bar sticks just below the masthead, whatever its height.
+const masthead = document.querySelector(".masthead");
+const measureMasthead = () => document.documentElement.style.setProperty("--masthead-height", `${masthead?.offsetHeight ?? 56}px`);
+measureMasthead();
+window.addEventListener("resize", measureMasthead);
+for (const radio of document.querySelectorAll("#import-filter input")) {
+  radio.addEventListener("change", () => setReviewFilter(radio.value));
+}
+for (const link of document.querySelectorAll("[data-filter-link]")) {
+  link.addEventListener("click", () => setReviewFilter(link.dataset.filterLink));
+}
 find("import-sheet").addEventListener("change", () => resetImportColumns());
 find("import-header-row").addEventListener("change", () => resetImportColumns());
 find("import-template").addEventListener("change", async (event) => {
@@ -727,6 +797,7 @@ async function startImport() {
   importState.study = study;
   if (record.status !== "draft") {
     find("import-work").hidden = true;
+    find("import-steps").hidden = true;
     const notice = find("import-status");
     notice.replaceChildren("This import was confirmed. ");
     const link = node("a", "Open the study");
